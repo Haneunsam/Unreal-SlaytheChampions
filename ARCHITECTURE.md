@@ -30,7 +30,7 @@ GameInstance / Save
    -> Action Queue
    -> Effect Resolver
    -> Status Manager
-   -> Ultimate/Co-op Trigger Manager
+   -> Ultimate/Combo Trigger Manager
 -> Reward Manager
 -> UI Layer
 ```
@@ -48,7 +48,7 @@ GameInstance / Save
 -> 턴 종료
 -> Action Queue 순차 실행
 -> Effect Resolver가 피해/방어/상태 처리
--> Ultimate/Co-op Trigger Manager가 자동 승격 조건 판정
+-> Ultimate/Combo Trigger Manager가 필살기 자동 승격과 합동기 조건 판정
 -> Enemy Manager가 적 AI 실행
 -> 전투 종료
 -> Reward Manager가 보상 처리
@@ -128,8 +128,11 @@ BattleStart
 
 **책임:**
 - 검사/마법사/힐러 초기 파티 구성
-- 파티원별 HP, Block, Status 관리
+- 파티원별 HP, Block, Status, Defense Up 버프 관리
 - 파티원별 덱, 드로우 pile, discard pile, hand 관리
+- 캐릭터별 덱 1~10장 제한 관리
+- 캐릭터별 기본 드로우 5장 처리
+- 드로우 pile 부족 시 discard pile을 섞어 추가 드로우
 - 파티원 선택 요청 처리
 - 피해 대신 받기 대상 판정 지원
 
@@ -138,7 +141,7 @@ BattleStart
 | 직업 | 역할 | 시스템 요구 |
 | --- | --- | --- |
 | 검사 | 단일 공격/강화 | 강화 스택, 공격 필살기 자동 승격 |
-| 마법사 | 광역 피해/필드 효과 | 필드 효과, 광역 대상, 디버프 |
+| 마법사 | 광역 피해/필드 효과 | 원소반응, 필드 효과, 광역 대상, 디버프 |
 | 힐러 | 회복/보호/버프 | 회복, 정화, 아군 지정, 전체 보호 |
 
 ### 5. Card Manager
@@ -164,7 +167,7 @@ BattleStart
 | Rarity | Normal/Rare/Legendary |
 | OwnerClass | 검사/마법사/힐러 등 제한 |
 | Cost | 공용 코스트 소비량 |
-| EventType | Attack/Guard/Skill/Status/Support/Special/Co-op/Ultimate |
+| EventType | Attack/Guard/Skill/Status/Support/Special/Combo/Ultimate |
 | TargetType | Self/Target Ally/All Allies/Target Enemy/All Enemies/All Units/Field |
 | EffectList | 생성할 효과 목록 |
 | Tags | 강화, 화염, 회복 등 조건 태그 |
@@ -178,7 +181,7 @@ BattleStart
 - 카드 사용 순서대로 Action Event 등록
 - 턴 종료 후 큐 순차 실행
 - 이벤트 실행 전 대상 생존 여부 확인
-- 이벤트 실행 시 필살기/협동 기믹 판정 요청
+- 이벤트 실행 시 필살기/합동기 판정 요청
 - 이벤트 실행 결과를 Battle Log로 기록
 
 **Action Event 최소 필드:**
@@ -193,6 +196,7 @@ BattleStart
 | EffectPayload | 피해/방어/상태 수치 |
 | Tags | 조건 판정용 태그 |
 | QueueIndex | 실행 순서 |
+| InputIndex | 카드 사용 입력 순서 |
 | IsUpgradedToUltimate | 필살기 자동 승격 여부 |
 
 ### 7. Effect Resolver
@@ -202,6 +206,7 @@ BattleStart
 **책임:**
 - 피해 계산
 - Block 차감
+- Defense Up 버프 기반 피해 감소
 - HP 변경
 - 방어도 획득
 - 회복 처리
@@ -215,7 +220,7 @@ BattleStart
 사망/행동 불가 확인
 -> 보호/피해 대신 받기 확인
 -> 피해 증가/감소 확인
--> 필살기/협동 기믹 조건 확인
+-> 필살기/합동기 조건 확인
 -> 효과 적용
 -> 사망 처리
 -> 후속 트리거 처리
@@ -232,20 +237,22 @@ BattleStart
 - 스테이지 클리어 시 필살기 조건 스택 초기화
 - UI에 상태 표시 데이터 제공
 
-### 9. Ultimate/Co-op Trigger Manager
+### 9. Ultimate/Combo Trigger Manager
 
-필살기 자동 승격과 협동 기믹 조건을 판정한다.
+필살기 자동 승격과 합동기 입력 패턴 조건을 판정한다.
 
 **책임:**
 - Action Event 실행 시점에 조건 검사
 - Battle Log와 Status Stack 참조
-- 조건 충족 시 EventType을 Ultimate 또는 Co-op으로 승격
+- 조건 충족 시 필살기는 EventType을 Ultimate로 승격
+- 합동기는 InputIndex 기반 입력 패턴을 확인해 소규모 보너스 적용
 - 스택 소비 규칙 적용
 - 전용 연출 요청 이벤트 발행
 
 **기본 규칙:**
 - 플레이어가 별도 필살기 버튼을 누르지 않는다.
 - 조건을 만족한 카드 이벤트가 실행 시점에 자동 승격된다.
+- 합동기는 필살기와 분리된 작은 시너지 보너스로 처리한다.
 - 필살기 조건 스택은 스테이지 내부에서 유지된다.
 - 스테이지 클리어 시 초기화된다.
 
@@ -255,7 +262,7 @@ BattleStart
 
 **책임:**
 - 적 데이터 생성
-- 적 HP/Block/Status 관리
+- 적 HP/Block/Status/Defense Up 버프 관리
 - 적 의도 표시
 - 플레이어 행동 종료 후 적 AI 실행
 - 대상 선택
@@ -311,6 +318,7 @@ BattleStart
 - 비선택 파티원의 손패는 카드 수, 주요 태그, 사용 가능 코스트 정도만 요약한다.
 - 행동 큐는 카드 사용 순서를 확인할 수 있어야 한다.
 - 필살기 조건 스택은 우연히 터졌다고 느껴지지 않도록 진행도를 보여준다.
+- 카드 사용 화면의 카메라/전투 UI 레퍼런스는 `docs/references/visuals/combat-camera-card-use.md`를 따른다.
 
 ## 데이터 구조 권장
 
@@ -323,7 +331,8 @@ BattleStart
 | EnemyData | Primary Data Asset | 적 기본 정보 |
 | StatusData | Primary Data Asset | 상태이상 정보 |
 | UltimateRuleData | Primary Data Asset | 필살기 조건과 승격 효과 |
-| CoOpRuleData | Primary Data Asset | 협동 기믹 조건 |
+| ComboRuleData | Primary Data Asset | 합동기 입력 패턴 조건 |
+| DeckRuleData | Data Asset 또는 Config | 캐릭터별 덱 크기, 드로우 수 제한 |
 | StageNodeData | Data Table 또는 Data Asset | 노드 타입과 보상 |
 | RewardPoolData | Data Asset | 보상 카드 풀 |
 
@@ -333,7 +342,7 @@ BattleStart
 - Action Queue
 - Effect Resolver
 - Target Resolver
-- Ultimate/Co-op Trigger Manager
+- Ultimate/Combo Trigger Manager
 - Card Data 구조체
 - Status Stack 구조체
 
@@ -346,6 +355,7 @@ BattleStart
 - 행동 큐 미리보기
 - 연출 트리거
 - 스테이지 그리드 화면
+- 카드 사용 화면 카메라 레퍼런스 적용
 
 ## 최소 프로토타입 구현 순서
 
@@ -365,6 +375,7 @@ BattleStart
 ### 반드시 구현
 
 - 파티원별 덱/손패
+- 캐릭터별 기본 드로우와 discard pile 재순환
 - 공용 코스트
 - 카드 사용과 Action Event 생성
 - 행동 큐 실행
@@ -372,7 +383,7 @@ BattleStart
 - 피해/방어/회복
 - 상태이상 기본 구조
 - 필살기 자동 승격
-- 협동 기믹 조건 판정
+- 합동기 조건 판정
 - 적 AI 기본 행동
 - 전투 보상
 - 스테이지 내부 상태 유지/초기화

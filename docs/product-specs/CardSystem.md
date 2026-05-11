@@ -33,6 +33,30 @@
 
 카드 밸류 기준은 `QUALITY_SCORE.md`를 따른다.
 
+## 덱과 드로우 규칙
+
+각 캐릭터는 자기 전용 카드 묶음을 가진다.
+
+| 항목 | 규칙 |
+| --- | --- |
+| 캐릭터별 덱 최소 수 | 1장 |
+| 캐릭터별 덱 최대 수 | 10장 |
+| 캐릭터별 드로우 최소 수 | 1장 |
+| 캐릭터별 드로우 최대 수 | 10장 |
+| 기본 드로우 수 | 턴 시작 시 캐릭터마다 5장 |
+| 사용한 카드 | 해당 캐릭터의 discard pile로 이동 |
+
+드로우할 카드가 부족하면 해당 캐릭터의 discard pile 전체를 다시 draw pile로 섞은 뒤, 남은 장수만큼 추가 드로우한다.
+
+```text
+드로우 필요 장수 확인
+-> draw pile에서 가능한 만큼 드로우
+-> draw pile이 비었고 아직 더 뽑아야 하면 discard pile을 섞어 draw pile로 이동
+-> 남은 장수만큼 추가 드로우
+```
+
+draw pile과 discard pile이 모두 비어 있으면 더 이상 드로우하지 않는다.
+
 ## 카드 데이터 필드
 
 | 필드 | 설명 |
@@ -43,7 +67,7 @@
 | Rarity | Normal/Rare/Legendary |
 | OwnerClass | 검사/마법사/힐러 등 사용 직업 제한 |
 | Cost | 공용 코스트 소비량 |
-| EventType | Attack/Guard/Skill/Status/Support/Special/Co-op/Ultimate |
+| EventType | Attack/Guard/Skill/Status/Support/Special/Combo/Ultimate |
 | TargetType | Self/Target Ally/All Allies/Target Enemy/All Enemies/All Units/Field |
 | EffectList | 생성할 효과 목록 |
 | Tags | 조건 판정용 태그 |
@@ -74,8 +98,9 @@
 | TargetIds | 대상 목록 |
 | EventType | 이벤트 타입 |
 | EffectPayload | 피해/방어/상태 수치 |
-| Tags | 필살기/협동 기믹 조건 판정용 태그 |
+| Tags | 필살기/합동기 조건 판정용 태그 |
 | QueueIndex | 큐 등록 순서 |
+| InputIndex | 카드 사용 입력 순서 |
 
 ## 컴포넌트 구조
 
@@ -87,11 +112,14 @@
 | CardPlayableComponent | 카드 사용 가능 여부와 사용 요청 처리 |
 | ActionQueueComponent | 카드 이벤트 등록과 실행 |
 | StatusComponent | 카드 사용 조건에 필요한 상태 확인 |
-| CombatStatsComponent | 코스트, HP, Block 등 수치 참조 |
+| CombatStatsComponent | 코스트, HP, Block, Defense Up 버프 등 수치 참조 |
 
 ## 테스트 기준
 
 - 카드가 올바른 Action Event를 생성하는가?
+- 캐릭터별 덱이 1~10장 제한을 지키는가?
+- 턴 시작 시 기본 5장 드로우가 동작하는가?
+- 드로우 pile이 부족하면 discard pile을 섞어 추가 드로우하는가?
 - 코스트가 부족하면 카드 사용이 막히는가?
 - 대상 타입이 올바르게 제한되는가?
 - 사용한 카드가 discard pile로 이동하는가?
@@ -104,4 +132,3 @@
 - 카드 강화 시 Cost/Effect/Rarity 중 어떤 항목이 변하는지
 - 저주 카드가 사용 불가 카드인지, 강제 발동 카드인지
 - 특수 카드가 덱에 들어가는지, 전투 중 임시 생성되는지
-
