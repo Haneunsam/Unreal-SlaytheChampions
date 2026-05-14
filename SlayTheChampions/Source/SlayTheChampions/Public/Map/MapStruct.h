@@ -1,17 +1,50 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "Map/MapEnum.h"
+#include "MapStruct.generated.h"
 
-/*Area Á¤º¸*/
-USTRUCT()
+/*Area ì •ë³´*/
+USTRUCT(BlueprintType)
 struct FAreaInfo
 {
-	FName Area_Name;
-	EAreaState Area_State;
-	EAreaType Area_Type;
-	FVector Area_WorldPos;
-	FVector2D Area_ArrPos;
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaInfo")
+	FName AreaName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaInfo")
+	EAreaState AreaState = EAreaState::Start;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaInfo")
+	EAreaType AreaType = EAreaType::Normal;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaInfo")
+	FVector AreaWorldPos = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaInfo")
+	FVector2D AreaArrPos = FVector2D::ZeroVector;
+
+	EAreaVisitState AreaVisit = EAreaVisitState::None;
+};
+
+/*Map Areaë°°ì¹˜ í™•ë¥ */
+USTRUCT(BlueprintType)
+struct FAreaSpawnProbability
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaSpawnProbability")
+	float Normal = 45;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaSpawnProbability")
+	float Elite = 16;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaSpawnProbability")
+	float Event = 25;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaSpawnProbability")
+	float Rest = 12;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaSpawnProbability")
+	float Shop = 5;
 };

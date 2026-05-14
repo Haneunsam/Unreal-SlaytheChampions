@@ -1,24 +1,38 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+Ôªø#pragma once
 
 #include "CoreMinimal.h"
+#include "MapEnum.generated.h"
 
+/*Area ÏÉÅÌÉú*/
 UENUM(BlueprintType)
 enum class EAreaState : uint8
 {
-	Start = 0    UMETA(DisplayName = "Ω√¿€"),
-	Runing       UMETA(DisplayName = "¡¯«‡¡ﬂ"),
-	End			 UMETA(DisplayName = "¡æ∑·")
+    Start = 0   UMETA(DisplayName = "Start"),
+    Running     UMETA(DisplayName = "Running"),
+    End         UMETA(DisplayName = "End")
 };
 
+/*Area ÌÉÄÏûÖ*/
 UENUM(BlueprintType)
 enum class EAreaType : uint8
 {
-	Nomal = 0	UMETA(DisplayName = "±‚∫ª"),
-	Elite		UMETA(DisplayName = "ø§∏Æ∆Æ"),
-	Boss		UMETA(DisplayName = "∫∏Ω∫"),
-	Event		UMETA(DisplayName = "¿Ã∫•∆Æ"),
-	Rest		UMETA(DisplayName = "»ﬁΩƒ"),
-	Shop		UMETA(DisplayName = "ªÛ¡°")
+    Normal = 0      UMETA(DisplayName = "Normal"),
+    Elite           UMETA(DisplayName = "Elite"),
+    Boss            UMETA(DisplayName = "Boss"),
+    Event           UMETA(DisplayName = "Event"),
+    Rest            UMETA(DisplayName = "Rest"),
+    Shop            UMETA(DisplayName = "Shop"),
+    Reword          UMETA(DisplayName = "Reword"),
+    ArtifactEvent   UMETA(DisplayName = "ArtifactEvent")
 };
+
+UENUM(BlueprintType)
+enum class EAreaVisitState : uint8
+{
+    Locked = 0  UMETA(DisplayName = "Locked"),
+    Visited     UMETA(DisplayName = "Visited"),
+    Cleared     UMETA(DisplayName = "Cleared"),
+    None = 99   UMETA(DisplayName = "None"),
+};
+
+

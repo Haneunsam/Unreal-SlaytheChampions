@@ -1,38 +1,44 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
 #include "Map/MapStruct.h"
-#include "Map/MapEnum.h"
 #include "Area.generated.h"
 
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class SLAYTHECHAMPIONS_API UArea : public USceneComponent
 {
 	GENERATED_BODY()
 
 public:
+	UArea();
 
-private:
-	FAreaInfo AreaInfo;
-
-public:	
-	UArea() {};
-
+protected:
 	virtual void BeginPlay() override;
 
-	/*Area ÃÊ±âÈ­*/
-	void InitArea(FAreaInfo _info);
+private:
+	/*Area ì •ë³´ */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area", meta = (AllowPrivateAccess = "true"))
+	FAreaInfo AreaInfo;
+	/*ì´ë™ ê°€ëŠ¥í•œ Area ì •ë³´*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area", meta = (AllowPrivateAccess = "true"))
+	TArray<UArea> NextAreas;
+public:
+	/*Area ì´ˆê¸°í™”*/
+	void InitArea(const FAreaInfo& InInfo);
+	/*Area ì´ë¦„ ë°˜í™˜*/
+	FName GetAreaName() const { return AreaInfo.AreaName; }
+	/*Area ì›”ë“œ ìœ„ì¹˜ ë°˜í™˜*/
+	FVector GetWorldPos() const { return AreaInfo.AreaWorldPos; }
+	/*Area ë°°ì—´ ìœ„ì¹˜ ë°˜í™˜*/
+	FVector2D GetArrPos() const { return AreaInfo.AreaArrPos; }
+	/*Area ìƒíƒœ ë°˜í™˜*/
+	EAreaState GetState() const { return AreaInfo.AreaState; }
+	/*Area íƒ€ì… ë°˜í™˜*/
+	EAreaType GetType() const { return AreaInfo.AreaType; }
 
-	/*Area ÀÌ¸§ ¹İÈ¯*/
-	FName const GetName() const { return AreaInfo.Area_Name; }
-	/*Area ¿ùµå Æ÷Áö¼Ç ¹İÈ¯*/
-	FVector const GetWorldPos() const { return AreaInfo.Area_WorldPos; }
-	/*Area ¹è¿­ Æ÷Áö¼Ç ¹İÈ¯*/
-	FVector2D const GetArrPos() const { return AreaInfo.Area_ArrPos; }
-	/*Area ÁøÇà »óÅÂ ¹İÈ¯*/
-	EAreaState const GetState() const { return AreaInfo.Area_State; }
-	/*Area Å¸ÀÔ ¹İÈ¯*/
-	EAreaType const GetType() const { return AreaInfo.Area_Type; }
+	/*Area ìƒíƒœ ì„¤ì •*/
+	void SetState(EAreaState _state) { AreaInfo.AreaState = _state; }
+	/*ì´ë™ê°€ëŠ¥í•œ Area ì¶”ê°€*/
+	void SetNextAreas(TArray<UArea> _next) { NextAreas = _next; }
 };

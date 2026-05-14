@@ -1,19 +1,15 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+Ôªø#include "Map/Area.h"
 
-
-#include "Map/Area.h"
+UArea::UArea()
+{
+}
 
 void UArea::BeginPlay()
 {
-	//√ﬂ»ƒ « ø‰«“ºˆµµ ¿÷¿∏¥œ ≥≥µ÷∫Ω 
+    Super::BeginPlay();
 }
 
-/*πÊ ¡§∫∏ √ ±‚»≠*/
-void UArea::InitArea(FAreaInfo _info)
+void UArea::InitArea(const FAreaInfo& InInfo)
 {
-	AreaInfo = _info;
+    AreaInfo = InInfo;
 }
-
-
-
-
