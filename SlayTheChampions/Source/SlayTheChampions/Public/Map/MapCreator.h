@@ -22,14 +22,17 @@ private:
 	UPROPERTY()
 	TArray<UArea*> Map;
 
+	/*현재 월드에서 실제 맵*/
+	UPROPERTY()
+	TArray<AActor*> WorldMap;
 	/*맵 생성 관련 데이터에셋*/
 	UPROPERTY()
-	UMapConfigData* MapConfig;
+	UMapConfigData* MapConfig = nullptr;
 	
-	int32 CurrentWidth;
-	int32 CurrentHeight;
+	int32 CurrentWidth = 7;
+	int32 CurrentHeight = 15;
 public:
-	UMapCreator();
+	UMapCreator(const FObjectInitializer& ObjectInitializer);
 	~UMapCreator();
 
 	/*맵 생성*/
@@ -44,8 +47,14 @@ private:
 	/*그리드 맵 초기화*/
 	void InitGridMap() { GridMap.Init(false, CurrentWidth * CurrentHeight); }
 
-	/*실제 맵 초기화*/
+	/* 맵 데이터 초기화 */
 	void InitMap() { Map.Init(nullptr, CurrentWidth * CurrentHeight); }
+
+	/*실제 월드 맵 초기화*/
+	void InitWorldMap();
+
+	/*Data파일 연결*/
+	bool LoadDefaultConfig();
 
 	/*그리드 맵 생성*/
 	void GridMapCreate(int32 MapWidth, int32 MapHeight, float AreaSpawnProbability);
@@ -66,5 +75,7 @@ private:
 	bool ConnectIfValid(int32 CurrentIdx, int32 NextH, int32 NextW, int32 MapWidth);
 
 	/*실제 월드 맵 생성*/
-	void WorldMapCreate();
+	void WorldMapCreate(int32 MapWidth, int32 MapHeight);
+
+	TSubclassOf<AActor> GetAreaClass(EAreaType type);
 };
