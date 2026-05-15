@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -8,41 +8,41 @@ class Area;
 class SLAYTHECHAMPIONS_API MapCreator
 {
 private:
-	/*¹è¿­¿¡¼­ÀÇ ¸Ê*/
+	/*ë°°ì—´ì—ì„œì˜ ë§µ*/
 	TArray<int32> GridMap = { 0 };
 
-	/*ÇöÀç »ı¼ºµÈ ¸Ê µ¥ÀÌÅÍ ¹è¿­*/
+	/*í˜„ì¬ ìƒì„±ëœ ë§µ ë°ì´í„° ë°°ì—´*/
 	TArray<Area*> Map;
 
-	/*¸Ê ³Êºñ*/
+	/*ë§µ ë„ˆë¹„*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MapCreator", meta = (AllowPrivateAccess = "true"))
 	int32 MapWidth = 7;
 
-	/*¸Ê ³ôÀÌ*/
+	/*ë§µ ë†’ì´*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MapCreator", meta = (AllowPrivateAccess = "true"))
 	int32 MapHeight = 15;
 public:
 	MapCreator();
 	~MapCreator();
 
-	/*¸Ê »ı¼º*/
+	/*ë§µ ìƒì„±*/
 	void CreateMap();
 
-	/*¸Ê ³Êºñ ¼³Á¤*/
+	/*ë§µ ë„ˆë¹„ ì„¤ì •*/
 	void SetMapWidth(int32 _width) { MapWidth = _width; }
 
-	/*¸Ê ³ôÀÌ ¼³Á¤*/
+	/*ë§µ ë†’ì´ ì„¤ì •*/
 	void SetMapHeight(int32 _height) { MapHeight = _height; }
 private:
-	/*±×¸®µå ¸Ê ÃÊ±âÈ­*/
+	/*ê·¸ë¦¬ë“œ ë§µ ì´ˆê¸°í™”*/
 	void InitGridMap() { GridMap.SetNum(MapWidth * MapHeight); }
 
-	/*½ÇÁ¦ ¸Ê ÃÊ±âÈ­*/
+	/*ì‹¤ì œ ë§µ ì´ˆê¸°í™”*/
 	void InitMap() { Map.Empty(); }
 
-	/*±×¸®µå ¸Ê »ı¼º*/
+	/*ê·¸ë¦¬ë“œ ë§µ ìƒì„±*/
 	void GridMapCreate();
 	
-	/*Ãşº° ·£´ı ¹æÀ§Ä¡ ¹İÈ¯*/
+	/*ì¸µë³„ ëœë¤ ë°©ìœ„ì¹˜ ë°˜í™˜*/
 	int32 GetRandAreaPos(int32 _min, int32 _max);
 };

@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -9,10 +9,10 @@
 UENUM(BlueprintType)
 enum class EGameState : uint8
 {
-	Run = 0     UMETA(DisplayName = "ÁøÇà"),
-	Pause       UMETA(DisplayName = "Á¤Áö"),
-	Transition  UMETA(DisplayName = "¾À ÀüÈ¯Áß"),
-	Exit		UMETA(DisplayName = "°ÔÀÓ Á¾·á")
+	Run = 0     UMETA(DisplayName = "ì§„í–‰"),
+	Pause       UMETA(DisplayName = "ì •ì§€"),
+	Transition  UMETA(DisplayName = "ì”¬ ì „í™˜ì¤‘"),
+	Exit		UMETA(DisplayName = "ê²Œì„ ì¢…ë£Œ")
 };
 
 UCLASS()
@@ -21,28 +21,28 @@ class SLAYTHECHAMPIONS_API UGameManager : public UGameInstanceSubsystem
 	GENERATED_BODY()
 private:
 	/*
-	ÇöÀç °ÔÀÓ »óÅÂ
+	í˜„ì¬ ê²Œì„ ìƒíƒœ
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GameManager", meta = (AllowPrivateAccess = "true", DisplayName = "ÇöÀç °ÔÀÓ »óÅÂ"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GameManager", meta = (AllowPrivateAccess = "true", DisplayName = "í˜„ì¬ ê²Œì„ ìƒíƒœ"))
 	EGameState CurrentState;
 
 	class ULevelManager* LM;
 public:
 
-	/*SubSystemÀÇ BeginPlay¿ªÇÒ*/
+	/*SubSystemì˜ BeginPlayì—­í• */
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	/*°ÔÀÓ¸Å´ÏÀú ÃÊ±âÈ­*/
+	/*ê²Œì„ë§¤ë‹ˆì € ì´ˆê¸°í™”*/
 	void Initialize();
-	/*°ÔÀÓ ½ÃÀÛ*/
+	/*ê²Œì„ ì‹œì‘*/
 	void StartGame();
 	/*
-	°ÔÀÓ»óÅÂ º¯°æ
-	@param state º¯°æÇÒ »óÅÂ(Run, Pause, Transition)
+	ê²Œì„ìƒíƒœ ë³€ê²½
+	@param state ë³€ê²½í•  ìƒíƒœ(Run, Pause, Transition)
 	*/
 	void ChangeGameState(EGameState state);
-	/*°ÔÀÓ Á¾·á*/
+	/*ê²Œì„ ì¢…ë£Œ*/
 	void ExitGame();
 
-	/*ÇöÀç °ÔÀÓ»óÅÂ ¹İÈ¯*/
+	/*í˜„ì¬ ê²Œì„ìƒíƒœ ë°˜í™˜*/
 	EGameState const GetGameState() const { return CurrentState; }
 };

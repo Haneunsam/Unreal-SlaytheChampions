@@ -22,7 +22,7 @@ private:
 	FAreaInfo AreaInfo;
 	/*이동 가능한 Area 정보*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Area", meta = (AllowPrivateAccess = "true"))
-	TArray<UArea> NextAreas;
+	TArray<UArea*> NextAreas;
 public:
 	/*Area 초기화*/
 	void InitArea(const FAreaInfo& InInfo);
@@ -40,5 +40,5 @@ public:
 	/*Area 상태 설정*/
 	void SetState(EAreaState _state) { AreaInfo.AreaState = _state; }
 	/*이동가능한 Area 추가*/
-	void SetNextAreas(TArray<UArea> _next) { NextAreas = _next; }
+	void SetNextAreas(TArray<UArea*> _next) { NextAreas = _next; }
 };
