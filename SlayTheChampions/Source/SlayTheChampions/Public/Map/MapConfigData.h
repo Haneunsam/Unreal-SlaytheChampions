@@ -7,22 +7,22 @@
 #include "MapConfigData.generated.h"
 
 UCLASS(BlueprintType)
-class SLAYTHECHAMPIONS_API UMapConfigData : public UPrimaryDataAsset
+class SLAYTHECHAMPIONS_API UMapConfigData : public UDataAsset
 {
 	GENERATED_BODY()
 
 public:
     UPROPERTY(EditAnywhere, Category = "Config")
-    TSubclassOf<class UMapCreator> MapCreatorClass;
+    int32 MapWidth = 7;
 
     UPROPERTY(EditAnywhere, Category = "Config")
-    int32 MapWidth;
-
-    UPROPERTY(EditAnywhere, Category = "Config")
-    int32 MapHeight;
+    int32 MapHeight = 15;
 
     UPROPERTY(EditAnywhere, Category = "Config", meta = (ClampMin = "0.0", ClampMax = "100.0"))
-    float AreaSpawnProbability;
+    float AreaSpawnProbability = 45.f;
+
+    UPROPERTY(EditAnywhere, Category = "Config" )
+    float TileDistance = 500.0f;
 
     UPROPERTY(EditAnywhere, Category = "Config")
     TSubclassOf<AActor> NormalMap;
