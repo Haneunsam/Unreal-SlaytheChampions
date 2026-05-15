@@ -6,12 +6,22 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "MapManager.generated.h"
 
-UCLASS()
+class UMapCreator;
+class UMapConfigData;
+UCLASS(BlueprintType, Blueprintable)
 class SLAYTHECHAMPIONS_API UMapManager : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
+private:
+	UPROPERTY()
+	UMapCreator* MapCreator;
 
+private:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 public:
+	/*맵 생성 호출*/
+	UFUNCTION(BlueprintCallable)
+	void MapCreate();
 	//맵 생성 호출
 	//맵 이동
 	//몇층인지 몇번째 레벨인지

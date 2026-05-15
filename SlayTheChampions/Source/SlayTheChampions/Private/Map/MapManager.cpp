@@ -2,4 +2,16 @@
 
 
 #include "Map/MapManager.h"
+#include "Map/MapCreator.h"
 
+void UMapManager::Initialize(FSubsystemCollectionBase& Collection)
+{
+    Super::Initialize(Collection);
+
+   MapCreator = NewObject<UMapCreator>(this, UMapCreator::StaticClass());
+}
+
+void UMapManager::MapCreate()
+{
+	MapCreator->CreateMap();
+}

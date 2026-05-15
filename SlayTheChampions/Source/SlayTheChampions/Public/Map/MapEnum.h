@@ -7,7 +7,8 @@
 UENUM(BlueprintType)
 enum class EAreaState : uint8
 {
-    Start = 0   UMETA(DisplayName = "Start"),
+    Ready = 0   UMETA(DisplayName = "Ready"),
+    Start       UMETA(DisplayName = "Start"),
     Running     UMETA(DisplayName = "Running"),
     End         UMETA(DisplayName = "End")
 };
@@ -23,7 +24,8 @@ enum class EAreaType : uint8
     Rest            UMETA(DisplayName = "Rest"),
     Shop            UMETA(DisplayName = "Shop"),
     Reword          UMETA(DisplayName = "Reword"),
-    ArtifactEvent   UMETA(DisplayName = "ArtifactEvent")
+    ArtifactEvent   UMETA(DisplayName = "ArtifactEvent"),
+    None = 99       UMETA(DisplayName = "None"),
 };
 
 UENUM(BlueprintType)

@@ -5,8 +5,8 @@
 #include "Map/MapStruct.h"
 #include "Area.generated.h"
 
-UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class SLAYTHECHAMPIONS_API UArea : public USceneComponent
+UCLASS(BlueprintType)
+class SLAYTHECHAMPIONS_API UArea : public UObject
 {
 	GENERATED_BODY()
 
@@ -14,7 +14,6 @@ public:
 	UArea();
 
 protected:
-	virtual void BeginPlay() override;
 
 private:
 	/*Area 정보 */
@@ -26,12 +25,8 @@ private:
 public:
 	/*Area 초기화*/
 	void InitArea(const FAreaInfo& InInfo);
-	/*Area 이름 반환*/
-	FName GetAreaName() const { return AreaInfo.AreaName; }
-	/*Area 월드 위치 반환*/
-	FVector GetWorldPos() const { return AreaInfo.AreaWorldPos; }
 	/*Area 배열 위치 반환*/
-	FVector2D GetArrPos() const { return AreaInfo.AreaArrPos; }
+	FVector2D GetArrPos() const { return AreaInfo.AreaPos; }
 	/*Area 상태 반환*/
 	EAreaState GetState() const { return AreaInfo.AreaState; }
 	/*Area 타입 반환*/
@@ -40,5 +35,8 @@ public:
 	/*Area 상태 설정*/
 	void SetState(EAreaState _state) { AreaInfo.AreaState = _state; }
 	/*이동가능한 Area 추가*/
-	void SetNextAreas(TArray<UArea*> _next) { NextAreas = _next; }
+	void SetNextAreas(UArea* _next) { NextAreas.Add(_next); }
+
+	//디버그용
+	void DebugShowInfo();
 };
