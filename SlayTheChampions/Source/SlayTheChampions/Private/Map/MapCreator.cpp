@@ -1,9 +1,12 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Map/MapCreator.h"
+
+#include "Map/AreaLevelData.h"
 #include "Map/Area.h"
-#include "Map/MapStruct.h"
+#include "Map/MapAreaActor.h"
 #include "Map/MapConfigData.h"
+#include "Map/MapStruct.h"
 
 UMapCreator::UMapCreator(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -48,21 +51,21 @@ void UMapCreator::CreateMap()
 {
 	if (!LoadDefaultConfig()) return;
 
-	//¸Ê »ı¼º ÀÛ¾÷Àü Á¤º¸ ´ãÀ» ¹è¿­µé ÃÊ±âÈ­
+	//ë§µ ìƒì„± ì‘ì—…ì „ ì •ë³´ ë‹´ì„ ë°°ì—´ë“¤ ì´ˆê¸°í™”
 	InitMap();
 	InitGridMap();
 	InitWorldMap();
 
-	// ±×¸®µå ¸Ê »ı¼º
+	// ê·¸ë¦¬ë“œ ë§µ ìƒì„±
 	GridMapCreate(CurrentWidth, CurrentHeight, MapConfig->AreaSpawnProbability);
 
-	//Map¿¡ µ¥ÀÌÅÍ ÀÔ·Â
+	//Mapì— ë°ì´í„° ì…ë ¥
 	SetMapData(CurrentWidth, CurrentHeight);
 
-	//Area ¿¬°á
+	//Area ì—°ê²°
 	ConnectAreas(CurrentWidth, CurrentHeight);
 
-	//µğ¹ö±×¿ë
+	//ë””ë²„ê·¸ìš©
 	for (int i = 0; i < Map.Num(); i++)
 	{
 		if (Map[i] == nullptr) continue;
@@ -70,18 +73,64 @@ void UMapCreator::CreateMap()
 		Map[i]->DebugShowInfo();
 	}
 
-	//½ÇÁ¦ ¸Ê »ı¼º
+	//ì‹¤ì œ ë§µ ìƒì„±
 	WorldMapCreate(CurrentWidth, CurrentHeight);
+}
+
+bool UMapCreator::HasMapData() const
+{
+	for (UArea* Area : Map)
+	{
+		if (Area)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UMapCreator::RestoreWorldMap()
+{
+	if (!HasMapData() || !MapConfig)
+	{
+		return;
+	}
+
+	//ë””ë²„ê·¸ìš©
+	InitWorldMap();
+	WorldMapCreate(CurrentWidth, CurrentHeight);
+}
+
+void UMapCreator::RefreshDebugWorldMapState()
+{
+	//ë””ë²„ê·¸ìš©
+	for (AActor* Actor : WorldMap)
+	{
+		AMapAreaActor* MapAreaActor = Cast<AMapAreaActor>(Actor);
+		if (!MapAreaActor)
+		{
+			continue;
+		}
+
+		UArea* Area = GetAreaAt(MapAreaActor->GetFloorIndex(), MapAreaActor->GetRoomIndex());
+		if (!Area)
+		{
+			continue;
+		}
+
+		MapAreaActor->ApplyDebugAreaInfo(Area->GetAreaInfo());
+	}
 }
 
 #pragma region GridMapGeneration
 void UMapCreator::GridMapCreate(int32 MapWidth, int32 MapHeight, float AreaSpawnProbability)
 {
 
-	//1Ãş ¹æ ¼¼ÆÃ
+	//1ì¸µ ë°© ì„¸íŒ…
 	GridMap[MapWidth / 2] = true;
 
-	//Áß°£¹æµé ¼¼ÆÃ
+	//ì¤‘ê°„ë°©ë“¤ ì„¸íŒ…
 	for (int height = 1; height < MapHeight - 1; height++)
 	{
 		int32 FloorStart = height * MapWidth;
@@ -97,13 +146,13 @@ void UMapCreator::GridMapCreate(int32 MapWidth, int32 MapHeight, float AreaSpawn
 		}
 	}
 
-	//¸¶Áö¸· Ãş ¹æ ¼¼ÆÃ
+	//ë§ˆì§€ë§‰ ì¸µ ë°© ì„¸íŒ…
 
 	int32 LastStart = (MapHeight - 1) * MapWidth;
 	int32 LastCenter = LastStart + (MapWidth / 2);
 	GridMap[LastCenter] = true;
 
-	//µğ¹ö±×¿ë
+	//ë””ë²„ê·¸ìš©
 	/*FString DebugMapString = TEXT("\n--- Grid Map Debug ---\n");
 	for (int32 y = 0; y < MapHeight; y++)
 	{
@@ -141,7 +190,7 @@ UArea* UMapCreator::AreaCreate(int32 height, int32 width)
 	UArea* Area = NewObject<UArea>(this);
 
 	EAreaType type = EAreaType::None;
-	FAreaFixedPlacement FixedPlacement;
+	const FAreaFixedPlacement& FixedPlacement = MapConfig->FixedPlacement;
 	int32 floor = height + 1;
 
 	if ((floor == FixedPlacement.ArtifactEvent)) type = EAreaType::ArtifactEvent;
@@ -164,9 +213,12 @@ UArea* UMapCreator::AreaCreate(int32 height, int32 width)
 
 EAreaType UMapCreator::GetRandAreaType()
 {
-	FAreaSpawnProbability Prob;
+	const FAreaSpawnProbability& Prob = MapConfig->AreaTypeSpawnProbability;
 
-	float RandVal = FMath::FRandRange(1.f, 100.f);
+	const float TotalProbability = Prob.Normal + Prob.Elite + Prob.Event + Prob.Rest + Prob.Shop;
+	if (TotalProbability <= 0.f) return EAreaType::Shop;
+
+	float RandVal = FMath::FRandRange(0.f, TotalProbability);
 
 	if ((RandVal -= Prob.Normal) <= 0.f) return EAreaType::Normal;
 	if ((RandVal -= Prob.Elite) <= 0.f) return EAreaType::Elite;
@@ -188,7 +240,7 @@ void UMapCreator::ConnectAreas(int32 MapWidth, int32 MapHeight)
 			int32 NextHeight = height + 1;
 			if (Map[CurrnetPos] == nullptr) continue;
 
-			//1ÃşÀÏ°æ¿ì 2Ãş ¸ğµç¹æ°ú ¿¬°á
+			//1ì¸µì¼ê²½ìš° 2ì¸µ ëª¨ë“ ë°©ê³¼ ì—°ê²°
 			if (height == 0)
 			{
 				for (int32 nextW = 0; nextW < MapWidth; nextW++)
@@ -201,7 +253,7 @@ void UMapCreator::ConnectAreas(int32 MapWidth, int32 MapHeight)
 				}
 				continue;
 			}
-			//¸¶Áö¸· Á÷Àü ÃşÀÏ°æ¿ì ÀüºÎ º¸½º¹æ°ú ¿¬°á
+			//ë§ˆì§€ë§‰ ì§ì „ ì¸µì¼ê²½ìš° ì „ë¶€ ë³´ìŠ¤ë°©ê³¼ ì—°ê²°
 			if (NextHeight == MapHeight - 1)
 			{
 				int32 BossIdx = (NextHeight * MapWidth) + (MapWidth / 2);
@@ -212,7 +264,7 @@ void UMapCreator::ConnectAreas(int32 MapWidth, int32 MapHeight)
 				continue;
 			}
 
-			//³ª¸ÓÁö¹æ
+			//ë‚˜ë¨¸ì§€ë°©
 			bool isConnect = false;
 			for (int32 dw = -1; dw <= 1; dw++)
 			{
@@ -256,8 +308,6 @@ void UMapCreator::WorldMapCreate(int32 MapWidth, int32 MapHeight)
 	UWorld* World = GetWorld();
 	if (!World || !MapConfig) return;
 
-
-
 	for (int32 height = 0; height < MapHeight; height++)
 	{
 		for (int32 width = 0; width < MapWidth; width++)
@@ -277,10 +327,20 @@ void UMapCreator::WorldMapCreate(int32 MapWidth, int32 MapHeight)
 				SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 				const FString AreaTypeName = StaticEnum<EAreaType>()->GetNameStringByValue(static_cast<int64>(Map[CurrentPos]->GetType()));
-				const FString AreaName = FString::Printf(TEXT("%dÃş %d¹ø %s"), height, width, *AreaTypeName);
+				const FString AreaName = FString::Printf(TEXT("%dì¸µ %dë²ˆ %s"), height + 1, width + 1, *AreaTypeName);
 				AActor* SpawnedActor = World->SpawnActor<AActor>(SelectedClass, SpawnLocation, SpawnRotation, SpawnParams);
 				if (SpawnedActor)
 				{
+					//ë””ë²„ê·¸ìš©
+					if (AMapAreaActor* MapAreaActor = Cast<AMapAreaActor>(SpawnedActor))
+					{
+						MapAreaActor->SetAreaIndex(height, width);
+						MapAreaActor->ApplyDebugAreaInfo(Map[CurrentPos]->GetAreaInfo());
+						if (MapConfig->AreaLevelData)
+						{
+							MapAreaActor->SetTargetLevelName(MapConfig->AreaLevelData->GetLevelName(Map[CurrentPos]->GetType()));
+						}
+					}
 #if WITH_EDITOR
 					SpawnedActor->SetActorLabel(AreaName);
 #endif
@@ -290,18 +350,19 @@ void UMapCreator::WorldMapCreate(int32 MapWidth, int32 MapHeight)
 		}
 	}
 }
+
 TSubclassOf<AActor> UMapCreator::GetAreaClass(EAreaType type)
 {
 	switch (type)
 	{
-	case EAreaType::Normal: return MapConfig->NormalMap;  break;
-	case EAreaType::Elite:return MapConfig->EliteMap; break;
-	case EAreaType::Boss:return MapConfig->BossMap; break;
-	case EAreaType::Event:return MapConfig->EventMap; break;
-	case EAreaType::Rest:return MapConfig->RestMap; break;
-	case EAreaType::Shop:return MapConfig->ShopMap; break;
-	case EAreaType::Reword:return MapConfig->RewordMap; break;
-	case EAreaType::ArtifactEvent:return MapConfig->ArtifactEventMap; break;
+	case EAreaType::Normal: return MapConfig->NormalMap;
+	case EAreaType::Elite:return MapConfig->EliteMap;
+	case EAreaType::Boss:return MapConfig->BossMap;
+	case EAreaType::Event:return MapConfig->EventMap;
+	case EAreaType::Rest:return MapConfig->RestMap;
+	case EAreaType::Shop:return MapConfig->ShopMap;
+	case EAreaType::Reword:return MapConfig->RewordMap;
+	case EAreaType::ArtifactEvent:return MapConfig->ArtifactEventMap;
 	}
 	return MapConfig->NormalMap;
 }

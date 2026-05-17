@@ -6,26 +6,45 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "MapManager.generated.h"
 
+class UArea;
 class UMapCreator;
-class UMapConfigData;
+
 UCLASS(BlueprintType, Blueprintable)
 class SLAYTHECHAMPIONS_API UMapManager : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
+
 private:
 	UPROPERTY()
-	UMapCreator* MapCreator;
+	UMapCreator* MapCreator = nullptr;
 
 private:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
 public:
-	/*¸Ê »ı¼º È£Ãâ*/
+	/* RunSystem ì‹œì‘ í˜¸ì¶œ */
+	UFUNCTION(BlueprintCallable)
+	void StartRunSystem();
+
+	/* ë§µ ìƒì„± í˜¸ì¶œ */
 	UFUNCTION(BlueprintCallable)
 	void MapCreate();
-	//¸Ê »ı¼º È£Ãâ
-	//¸Ê ÀÌµ¿
-	//¸îÃşÀÎÁö ¸î¹øÂ° ·¹º§ÀÎÁö
-	//³ëµå ÀÔÀå ÀÌº¥Æ®
-	// ±×¸®µå È­¸é Uiµî
-	// ½ºÅ×ÀÌÁö Å¬¸®¾î »óÅÂ È®ÀÎ	
+
+	/* ë””ë²„ê·¸ìš© */
+	void RestoreMapWorld();
+
+	/* ë””ë²„ê·¸ìš© */
+	bool HasMapData() const;
+
+	/* ë””ë²„ê·¸ìš© */
+	void RefreshDebugMapState();
+
+	/* RunSystem ë‚´ë¶€ ì¡°íšŒìš© */
+	UArea* GetAreaAt(int32 height, int32 width) const;
+
+	/* RunSystem ë‚´ë¶€ ì¡°íšŒìš© */
+	int32 GetMapWidth() const;
+
+	/* RunSystem ë‚´ë¶€ ì¡°íšŒìš© */
+	int32 GetMapHeight() const;
 };

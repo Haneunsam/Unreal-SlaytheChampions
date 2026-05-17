@@ -22,12 +22,18 @@ struct FAreaInfo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaInfo")
 	EAreaVisitState AreaVisit = EAreaVisitState::None;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaInfo")
+	bool bCanEnter = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AreaInfo")
+	bool bIsCurrentArea = false;
+
 	FAreaInfo()
 	{
 	}
 
-	FAreaInfo(EAreaState _state, EAreaType _type, FVector2D _arrPos, EAreaVisitState visit)
-		:AreaState(_state), AreaType(_type), AreaPos(_arrPos), AreaVisit(visit)
+	FAreaInfo(EAreaState _state, EAreaType _type, FVector2D _arrPos, EAreaVisitState visit, bool bInCanEnter = false, bool bInIsCurrentArea = false)
+		:AreaState(_state), AreaType(_type), AreaPos(_arrPos), AreaVisit(visit), bCanEnter(bInCanEnter), bIsCurrentArea(bInIsCurrentArea)
 	{
 	}
 };
@@ -70,13 +76,44 @@ struct FAreaFixedPlacement
 	int32 Reword = 9;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FAreaFixedPlacement")
-	int32 Rest = 15;
+	int32 Rest = 14;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FAreaFixedPlacement")
-	int32 Boss = 16;
+	int32 Boss = 15;
 
 
 	FAreaFixedPlacement()
 	{
 	}
 };
+
+/*파티 시스템 가져오기 위한 스냅샵*/
+USTRUCT(BlueprintType)
+struct FRunPartySnapshot
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Run")
+	TArray<FName> PartyMemberIds;
+};
+
+/*카드 덱 시스템 가져오기 위한 스냅샵*/
+USTRUCT(BlueprintType)
+struct FRunDeckSnapshot
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Run")
+	TArray<FName> DeckOwnerIds;
+};
+
+/*유물 시스템 가져오기 위한 스냅샵*/
+USTRUCT(BlueprintType)
+struct FRunRelicSnapshot
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Run")
+	TArray<FName> RelicIds;
+};
+
