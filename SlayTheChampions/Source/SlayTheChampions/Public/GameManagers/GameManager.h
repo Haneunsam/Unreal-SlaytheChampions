@@ -31,8 +31,6 @@ public:
 
 	/*SubSystem의 BeginPlay역할*/
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	/*게임매니저 초기화*/
-	void Initialize();
 	/*게임 시작*/
 	void StartGame();
 	/*

@@ -9,11 +9,6 @@ void UGameManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	Initialize();
-}
-
-void UGameManager::Initialize()
-{
 	CurrentState = EGameState::Run;
 	LM = GetWorld()->GetGameInstance()->GetSubsystem<ULevelManager>();
 }
