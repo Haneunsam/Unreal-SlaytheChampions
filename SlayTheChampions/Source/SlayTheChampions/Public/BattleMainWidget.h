@@ -17,7 +17,7 @@ class SLAYTHECHAMPIONS_API UBattleMainWidget : public UUserWidget
 public:
 	
 	// 위젯 초기화 시 호출
-	virtual void NativeConstruct() override;
+	//virtual void NativeConstruct() override;
 
 	// 블루프린트에서 접근 가능한 변수
 	UPROPERTY(meta = (BindWidget))
