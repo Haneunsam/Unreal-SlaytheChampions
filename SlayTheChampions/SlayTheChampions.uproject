@@ -10,7 +10,11 @@
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
 				"Engine",
+<<<<<<< HEAD
+				"CoreUObject"
+=======
 				"UMG"
+>>>>>>> ff7d1faa29054e0a2e89d6e604df1bccff476b33
 			]
 		}
 	],
