@@ -1,16 +1,14 @@
 #include "CombatKernel/BattleMainWidget.h"
+#include "CardWidget.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
-#include "CombatKernel/CardWidget.h"
-#include "CombatKernel/WidgetCardsStruct.h"
 
-void UBattleMainWidget::AddCard(const FCardStruct& InCardData)
+void UBattleMainWidget::AddCard(const FCardDataRow& InCardData)
 {
 	UCardWidget* LocalWidgetCard = CreateWidget<UCardWidget>(GetOwningPlayer(), NewCard);
 	if (!LocalWidgetCard || !MainCanvas) return;
 
-	LocalWidgetCard->SetCardData(InCardData);
-	LocalWidgetCard->OnCardClicked.AddDynamic(this, &UBattleMainWidget::HandleCardClicked);
+	LocalWidgetCard->SetCardData(InCardData, nullptr);
 
 	UCanvasPanelSlot* CanvasSlot = MainCanvas->AddChildToCanvas(LocalWidgetCard);
 	if (CanvasSlot) CanvasSlot->SetAutoSize(true);
@@ -22,12 +20,12 @@ void UBattleMainWidget::AddCard(const FCardStruct& InCardData)
 	WidgetCards.Add(NewEntry);
 }
 
-void UBattleMainWidget::OnCardExecuted_Implementation(const FCardStruct& Card)
+void UBattleMainWidget::OnCardExecuted_Implementation(const FCardDataRow& Card)
 {
 	// 카드 → CombatStatComponent 연결은 추후 구현
 }
 
-void UBattleMainWidget::HandleCardClicked(UCardWidget* Widget, const FCardStruct& Card)
+void UBattleMainWidget::HandleCardClicked(UCardWidget* Widget, const FCardDataRow& Card)
 {
 	if (SharedCost < Card.Cost) return;
 
