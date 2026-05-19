@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -6,16 +6,41 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "MapManager.generated.h"
 
-UCLASS()
+class UArea;
+class UMapCreator;
+class URunSystem;
+
+UCLASS(BlueprintType, Blueprintable)
 class SLAYTHECHAMPIONS_API UMapManager : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
+private:
+	UPROPERTY()
+	UMapCreator* MapCreator = nullptr;
+
+	UPROPERTY()
+	URunSystem* RunSystem = nullptr;
+
+private:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
 public:
-	//맵 생성 호출
-	//맵 이동
-	//몇층인지 몇번째 레벨인지
-	//노드 입장 이벤트
-	// 그리드 화면 Ui등
-	// 스테이지 클리어 상태 확인	
+	UFUNCTION(BlueprintCallable)
+	void StartRunSystem();
+
+	UFUNCTION(BlueprintCallable)
+	void MapCreate();
+
+	void RestoreMapWorld();
+
+	bool HasMapData() const;
+
+	void RefreshDebugMapState();
+
+	UArea* GetAreaAt(int32 height, int32 width) const;
+
+	int32 GetMapWidth() const;
+
+	int32 GetMapHeight() const;
 };
