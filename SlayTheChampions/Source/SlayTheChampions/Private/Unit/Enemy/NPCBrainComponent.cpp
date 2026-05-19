@@ -100,9 +100,9 @@ AUnit* UNPCBrainComponent::PickTarget(
 		TArray<AUnit*> A = Alive(Enemies);
 		return A.IsEmpty() ? nullptr : A[FMath::RandRange(0, A.Num() - 1)];
 	}
-	case ETargetType::RamdomAlly:
+	case ETargetType::SingleAlly:
 	{
-		TArray<AUnit*> A = Alive(Enemies);
+		TArray<AUnit*> A = Alive(Allies);
 		return A.IsEmpty() ? nullptr : A[FMath::RandRange(0, A.Num() - 1)];
 	}
 	//광역은 단일 타겟이 없음 CombatManager가 전체 적용

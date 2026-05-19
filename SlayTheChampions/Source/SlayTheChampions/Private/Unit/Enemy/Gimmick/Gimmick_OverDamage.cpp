@@ -13,7 +13,7 @@ void UGimmick_OverDamage::OnGimmickTurnStart()
 		if (AccumulatedDamage < RequiredDamage)
 		{
 			// 기믹 데미지 요청
-			OnGimmickDamageRequest.Broadcast(ETargetType::ALlEnemies, RageDamage);
+			OnGimmickDamageRequest.Broadcast(ETargetType::AllEnemies, RageDamage);
 			OnGimmickAnnounce.Broadcast(RageAnnounce);
 		}
 		AccumulatedDamage = 0;

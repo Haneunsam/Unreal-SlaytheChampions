@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "CardDataTypes.h"
 #include "CombatTypes.generated.h"
 
 class AUnit;
@@ -43,15 +43,15 @@ struct SLAYTHECHAMPIONS_API FIntent
 };
 
 
-UENUM(BlueprintType)
-enum class ETargetType : uint8
-{
-    SingleEnemy UMETA(DisplayName = "Single Enemy"),
-    ALlEnemies UMETA(DisplayName = "All Enemies"),
-    Self UMETA(Displayname = "Self"),
-    RamdomAlly UMETA(DisplayName = "Random Ally"),
-    AllAlies UMETA(DisplayName = "All Alies")
-};
+//UENUM(BlueprintType)
+//enum class ETargetType : uint8
+//{
+//    SingleEnemy UMETA(DisplayName = "Single Enemy"),
+//    ALlEnemies UMETA(DisplayName = "All Enemies"),
+//    Self UMETA(Displayname = "Self"),
+//    RamdomAlly UMETA(DisplayName = "Random Ally"),
+//    AllAlies UMETA(DisplayName = "All Alies")
+//};
 
 UENUM(BlueprintType)
 enum class EPatternMode : uint8

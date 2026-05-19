@@ -4,7 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "CombatStatComponent.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged,      int32, Current, int32, Max);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCombatHPChanged, int32, Current, int32, Max);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam (FOnDefenceChanged, int32, Current);
 
 UCLASS(ClassGroup = "Combat", meta = (BlueprintSpawnableComponent))
@@ -25,7 +25,7 @@ public:
 	int32 Defence = 0;
 
 	UPROPERTY(BlueprintAssignable, Category = "Stats|Event")
-	FOnHPChanged OnHPChanged;
+	FOnCombatHPChanged OnHPChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "Stats|Event")
 	FOnDefenceChanged OnDefenceChanged;
