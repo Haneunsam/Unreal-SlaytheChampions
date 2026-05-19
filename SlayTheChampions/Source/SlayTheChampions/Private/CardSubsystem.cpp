@@ -10,7 +10,7 @@ void UCardSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     // 에디터 지정 경로에서 DataTable 자동 로드
     // 실제 경로는 프로젝트에 맞게 수정
     static const FSoftObjectPath CardTablePath(
-        TEXT("/Game/Data/DT_Cards.DT_Cards"));
+        TEXT("01/DT_Cards"));
 
     if (UDataTable* Loaded = Cast<UDataTable>(CardTablePath.TryLoad()))
     {

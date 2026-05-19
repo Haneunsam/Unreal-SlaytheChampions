@@ -18,7 +18,7 @@
  *   const FCardDataRow* Row = CS->GetCard(FName("Warrior_Attack"));
  *
  * 사용 예 (Blueprint):
- *   GetGameInstance → GetSubsystem(CardSubsystem) → GetCard / GetCardsByClass
+ *   GetGameInstance → GetSubsystem(CardSubsystem) -> GetCard / GetCardsByClass
  */
 UCLASS()
 class SLAYTHECHAMPIONS_API UCardSubsystem : public UGameInstanceSubsystem
@@ -41,7 +41,7 @@ public:
 
     /**
      * RowName 으로 단일 카드 데이터를 가져온다. 없으면 nullptr.
-     * (const 포인터 반환은 UFUNCTION 불가 → C++ 전용)
+     * (const 포인터 반환은 UFUNCTION 불가 -> C++ 전용)
      */
     const FCardDataRow* GetCard(FName RowName) const;
 
@@ -51,7 +51,7 @@ public:
 
     /**
      * 직업에 해당하는 FCardDataRow 포인터 목록 반환.
-     * (const 포인터 배열은 UFUNCTION 불가 → C++ 전용)
+     * (const 포인터 배열은 UFUNCTION 불가 -> C++ 전용)
      */
     TArray<const FCardDataRow*> GetCardsByClass(EJobClass JobClass) const;
 

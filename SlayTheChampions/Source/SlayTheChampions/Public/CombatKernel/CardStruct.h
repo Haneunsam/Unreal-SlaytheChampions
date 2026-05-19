@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CombatKernel/AttackTypeEnum.h"
+#include "CardDataTypes.h"
 #include "Engine/Texture2D.h"
 #include "CardStruct.generated.h"
 
+// 손패에서 사용하는 런타임 카드 인스턴스.
+// FCardDataRow(DataTable 정적 정의)와 필드를 맞춰두어 나중에 변환이 쉽도록 한다.
 USTRUCT(BlueprintType)
 struct FCardStruct
 {
@@ -16,19 +18,31 @@ public:
 	FName Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText Text;
+	FText CardName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EAttackType Type = EAttackType::Attack;
+	FText Description;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 CardCost = 0;
+	ECardType CardType = ECardType::Attack;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 Amount = 0;
+	ETargetType TargetType = ETargetType::SingleEnemy;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString Discription;
+	int32 Cost = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 Damage = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 Block = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 HealAmount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 DrawCount = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UTexture2D* CardImage = nullptr;
