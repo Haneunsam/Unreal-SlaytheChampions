@@ -1,43 +1,380 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Map/MapCreator.h"
 
-MapCreator::MapCreator()
+#include "Subsystems/GameInstanceSubsystem.h"
+#include "Map/AreaLevelData.h"
+#include "Map/Area.h"
+#include "Map/MapAreaActor.h"
+#include "Map/MapConfigData.h"
+#include "Map/MapStruct.h"
+
+UMapCreator::UMapCreator(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 }
 
-MapCreator::~MapCreator()
+UMapCreator::~UMapCreator()
 {
 }
 
-void MapCreator::CreateMap()
+UWorld* UMapCreator::GetWorld() const
 {
-	//¸Ê »ı¼º ÀÛ¾÷Àü Á¤º¸ ´ãÀ» ¹è¿­µé ÃÊ±âÈ­
-	if (!Map.IsEmpty()) InitMap();
-	if (!GridMap.IsEmpty()) InitGridMap();
+	if (const UObject* OuterObject = GetOuter())
+	{
+		return OuterObject->GetWorld();
+	}
 
-	//1 ±×¸®µå ¸Ê »ı¼º
-	GridMapCreate();
-	//2 ½ÇÁ¦ ¸Ê »ı¼º ¹× ÃÊ±âÈ­
-	//3 Map¿¡ µ¥ÀÌÅÍ ÀÔ·Â
+	return nullptr;
 }
 
-void MapCreator::GridMapCreate()
+void UMapCreator::InitWorldMap()
 {
-	//Á¶°Ç 1 : 1¹ø¹æÀº ArtifactEvent
-	//Á¶°Ç 2 : 9¹ø¹æÀº Reword
-	//Á¶°Ç 3 : 15¹ø¹æÀº Rest
-	//Á¶°Ç 4 : 16¹ø¹æÀº Boss
-	//Á¶°Ç 5 : ¸ğµç¹æÀº ÃÖ¼Ò 1°³ÀÌ»óÀÇ ¿¬°áµÈ ³ëµå°¡ ÇÊ¿äÇÔ
-	//Á¶°Ç 6 : ÇÑ Ãş¿¡ ÃÖ¼Ò 1°³ÀÌ»óÀÇ area°¡ ÀÖ¾î¾ßÇÔ
-	//Á¶°Ç 7 : ¿¬°áµÈ ¹æÀº °¡Àå °¡±î¿î °Å¸® x-1 x x+1 y+1 ¹æÀ» ±âÁØÀ¸·Î ¿¬°áÇÏµÇ ±× 3°÷¿¡ ¹æÀÌ ¾øÀ¸¸é ´õ È®ÀåÇØ¼­ ¿¬°á
-
-
+	for (AActor* Actor : WorldMap)
+	{
+		if (IsValid(Actor))
+		{
+			Actor->Destroy();
+		}
+	}
+	WorldMap.Empty();
 }
 
-int32 MapCreator::GetRandAreaPos(int32 _min, int32 _max)
+bool UMapCreator::LoadDefaultConfig()
+{
+	if (!MapConfig)
+	{
+		MapConfig = LoadObject<UMapConfigData>(nullptr, TEXT("/Game/04_Data/MapCreatorData.MapCreatorData"));
+	}
+
+	if (!MapConfig)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UMapCreator: MapCreatorData load failed."));
+		return false;
+	}
+
+	CurrentWidth = MapConfig->MapWidth;
+	CurrentHeight = MapConfig->MapHeight;
+	return true;
+}
+
+void UMapCreator::CreateMap()
+{
+	if (!LoadDefaultConfig()) return;
+
+	//ë§µ ìƒì„± ì‘ì—…ì „ ì •ë³´ ë‹´ì„ ë°°ì—´ë“¤ ì´ˆê¸°í™”
+	InitMap();
+	InitGridMap();
+	InitWorldMap();
+
+	// ê·¸ë¦¬ë“œ ë§µ ìƒì„±
+	GridMapCreate(CurrentWidth, CurrentHeight, MapConfig->AreaSpawnProbability);
+
+	//Mapì— ë°ì´í„° ì…ë ¥
+	SetMapData(CurrentWidth, CurrentHeight);
+
+	//Area ì—°ê²°
+	ConnectAreas(CurrentWidth, CurrentHeight);
+
+	//ë””ë²„ê·¸ìš©
+	for (int i = 0; i < Map.Num(); i++)
+	{
+		if (Map[i] == nullptr) continue;
+
+		Map[i]->DebugShowInfo();
+	}
+
+	//ì‹¤ì œ ë§µ ìƒì„±
+	WorldMapCreate(CurrentWidth, CurrentHeight);
+}
+
+bool UMapCreator::HasMapData() const
+{
+	for (UArea* Area : Map)
+	{
+		if (Area)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UMapCreator::RestoreWorldMap()
+{
+	if (!HasMapData() || !MapConfig)
+	{
+		return;
+	}
+
+	//ë””ë²„ê·¸ìš©
+	InitWorldMap();
+	WorldMapCreate(CurrentWidth, CurrentHeight);
+}
+
+void UMapCreator::RefreshDebugWorldMapState()
+{
+	//ë””ë²„ê·¸ìš©
+	for (AActor* Actor : WorldMap)
+	{
+		AMapAreaActor* MapAreaActor = Cast<AMapAreaActor>(Actor);
+		if (!MapAreaActor)
+		{
+			continue;
+		}
+
+		UArea* Area = GetAreaAt(MapAreaActor->GetFloorIndex(), MapAreaActor->GetRoomIndex());
+		if (!Area)
+		{
+			continue;
+		}
+
+		MapAreaActor->ApplyDebugAreaInfo(Area->GetAreaInfo());
+	}
+}
+
+#pragma region GridMapGeneration
+void UMapCreator::GridMapCreate(int32 MapWidth, int32 MapHeight, float AreaSpawnProbability)
 {
 
-	return FMath::RandRange(_min,_max);
+	//1ì¸µ ë°© ì„¸íŒ…
+	GridMap[MapWidth / 2] = true;
+
+	//ì¤‘ê°„ë°©ë“¤ ì„¸íŒ…
+	for (int height = 1; height < MapHeight - 1; height++)
+	{
+		int32 FloorStart = height * MapWidth;
+		int32 MustHavePos = FloorStart + FMath::RandRange(0, MapWidth - 1);
+		GridMap[MustHavePos] = true;
+
+		for (int32 w = 0; w < MapWidth; w++)
+		{
+			if (FMath::RandRange(0, 100) < AreaSpawnProbability)
+			{
+				GridMap[FloorStart + w] = true;
+			}
+		}
+	}
+
+	//ë§ˆì§€ë§‰ ì¸µ ë°© ì„¸íŒ…
+
+	int32 LastStart = (MapHeight - 1) * MapWidth;
+	int32 LastCenter = LastStart + (MapWidth / 2);
+	GridMap[LastCenter] = true;
+
+	//ë””ë²„ê·¸ìš©
+	/*FString DebugMapString = TEXT("\n--- Grid Map Debug ---\n");
+	for (int32 y = 0; y < MapHeight; y++)
+	{
+		FString Line = TEXT("");
+		for (int32 x = 0; x < MapWidth; x++)
+		{
+			int32 Index = (y * MapWidth) + x;
+			Line += GridMap[Index] ? TEXT(" 1 ") : TEXT(" 0 ");
+		}
+		DebugMapString += Line + TEXT("\n");
+	}
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *DebugMapString);*/
 }
+#pragma endregion
+
+#pragma region MapDataSetting
+void UMapCreator::SetMapData(int32 MapWidth, int32 MapHeight)
+{
+	for (int height = 0; height < MapHeight; height++)
+	{
+		for (int width = 0; width < MapWidth; width++)
+		{
+			int32 pos = (height * MapWidth) + width;
+
+			if (GridMap[pos])
+			{
+				Map[pos] = AreaCreate(height, width);
+			}
+		}
+	}
+}
+
+UArea* UMapCreator::AreaCreate(int32 height, int32 width)
+{
+	UArea* Area = NewObject<UArea>(this);
+
+	EAreaType type = EAreaType::None;
+	const FAreaFixedPlacement& FixedPlacement = MapConfig->FixedPlacement;
+	int32 floor = height + 1;
+
+	if ((floor == FixedPlacement.ArtifactEvent)) type = EAreaType::ArtifactEvent;
+	else if ((floor == FixedPlacement.Reword)) type = EAreaType::Reword;
+	else if ((floor == FixedPlacement.Rest)) type = EAreaType::Rest;
+	else if ((floor == FixedPlacement.Boss)) type = EAreaType::Boss;
+
+	if (type == EAreaType::None)type = GetRandAreaType();
+
+	FAreaInfo AreaInfo(
+		EAreaState::Ready,
+		type,
+		FVector2D(height, width),
+		EAreaVisitState::None);
+
+	Area->InitArea(AreaInfo);
+
+	return Area;
+}
+
+EAreaType UMapCreator::GetRandAreaType()
+{
+	const FAreaSpawnProbability& Prob = MapConfig->AreaTypeSpawnProbability;
+
+	const float TotalProbability = Prob.Normal + Prob.Elite + Prob.Event + Prob.Rest + Prob.Shop;
+	if (TotalProbability <= 0.f) return EAreaType::Shop;
+
+	float RandVal = FMath::FRandRange(0.f, TotalProbability);
+
+	if ((RandVal -= Prob.Normal) <= 0.f) return EAreaType::Normal;
+	if ((RandVal -= Prob.Elite) <= 0.f) return EAreaType::Elite;
+	if ((RandVal -= Prob.Event) <= 0.f) return EAreaType::Event;
+	if ((RandVal -= Prob.Rest) <= 0.f) return EAreaType::Rest;
+
+	return EAreaType::Shop;
+}
+#pragma endregion
+
+#pragma region MapConnect
+void UMapCreator::ConnectAreas(int32 MapWidth, int32 MapHeight)
+{
+	for (int height = 0; height < MapHeight - 1; height++)
+	{
+		for (int width = 0; width < MapWidth; width++)
+		{
+			int32 CurrnetPos = (height * MapWidth) + width;
+			int32 NextHeight = height + 1;
+			if (Map[CurrnetPos] == nullptr) continue;
+
+			//1ì¸µì¼ê²½ìš° 2ì¸µ ëª¨ë“ ë°©ê³¼ ì—°ê²°
+			if (height == 0)
+			{
+				for (int32 nextW = 0; nextW < MapWidth; nextW++)
+				{
+					int32 NextIdx = (NextHeight * MapWidth) + nextW;
+					if (Map[NextIdx])
+					{
+						Map[CurrnetPos]->SetNextAreas(Map[NextIdx]);
+					}
+				}
+				continue;
+			}
+			//ë§ˆì§€ë§‰ ì§ì „ ì¸µì¼ê²½ìš° ì „ë¶€ ë³´ìŠ¤ë°©ê³¼ ì—°ê²°
+			if (NextHeight == MapHeight - 1)
+			{
+				int32 BossIdx = (NextHeight * MapWidth) + (MapWidth / 2);
+				if (Map[BossIdx])
+				{
+					Map[CurrnetPos]->SetNextAreas(Map[BossIdx]);
+				}
+				continue;
+			}
+
+			//ë‚˜ë¨¸ì§€ë°©
+			bool isConnect = false;
+			for (int32 dw = -1; dw <= 1; dw++)
+			{
+				int32 NextWidth = width + dw;
+				if (ConnectIfValid(CurrnetPos, NextHeight, NextWidth, MapWidth))
+				{
+					isConnect = true;
+				}
+			}
+
+			if (!isConnect)
+			{
+				for (int32 dist = 2; dist < MapWidth; dist++)
+				{
+					if (ConnectIfValid(CurrnetPos, NextHeight, width - dist, MapWidth)) break;
+					if (ConnectIfValid(CurrnetPos, NextHeight, width + dist, MapWidth)) break;
+				}
+			}
+		}
+	}
+}
+
+bool UMapCreator::ConnectIfValid(int32 CurrnetPos, int32 NextHeight, int32 NextWidth, int32 MapWidth)
+{
+	if (NextWidth >= 0 && NextWidth < MapWidth)
+	{
+		int32 NextIdx = (NextHeight * MapWidth) + NextWidth;
+		if (Map[NextIdx])
+		{
+			Map[CurrnetPos]->SetNextAreas(Map[NextIdx]);
+			return true;
+		}
+	}
+	return false;
+}
+#pragma endregion
+
+#pragma region WorldMapGeneration
+void UMapCreator::WorldMapCreate(int32 MapWidth, int32 MapHeight)
+{
+	UWorld* World = GetWorld();
+	if (!World || !MapConfig) return;
+
+	for (int32 height = 0; height < MapHeight; height++)
+	{
+		for (int32 width = 0; width < MapWidth; width++)
+		{
+			int32 CurrentPos = (height * MapWidth) + width;
+
+			if (!Map.IsValidIndex(CurrentPos) || Map[CurrentPos] == nullptr) continue;
+
+			FVector SpawnLocation = FVector(width * MapConfig->TileDistance, height * MapConfig->TileDistance, 0.0f);
+			FRotator SpawnRotation = FRotator::ZeroRotator;
+
+			TSubclassOf<AActor> SelectedClass = GetAreaClass(Map[CurrentPos]->GetType());
+
+			if (SelectedClass)
+			{
+				FActorSpawnParameters SpawnParams;
+				SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+				const FString AreaTypeName = StaticEnum<EAreaType>()->GetNameStringByValue(static_cast<int64>(Map[CurrentPos]->GetType()));
+				const FString AreaName = FString::Printf(TEXT("%dì¸µ %dë²ˆ %s"), height + 1, width + 1, *AreaTypeName);
+				AActor* SpawnedActor = World->SpawnActor<AActor>(SelectedClass, SpawnLocation, SpawnRotation, SpawnParams);
+				if (SpawnedActor)
+				{
+					//ë””ë²„ê·¸ìš©
+					if (AMapAreaActor* MapAreaActor = Cast<AMapAreaActor>(SpawnedActor))
+					{
+						MapAreaActor->SetAreaIndex(height, width);
+						MapAreaActor->ApplyDebugAreaInfo(Map[CurrentPos]->GetAreaInfo());
+						if (MapConfig->AreaLevelData)
+						{
+							MapAreaActor->SetTargetLevelName(MapConfig->AreaLevelData->GetLevelName(Map[CurrentPos]->GetType()));
+						}
+					}
+#if WITH_EDITOR
+					SpawnedActor->SetActorLabel(AreaName);
+#endif
+					WorldMap.Add(SpawnedActor);
+				}
+			}
+		}
+	}
+}
+
+TSubclassOf<AActor> UMapCreator::GetAreaClass(EAreaType type)
+{
+	switch (type)
+	{
+	case EAreaType::Normal: return MapConfig->NormalMap;
+	case EAreaType::Elite:return MapConfig->EliteMap;
+	case EAreaType::Boss:return MapConfig->BossMap;
+	case EAreaType::Event:return MapConfig->EventMap;
+	case EAreaType::Rest:return MapConfig->RestMap;
+	case EAreaType::Shop:return MapConfig->ShopMap;
+	case EAreaType::Reword:return MapConfig->RewordMap;
+	case EAreaType::ArtifactEvent:return MapConfig->ArtifactEventMap;
+	}
+	return MapConfig->NormalMap;
+}
+#pragma endregion

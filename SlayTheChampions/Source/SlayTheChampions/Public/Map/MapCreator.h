@@ -1,48 +1,108 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/NoExportTypes.h"
+#include "MapCreator.generated.h"
 
-class Area;
-class SLAYTHECHAMPIONS_API MapCreator
+class UArea;
+class UMapConfigData;
+enum class EAreaType : uint8;
+
+UCLASS()
+class SLAYTHECHAMPIONS_API UMapCreator : public UObject
 {
+	GENERATED_BODY()
 private:
-	/*¹è¿­¿¡¼­ÀÇ ¸Ê*/
-	TArray<int32> GridMap = { 0 };
+	/*ë°°ì—´ì—ì„œì˜ ë§µ*/
+	UPROPERTY()
+	TArray<bool> GridMap = { 0 };
 
-	/*ÇöÀç »ı¼ºµÈ ¸Ê µ¥ÀÌÅÍ ¹è¿­*/
-	TArray<Area*> Map;
+	/*í˜„ì¬ ìƒì„±ëœ ë§µ ë°ì´í„° ë°°ì—´*/
+	UPROPERTY()
+	TArray<UArea*> Map;
 
-	/*¸Ê ³Êºñ*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MapCreator", meta = (AllowPrivateAccess = "true"))
-	int32 MapWidth = 7;
+	/*í˜„ì¬ ì›”ë“œì—ì„œ ì‹¤ì œ ë§µ*/
+	UPROPERTY()
+	TArray<AActor*> WorldMap;
 
-	/*¸Ê ³ôÀÌ*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MapCreator", meta = (AllowPrivateAccess = "true"))
-	int32 MapHeight = 15;
+	/*ë§µ ìƒì„± ê´€ë ¨ ë°ì´í„°ì—ì…‹*/
+	UPROPERTY()
+	UMapConfigData* MapConfig = nullptr;
+
+	int32 CurrentWidth = 7;
+	int32 CurrentHeight = 15;
 public:
-	MapCreator();
-	~MapCreator();
+	UMapCreator(const FObjectInitializer& ObjectInitializer);
+	~UMapCreator();
 
-	/*¸Ê »ı¼º*/
+	virtual UWorld* GetWorld() const override;
+
+	/*ë§µ ìƒì„±*/
 	void CreateMap();
 
-	/*¸Ê ³Êºñ ¼³Á¤*/
-	void SetMapWidth(int32 _width) { MapWidth = _width; }
+	/*ë””ë²„ê·¸ìš©*/
+	bool HasMapData() const;
 
-	/*¸Ê ³ôÀÌ ¼³Á¤*/
-	void SetMapHeight(int32 _height) { MapHeight = _height; }
+	/*ë””ë²„ê·¸ìš©*/
+	void RestoreWorldMap();
+
+	/*ë””ë²„ê·¸ìš©*/
+	void RefreshDebugWorldMapState();
+
+	/*ì˜ì—­ ë°˜í™˜*/
+	UArea* GetAreaAt(int32 height, int32 width) const
+	{
+		const int32 Index = (height * CurrentWidth) + width;
+		return Map.IsValidIndex(Index) ? Map[Index] : nullptr;
+	}
+
+	/*ë§µ ë„ˆë¹„ ë°˜í™˜*/
+	int32 GetMapWidth() const { return CurrentWidth; }
+
+	/*ë§µ ë†’ì´ ë°˜í™˜*/
+	int32 GetMapHeight() const { return CurrentHeight; }
+
+	/*ë§µ ë„ˆë¹„ ì„¤ì •*/
+	void SetMapWidth(int32 _width) { CurrentWidth = _width; }
+
+	/*ë§µ ë†’ì´ ì„¤ì •*/
+	void SetMapHeight(int32 _height) { CurrentHeight = _height; }
 private:
-	/*±×¸®µå ¸Ê ÃÊ±âÈ­*/
-	void InitGridMap() { GridMap.SetNum(MapWidth * MapHeight); }
+	/*ê·¸ë¦¬ë“œ ë§µ ì´ˆê¸°í™”*/
+	void InitGridMap() { GridMap.Init(false, CurrentWidth * CurrentHeight); }
 
-	/*½ÇÁ¦ ¸Ê ÃÊ±âÈ­*/
-	void InitMap() { Map.Empty(); }
+	/*ë§µ ë°ì´í„° ì´ˆê¸°í™”*/
+	void InitMap() { Map.Init(nullptr, CurrentWidth * CurrentHeight); }
 
-	/*±×¸®µå ¸Ê »ı¼º*/
-	void GridMapCreate();
-	
-	/*Ãşº° ·£´ı ¹æÀ§Ä¡ ¹İÈ¯*/
-	int32 GetRandAreaPos(int32 _min, int32 _max);
+	/*ì‹¤ì œ ì›”ë“œ ë§µ ì´ˆê¸°í™”*/
+	void InitWorldMap();
+
+	/*DataíŒŒì¼ ì—°ê²°*/
+	bool LoadDefaultConfig();
+
+	/*ê·¸ë¦¬ë“œ ë§µ ìƒì„±*/
+	void GridMapCreate(int32 MapWidth, int32 MapHeight, float AreaSpawnProbability);
+
+	/*ë§µ ë°ì´í„° ìƒì„±*/
+	void SetMapData(int32 MapWidth, int32 MapHeight);
+
+	/*ì˜ì—­ ìƒì„±*/
+	UArea* AreaCreate(int32 height, int32 width);
+
+	/*ë°© ëœë¤ íƒ€ì… ë°˜í™˜*/
+	EAreaType GetRandAreaType();
+
+	/*ì¸ì ‘í•œ ë°© ì—°ê²°*/
+	void ConnectAreas(int32 MapWidth, int32 MapHeight);
+
+	/*ì—°ê²°ê°€ëŠ¥í•œ ë°©ì¸ì§€ í™•ì¸*/
+	bool ConnectIfValid(int32 CurrentIdx, int32 NextH, int32 NextW, int32 MapWidth);
+
+	/*ì‹¤ì œ ì›”ë“œ ë§µ ìƒì„±*/
+	void WorldMapCreate(int32 MapWidth, int32 MapHeight);
+
+	/*Area Class ë°˜í™˜*/
+	TSubclassOf<AActor> GetAreaClass(EAreaType type);
 };
