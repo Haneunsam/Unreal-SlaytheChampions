@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "GameManagers/GameManager.h"
@@ -9,19 +9,14 @@ void UGameManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	Initialize();
-}
-
-void UGameManager::Initialize()
-{
 	CurrentState = EGameState::Run;
 	LM = GetWorld()->GetGameInstance()->GetSubsystem<ULevelManager>();
 }
 
 void UGameManager::StartGame()
 {
-	//Å¸ÀÌÆ²¾À or ½ÃÀÛ¾À¿¡¼­ °ÔÀÓ¾ÀÀ¸·Î ³Ñ¾î°¡´Â ·ÎÁ÷ 
-	//LM -> GoToLevel(½ÃÀÛ¾À ÀÌ¸§)
+	//íƒ€ì´í‹€ì”¬ or ì‹œì‘ì”¬ì—ì„œ ê²Œì„ì”¬ìœ¼ë¡œ ë„˜ì–´ê°€ëŠ” ë¡œì§ 
+	//LM -> GoToLevel(ì‹œì‘ì”¬ ì´ë¦„)
 }
 
 void UGameManager::ChangeGameState(EGameState state)
@@ -33,7 +28,7 @@ void UGameManager::ChangeGameState(EGameState state)
 
 void UGameManager::ExitGame()
 {
-	//ÃßÈÄ Á¾·á½Ã ÀÚµ¿ÀúÀå ÇÊ¿äÇÏ¸é Ãß°¡ ÄÚµå ÀÛ¼º
+	//ì¶”í›„ ì¢…ë£Œì‹œ ìë™ì €ì¥ í•„ìš”í•˜ë©´ ì¶”ê°€ ì½”ë“œ ì‘ì„±
 
 	UKismetSystemLibrary::QuitGame(GetWorld(), nullptr, EQuitPreference::Quit, false);
 }
