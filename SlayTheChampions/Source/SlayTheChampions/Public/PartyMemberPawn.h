@@ -10,11 +10,14 @@ class UHandComponent;
 /**
  * APartyMemberPawn
  *
- * Pawn1 / Pawn2 °øÅë ±â¹Ý Å¬·¡½º.
- * - HandComponent ¸¦ ¼ÒÀ¯ÇÑ´Ù.
- * - Á÷¾÷(JobClass) À» ¿¡µðÅÍ¿¡¼­ ÁöÁ¤ÇÏ¸é
- *   BeginPlay ¿¡¼­ CardSubsystem À» ÅëÇØ ÇØ´ç Á÷¾÷ Ä«µåÇ®·Î µ¦À» ÀÚµ¿ ÃÊ±âÈ­ÇÑ´Ù.
- * - ÀüÅõ ±ÔÄ¢(µ¥¹ÌÁö, ÄÚ½ºÆ® µî)Àº ÀÌ Å¬·¡½º ¹Û¿¡¼­ Ã³¸®ÇÑ´Ù.
+ * ÆÄÆ¼¿ø 1¸íÀ» ³ªÅ¸³»´Â Pawn ±â¹Ý Å¬·¡½º.
+ * HandComponent ¸¦ ¼ÒÀ¯ÇÏ¸ç µ¦/¼ÕÆÐ/¹ö¸®±â ´õ¹Ì¸¦ °ü¸®ÇÑ´Ù.
+ * BP_Pawn1, BP_Pawn2 ÀÇ ºÎ¸ð Å¬·¡½º·Î »ç¿ë.
+ *
+ * [µ¦ ÃÊ±âÈ­ ¿ì¼±¼øÀ§]
+ * 1. SaveGame ÆÄÀÏ¿¡ ÀúÀåµÈ µ¦ (ÀüÅõ Á¾·á ÈÄ ÀúÀåµÈ µ¦)
+ * 2. OverrideDeckNames (¿¡µðÅÍ/Å×½ºÆ®¿¡¼­ Á÷Á¢ ÁöÁ¤)
+ * 3. CardSubsystem ¿¡¼­ Á÷¾÷ ±â¹Ý ÀÚµ¿ Á¶È¸
  */
 UCLASS()
 class SLAYTHECHAMPIONS_API APartyMemberPawn : public APawn
@@ -28,52 +31,84 @@ protected:
     virtual void BeginPlay() override;
 
 public:
-    // ¦¡¦¡ ÄÄÆ÷³ÍÆ® ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    /** ÀÌ Pawn ÀÇ µ¦¡¤¼ÕÆÐ¡¤¹ö¸®±â ´õ¹Ì */
+    // µ¦/¼ÕÆÐ/¹ö¸®±â ´õ¹Ì °ü¸® ÄÄÆ÷³ÍÆ®
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Card")
     TObjectPtr<UHandComponent> HandComponent;
 
-    // ¦¡¦¡ Á÷¾÷ ¼³Á¤ ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
     /**
-     * ¿¡µðÅÍ¿¡¼­ ÁöÁ¤. BeginPlay ½Ã ÀÌ Á÷¾÷¿¡ ¸Â´Â Ä«µåÇ®·Î µ¦ ÃÊ±âÈ­.
-     * Warrior / Mage / Healer
+     * ÆÄÆ¼ ³» ÀÎµ¦½º.
+     * SaveGame ¿¡¼­ µ¦À» ºÒ·¯¿Ã ¶§ »ç¿ë.
+     * 0 = Pawn1 (Warrior), 1 = Pawn2 (Mage)
+     * ¿¡µðÅÍ¿¡¼­ °¢ Pawn ¿¡ ¸Â°Ô ¼³Á¤ ÇÊ¿ä.
      */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Card")
+    int32 PawnIndex = 0;
+
+    // ÀÌ ÆÄÆ¼¿øÀÇ Á÷¾÷ (Ä«µå Á¶È¸ ¹× µ¦ ÃÊ±âÈ­¿¡ »ç¿ë)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Card")
     EJobClass JobClass = EJobClass::Warrior;
 
     /**
-     * µ¦¿¡ ³ÖÀ» Ä«µå ¸ñ·ÏÀ» Á÷Á¢ ÁöÁ¤ÇÏ°í ½ÍÀ» ¶§ »ç¿ë (¼±ÅÃÀû).
-     * ºñ¾îÀÖÀ¸¸é JobClass ±âÁØÀ¸·Î CardSubsystem ¿¡¼­ ÀÚµ¿ Á¶È¸.
+     * µ¦À» Á÷Á¢ ÁöÁ¤ÇÒ ¶§ »ç¿ë. (Å×½ºÆ®¿ë)
+     * °ªÀÌ ÀÖÀ¸¸é SaveGame ´ë½Å ÀÌ ¸ñ·ÏÀ» »ç¿ë.
+     * ½ÇÁ¦ °ÔÀÓ¿¡¼­´Â ºñ¿öµÑ °Í.
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Card")
     TArray<FName> OverrideDeckNames;
 
-    // ¦¡¦¡ µ¦ Á¶ÀÛ ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // µ¦ °ü·Ã ÇÔ¼ö
+    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
 
     /**
-     * µ¦ ÃÊ±âÈ­ (¿ÜºÎ¿¡¼­ ¸í½ÃÀûÀ¸·Î È£Ãâ °¡´É).
-     * OverrideDeckNames °¡ ÀÖÀ¸¸é ±×°É »ç¿ë, ¾øÀ¸¸é JobClass ±â¹Ý ÀÚµ¿ Á¶È¸.
+     * µ¦À» ÃÊ±âÈ­ÇÏ°í HandComponent ¿¡ Àü´ÞÇÑ´Ù.
+     * BeginPlay ¿¡¼­ ÀÚµ¿ È£Ãâ.
+     * SaveGame -> OverrideDeck -> CardSubsystem ¼ø¼­·Î ¿ì¼±¼øÀ§ Àû¿ë.
      */
     UFUNCTION(BlueprintCallable, Category = "Card")
     void InitializeDeck();
 
-    /** ÆíÀÇ ÇÔ¼ö - HandComponent ·Î Æ÷¿öµù */
+    /**
+     * ÀüÅõ Á¾·á ½Ã ÇöÀç µ¦ »óÅÂ¸¦ SaveGame ¿¡ ÀúÀåÇÑ´Ù.
+     * DrawPile + Hand + DiscardPile À» ÇÕÃÄ¼­ ÀúÀå (A¹æ½Ä).
+     * ÀüÅõ Á¾·á ÀÌº¥Æ®¿¡¼­ È£ÃâÇÒ °Í.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Card")
+    void SaveDeckToSaveGame();
+
+    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ÀüÅõ Áß Ä«µå Á¶ÀÛ ÇÔ¼ö
+    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+
+    // ÅÏ ½ÃÀÛ ½Ã Ä«µå µå·Î¿ì (±âº» 5Àå)
     UFUNCTION(BlueprintCallable, Category = "Card")
     void DrawStartOfTurn();
 
+    /**
+     * ¼ÕÆÐ¿¡¼­ Ä«µå¸¦ »ç¿ëÇÑ´Ù.
+     * Hand ¿¡¼­ Á¦°Å ÈÄ DiscardPile ·Î ÀÌµ¿.
+     * @return ¼º°ø ¿©ºÎ (¼ÕÆÐ¿¡ ¾øÀ¸¸é false)
+     */
     UFUNCTION(BlueprintCallable, Category = "Card")
     bool PlayCard(FName CardName);
 
+    // ÅÏ Á¾·á ½Ã ¼ÕÆÐ ÀüÃ¼¸¦ DiscardPile ·Î ¹ö¸°´Ù.
     UFUNCTION(BlueprintCallable, Category = "Card")
     void DiscardHand();
 
-    // ¦¡¦¡ Á¶È¸ (Blueprint ³ëÃâ¿ë) ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // »óÅÂ Á¶È¸ ÇÔ¼ö
+    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+
+    // ÇöÀç ¼ÕÆÐ Ä«µå ¸ñ·Ï ¹ÝÈ¯
     UFUNCTION(BlueprintPure, Category = "Card")
     TArray<FName> GetHand() const;
 
+    // µå·Î¿ì ´õ¹Ì ³²Àº Àå¼ö
     UFUNCTION(BlueprintPure, Category = "Card")
     int32 GetDrawPileCount() const;
 
+    // ¹ö¸®±â ´õ¹Ì Àå¼ö
     UFUNCTION(BlueprintPure, Category = "Card")
     int32 GetDiscardPileCount() const;
 };
