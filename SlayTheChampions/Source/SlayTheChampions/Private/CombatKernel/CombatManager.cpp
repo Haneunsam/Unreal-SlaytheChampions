@@ -99,6 +99,59 @@ AUnit* ACombatManager::SpawnCombatant(TSubclassOf<AUnit> ActorClass,
 	return Actor;
 }
 
+void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex)
+{
+	if (!SpawnedPlayers.IsValidIndex(CasterIndex)) return;
+	AUnit* Caster = SpawnedPlayers[CasterIndex];
+
+	// 타겟 목록 결정
+	TArray<AUnit*> Targets;
+	switch (Card.TargetType)
+	{
+		case ETargetType::SingleEnemy:
+			// [임시] 선택 UI 없으므로 0번 적 고정
+			if (SpawnedEnemies.IsValidIndex(0)) Targets.Add(SpawnedEnemies[0]);
+			break;
+		case ETargetType::AllEnemies:
+			Targets = SpawnedEnemies;
+			break;
+		case ETargetType::Self:
+			Targets.Add(Caster);
+			break;
+		case ETargetType::SingleAlly:
+			// [임시] 0번 플레이어 고정
+			if (SpawnedPlayers.IsValidIndex(0)) Targets.Add(SpawnedPlayers[0]);
+			break;
+		case ETargetType::AllAllies:
+		case ETargetType::Single_Team:
+			Targets = SpawnedPlayers;
+			break;
+	}
+
+	// 효과 실행
+	for (AUnit* Target : Targets)
+	{
+		if (!Target || !Target->IsAlive()) continue;
+
+		UStatComponent* Stat = Target->GetStat();
+		if (!Stat) continue;
+
+		// 데미지 (UsingCount 횟수만큼 반복)
+		if (Card.Damage > 0)
+		{
+			for (int32 i = 0; i < Card.UsingCount; i++)
+				Stat->TakeDamage(Card.Damage, Caster);
+		}
+
+		// 회복
+		if (Card.HealAmount > 0)
+			Stat->Heal(Card.HealAmount);
+
+		// [임시] Block — UStatComponent에 방어도 추가 시 구현
+		// [임시] EffectTag — StatusEffectComponent 연결 시 구현
+	}
+}
+
 UStatComponent* ACombatManager::GetPlayerStat(int32 Index) const
 {
 	if (!SpawnedPlayers.IsValidIndex(Index) || !SpawnedPlayers[Index]) return nullptr;

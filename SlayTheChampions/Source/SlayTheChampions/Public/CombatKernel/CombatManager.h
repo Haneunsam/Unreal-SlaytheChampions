@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "CardDataTypes.h"
 #include "CombatManager.generated.h"
 
 class UStatComponent;
@@ -85,6 +86,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	UStatComponent* GetEnemyStat(int32 Index) const;
+
+	// 카드 효과 실행 (CasterIndex: 시전자 플레이어 인덱스)
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void ExecuteCard(const FCardDataRow& Card, int32 CasterIndex);
 
 protected:
 	virtual void BeginPlay() override;

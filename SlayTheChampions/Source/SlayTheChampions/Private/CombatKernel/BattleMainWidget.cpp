@@ -1,7 +1,25 @@
 #include "CombatKernel/BattleMainWidget.h"
+#include "CombatKernel/CombatManager.h"
 #include "CardWidget.h"
+#include "HandComponent.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Kismet/GameplayStatics.h"
+
+void UBattleMainWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	// 손패 컴포넌트 생성 (이 위젯이 소유)
+	Hand = NewObject<UHandComponent>(this, UHandComponent::StaticClass(), TEXT("HandComponent"));
+
+	// 레벨에 배치된 CombatManager 자동 탐색
+	CombatManager = Cast<ACombatManager>(
+		UGameplayStatics::GetActorOfClass(GetWorld(), ACombatManager::StaticClass()));
+
+	if (!CombatManager)
+		UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] CombatManager를 레벨에서 찾지 못했습니다."));
+}
 
 void UBattleMainWidget::AddCard(const FCardDataRow& InCardData)
 {
@@ -22,7 +40,16 @@ void UBattleMainWidget::AddCard(const FCardDataRow& InCardData)
 
 void UBattleMainWidget::OnCardExecuted_Implementation(const FCardDataRow& Card)
 {
-	// 카드 → CombatStatComponent 연결은 추후 구현
+	// 카드 효과 실행 (CombatManager에 위임)
+	if (CombatManager)
+		CombatManager->ExecuteCard(Card, 0);
+
+	// 카드 드로우 효과 처리
+	if (Card.DrawCount > 0 && Hand)
+	{
+		TArray<FName> Drawn = Hand->DrawCards(Card.DrawCount);
+		// [임시] 드로우한 카드 UI 추가 — HandComponent ↔ UI 연결 구현 시 처리
+	}
 }
 
 void UBattleMainWidget::HandleCardClicked(UCardWidget* Widget, const FCardDataRow& Card)
@@ -40,6 +67,10 @@ void UBattleMainWidget::HandleCardClicked(UCardWidget* Widget, const FCardDataRo
 			WidgetCards[RemoveIndex].CardWidget->RemoveFromParent();
 		WidgetCards.RemoveAt(RemoveIndex);
 	}
+
+	// HandComponent에 카드 사용 알림 → DiscardPile로 이동
+	if (Hand)
+		Hand->PlayCard(Card.Name);
 
 	SharedCost -= Card.Cost;
 	OnCostChanged(SharedCost, MaxCost);

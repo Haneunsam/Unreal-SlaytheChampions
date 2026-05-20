@@ -4,9 +4,12 @@
 #include "Blueprint/UserWidget.h"
 #include "CardDataTypes.h"
 #include "CardWidget.h"
+#include "HandComponent.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "BattleMainWidget.generated.h"
+
+class ACombatManager;
 
 USTRUCT(BlueprintType)
 struct FWidgetCardsStruct
@@ -30,10 +33,18 @@ class SLAYTHECHAMPIONS_API UBattleMainWidget : public UUserWidget
 
 public:
 	UPROPERTY(meta = (BindWidget))
-	class UCanvasPanel* MainCanvas;
+	UCanvasPanel* MainCanvas;
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UCardWidget> NewCard;
+
+	// 카드 효과 실행을 위한 CombatManager 참조 (NativeConstruct에서 레벨 자동 탐색)
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	ACombatManager* CombatManager;
+
+	// 손패 관리 컴포넌트 (이 위젯이 소유)
+	UPROPERTY(BlueprintReadOnly, Category = "Card|Hand")
+	UHandComponent* Hand;
 
 	UPROPERTY()
 	TArray<FWidgetCardsStruct> WidgetCards;
@@ -72,4 +83,7 @@ public:
 	// 카드 클릭 시 BP 또는 외부에서 직접 호출
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void HandleCardClicked(UCardWidget* Widget, const FCardDataRow& Card);
+
+protected:
+	virtual void NativeConstruct() override;
 };
