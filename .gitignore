@@ -53,6 +53,8 @@ Saved/
 
 # Claude Code
 .claude/
+CLAUDE.md
+Claude.md
 
 # Automation / local machine files
 *.swp
