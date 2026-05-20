@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Map/RunSystem.h"
 
@@ -6,6 +6,7 @@
 #include "Map/Area.h"
 #include "Map/MapManager.h"
 #include "Map/RewardSystem.h"
+#include "Save/STCGameInstance.h"
 
 void URunSystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -17,18 +18,22 @@ void URunSystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		RewardSystem->Initialize(this);
 	}
-	CurrentRunState = ERunState::Ready;
-	CurrentRoomInfo = FAreaInfo();
-	bHasCurrentRoom = false;
+	MapInfo.CurrentRunState = ERunState::Ready;
+	MapInfo.CurrentRoomInfo = FAreaInfo();
+	MapInfo.CurrentFloorIndex = INDEX_NONE;
+	MapInfo.CurrentRoomIndex = INDEX_NONE;
+	MapInfo.bHasCurrentRoom = false;
 	CurrentArea = nullptr;
 	UpdateEnterableState();
 }
 
 void URunSystem::StartRun()
 {
-	CurrentRunState = ERunState::RunInit;
-	CurrentRoomInfo = FAreaInfo();
-	bHasCurrentRoom = false;
+	MapInfo.CurrentRunState = ERunState::RunInit;
+	MapInfo.CurrentRoomInfo = FAreaInfo();
+	MapInfo.CurrentFloorIndex = INDEX_NONE;
+	MapInfo.CurrentRoomIndex = INDEX_NONE;
+	MapInfo.bHasCurrentRoom = false;
 	CurrentArea = nullptr;
 	UpdateEnterableState();
 	OnEnterableRoomsUpdated.Broadcast(GetEnterableRooms());
@@ -46,11 +51,22 @@ void URunSystem::StartRunWithMap()
 		MapManager->MapCreate();
 	}
 
+	if (MapInfo.bHasSavedMap && MapInfo.bHasCurrentRoom)
+	{
+		RefreshRunState();
+		return;
+	}
+
 	StartRun();
 }
 
 void URunSystem::RefreshRunState()
 {
+	if (!CurrentArea && MapManager && MapInfo.bHasCurrentRoom)
+	{
+		CurrentArea = MapManager->GetAreaAt(MapInfo.CurrentFloorIndex, MapInfo.CurrentRoomIndex);
+	}
+
 	UpdateEnterableState();
 	OnEnterableRoomsUpdated.Broadcast(GetEnterableRooms());
 }
@@ -71,13 +87,16 @@ bool URunSystem::EnterRoom(UArea* Area)
 	CurrentArea->SetVisitState(EAreaVisitState::Visited);
 	CurrentArea->SetState(EAreaState::Running);
 	CurrentArea->SetCurrentArea(true);
-	CurrentRoomInfo = CurrentArea->GetAreaInfo();
-	bHasCurrentRoom = true;
-	CurrentRunState = ERunState::RoomEntered;
+	MapInfo.CurrentRoomInfo = CurrentArea->GetAreaInfo();
+	MapInfo.CurrentFloorIndex = static_cast<int32>(MapInfo.CurrentRoomInfo.AreaPos.X);
+	MapInfo.CurrentRoomIndex = static_cast<int32>(MapInfo.CurrentRoomInfo.AreaPos.Y);
+	MapInfo.bHasCurrentRoom = true;
+	MapInfo.CurrentRunState = ERunState::RoomEntered;
 	UpdateEnterableState();
-	OnRoomEntered.Broadcast(CurrentRoomInfo);
-	BroadcastRoomTypeEvent(CurrentRoomInfo);
+	OnRoomEntered.Broadcast(MapInfo.CurrentRoomInfo);
+	BroadcastRoomTypeEvent(MapInfo.CurrentRoomInfo);
 	OnEnterableRoomsUpdated.Broadcast(GetEnterableRooms());
+	SaveGameData();
 	return true;
 }
 
@@ -90,19 +109,20 @@ bool URunSystem::AreaCleared()
 
 	CurrentArea->SetVisitState(EAreaVisitState::Cleared);
 	CurrentArea->SetState(EAreaState::End);
-	CurrentRoomInfo = CurrentArea->GetAreaInfo();
-	CurrentRunState = ERunState::StageClear;
+	MapInfo.CurrentRoomInfo = CurrentArea->GetAreaInfo();
+	MapInfo.CurrentRunState = ERunState::StageClear;
 	UpdateEnterableState();
+	SaveGameData();
 	if (RewardSystem)
 	{
-		RewardSystem->OpenAreaClearReward(CurrentRoomInfo);
+		RewardSystem->OpenAreaClearReward(MapInfo.CurrentRoomInfo);
 	}
 	return true;
 }
 
 void URunSystem::ReturnToMapAfterAreaClear()
 {
-	CurrentRunState = ERunState::StageSelect;
+	MapInfo.CurrentRunState = ERunState::StageSelect;
 	RefreshRunState();
 
 	if (UGameInstance* GameInstance = GetGameInstance())
@@ -137,7 +157,7 @@ bool URunSystem::CanEnterRoom(UArea* Area) const
 		return false;
 	}
 
-	if (!bHasCurrentRoom)
+	if (!MapInfo.bHasCurrentRoom)
 	{
 		return static_cast<int32>(AreaInfo.AreaPos.X) == 0;
 	}
@@ -191,6 +211,16 @@ TArray<FAreaInfo> URunSystem::GetEnterableRooms() const
 	return EnterableRooms;
 }
 
+FSaveMapInfo URunSystem::GetMapInfo() const
+{
+	FSaveMapInfo SaveMapInfo = MapInfo;
+	if (MapManager && MapManager->HasMapData())
+	{
+		MapManager->WriteMapInfo(SaveMapInfo);
+	}
+	return SaveMapInfo;
+}
+
 void URunSystem::SetPartySnapshot(const FRunPartySnapshot& InSnapshot)
 {
 	PartySnapshot = InSnapshot;
@@ -199,6 +229,19 @@ void URunSystem::SetPartySnapshot(const FRunPartySnapshot& InSnapshot)
 void URunSystem::SetDeckSnapshot(const FRunDeckSnapshot& InSnapshot)
 {
 	DeckSnapshot = InSnapshot;
+}
+
+void URunSystem::SetMapInfo(FSaveMapInfo _info)
+{
+	MapInfo = _info;
+	CurrentArea = nullptr;
+
+	if (MapManager && MapInfo.bHasCurrentRoom)
+	{
+		CurrentArea = MapManager->GetAreaAt(MapInfo.CurrentFloorIndex, MapInfo.CurrentRoomIndex);
+	}
+
+	UpdateEnterableState();
 }
 
 void URunSystem::SetRelicSnapshot(const FRunRelicSnapshot& InSnapshot)
@@ -228,12 +271,31 @@ void URunSystem::UpdateEnterableState()
 		}
 	}
 
-	CurrentRoomInfo = CurrentArea ? CurrentArea->GetAreaInfo() : FAreaInfo();
+	if (CurrentArea)
+	{
+		MapInfo.CurrentRoomInfo = CurrentArea->GetAreaInfo();
+		MapInfo.CurrentFloorIndex = static_cast<int32>(MapInfo.CurrentRoomInfo.AreaPos.X);
+		MapInfo.CurrentRoomIndex = static_cast<int32>(MapInfo.CurrentRoomInfo.AreaPos.Y);
+	}
+	else if (!MapInfo.bHasCurrentRoom)
+	{
+		MapInfo.CurrentRoomInfo = FAreaInfo();
+		MapInfo.CurrentFloorIndex = INDEX_NONE;
+		MapInfo.CurrentRoomIndex = INDEX_NONE;
+	}
+
 	MapManager->RefreshDebugMapState();
 }
 
-void URunSystem::BroadcastRoomTypeEvent(const FAreaInfo& RoomInfo)
+void URunSystem::SaveGameData()
 {
+	if (USTCGameInstance* STCGameInstance = Cast<USTCGameInstance>(GetGameInstance()))
+	{
+		STCGameInstance->SaveGameData();
+	}
+}
+
+void URunSystem::BroadcastRoomTypeEvent(const FAreaInfo& RoomInfo){
 	switch (RoomInfo.AreaType)
 	{
 	case EAreaType::Normal:

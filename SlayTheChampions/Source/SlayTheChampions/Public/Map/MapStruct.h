@@ -1,10 +1,10 @@
-ï»¿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Map/MapEnum.h"
 #include "MapStruct.generated.h"
 
-/*Area ì •ë³´*/
+/*Area Á¤º¸*/
 USTRUCT(BlueprintType)
 struct FAreaInfo
 {
@@ -38,7 +38,7 @@ struct FAreaInfo
 	}
 };
 
-/*Map Areaë°°ì¹˜ í™•ë¥ */
+/*Map Area¹èÄ¡ È®·ü*/
 USTRUCT(BlueprintType)
 struct FAreaSpawnProbability
 {
@@ -63,7 +63,7 @@ struct FAreaSpawnProbability
 	}
 };
 
-/*Map Area ê³ ì • ë°°ì¹˜ ì¸µìˆ˜*/
+/*Map Area °íÁ¤ ¹èÄ¡ Ãş¼ö*/
 USTRUCT(BlueprintType)
 struct FAreaFixedPlacement
 {
@@ -87,7 +87,64 @@ struct FAreaFixedPlacement
 	}
 };
 
-/*íŒŒí‹° ì‹œìŠ¤í…œ ê°€ì ¸ì˜¤ê¸° ìœ„í•œ ìŠ¤ëƒ…ìƒµ*/
+/*ÀúÀå¿ë Area µ¥ÀÌÅÍ*/
+USTRUCT(BlueprintType)
+struct FSaveAreaData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bHasArea = false;
+
+	UPROPERTY()
+	FAreaInfo AreaInfo;
+
+	UPROPERTY()
+	TArray<int32> NextAreaIndices;
+};
+/*ÀúÀå¿ë Map µ¥ÀÌÅÍ*/
+USTRUCT(BlueprintType)
+struct  FSaveMapInfo
+{
+	GENERATED_BODY()
+	/*Run ÁøÇà»óÅÂ*/
+	UPROPERTY()
+	ERunState CurrentRunState = ERunState::Ready;
+
+	/*ÀúÀåµÈ ¸Ê ³Êºñ*/
+	UPROPERTY()
+	int32 SavedMapWidth = 0;
+
+	/*ÀúÀåµÈ ¸Ê ³ôÀÌ*/
+	UPROPERTY()
+	int32 SavedMapHeight = 0;
+
+	/*ÀúÀåµÈ ¸Ê µ¥ÀÌÅÍ Á¸Àç ¿©ºÎ*/
+	UPROPERTY()
+	bool bHasSavedMap = false;
+
+	/*ÀúÀåµÈ ¸Ê µ¥ÀÌÅÍ ¹è¿­*/
+	UPROPERTY()
+	TArray<FSaveAreaData> SavedMap;
+
+	/*ÇöÀç AreaÀÇ Á¤º¸*/
+	UPROPERTY()
+	FAreaInfo CurrentRoomInfo;
+
+	/*ÇöÀç AreaÀÇ Ãş ÀÎµ¦½º*/
+	UPROPERTY()
+	int32 CurrentFloorIndex = INDEX_NONE;
+
+	/*ÇöÀç AreaÀÇ ¹æ ÀÎµ¦½º*/
+	UPROPERTY()
+	int32 CurrentRoomIndex = INDEX_NONE;
+
+	/*ÀÌµ¿°¡´ÉÇÑ AreaÀ» °¡ÁøÁö ¿©ºÎ*/
+	UPROPERTY()
+	bool bHasCurrentRoom = false;
+};
+
+/*ÆÄÆ¼ ½Ã½ºÅÛ °¡Á®¿À±â À§ÇÑ ½º³À¼¥*/
 USTRUCT(BlueprintType)
 struct FRunPartySnapshot
 {
@@ -97,7 +154,7 @@ struct FRunPartySnapshot
 	TArray<FName> PartyMemberIds;
 };
 
-/*ì¹´ë“œ ë± ì‹œìŠ¤í…œ ê°€ì ¸ì˜¤ê¸° ìœ„í•œ ìŠ¤ëƒ…ìƒµ*/
+/*Ä«µå µ¦ ½Ã½ºÅÛ °¡Á®¿À±â À§ÇÑ ½º³À¼¥*/
 USTRUCT(BlueprintType)
 struct FRunDeckSnapshot
 {
@@ -107,7 +164,7 @@ struct FRunDeckSnapshot
 	TArray<FName> DeckOwnerIds;
 };
 
-/*ìœ ë¬¼ ì‹œìŠ¤í…œ ê°€ì ¸ì˜¤ê¸° ìœ„í•œ ìŠ¤ëƒ…ìƒµ*/
+/*À¯¹° ½Ã½ºÅÛ °¡Á®¿À±â À§ÇÑ ½º³À¼¥*/
 USTRUCT(BlueprintType)
 struct FRunRelicSnapshot
 {
