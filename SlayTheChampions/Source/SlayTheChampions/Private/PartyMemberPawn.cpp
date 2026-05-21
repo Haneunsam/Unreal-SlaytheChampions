@@ -1,7 +1,7 @@
 ﻿#include "PartyMemberPawn.h"
 #include "HandComponent.h"
 #include "CardSubsystem.h"
-#include "CardSaveGame.h"
+#include "Save/STCGameInstance.h"
 
 APartyMemberPawn::APartyMemberPawn()
 {
@@ -25,13 +25,16 @@ void APartyMemberPawn::InitializeDeck()
 
     TArray<FName> DeckNames;
 
-    // ── 1순위: SaveGame 에서 덱 불러오기 ─────────────────────────────────
+    // ── 1순위: GameInstance 캐시에서 덱 불러오기 ─────────────────────────
     // 전투 종료 후 저장된 덱이 있으면 그것을 사용
-    TArray<FName> SavedDeck = UCardSaveGame::GetDeckCards(PawnIndex);
-    if (SavedDeck.Num() > 0)
+    if (USTCGameInstance* GI = Cast<USTCGameInstance>(GetGameInstance()))
     {
-        DeckNames = SavedDeck;
-        UE_LOG(LogTemp, Log, TEXT("[%s] SaveGame 에서 덱 로드 - %d장"), *GetName(), DeckNames.Num());
+        TArray<FName> SavedDeck = GI->GetDeckCards(PawnIndex);
+        if (SavedDeck.Num() > 0)
+        {
+            DeckNames = SavedDeck;
+            UE_LOG(LogTemp, Log, TEXT("[%s] SaveGame deck loaded - %d cards"), *GetName(), DeckNames.Num());
+        }
     }
 
     // ── 2순위: OverrideDeckNames 직접 지정 (테스트용) ────────────────────
@@ -70,13 +73,16 @@ void APartyMemberPawn::SaveDeckToSaveGame()
 {
     if (!HandComponent) return;
 
-    // DrawPile + Hand + DiscardPile 을 SaveGame 에 저장 (A방식)
-    UCardSaveGame::SaveDeckAfterBattle(
-        PawnIndex,
-        HandComponent->GetDrawPile(),
-        HandComponent->GetHand(),
-        HandComponent->GetDiscardPile()
-    );
+    // DrawPile + Hand + DiscardPile 을 GameInstance 를 통해 저장 (A방식)
+    if (USTCGameInstance* GI = Cast<USTCGameInstance>(GetGameInstance()))
+    {
+        GI->SaveDeckAfterBattle(
+            PawnIndex,
+            HandComponent->GetDrawPile(),
+            HandComponent->GetHand(),
+            HandComponent->GetDiscardPile()
+        );
+    }
 }
 
 void APartyMemberPawn::DrawStartOfTurn()
