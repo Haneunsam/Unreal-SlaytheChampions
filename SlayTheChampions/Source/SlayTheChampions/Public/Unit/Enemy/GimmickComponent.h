@@ -45,11 +45,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Gimmick")
 	void OnTurnEnd();
 		
-<<<<<<< Updated upstream
-	UFUNCTION(BlueprintCallable, Category = "Gimmick")
-	void OnTurnEnd();
-	
-=======
+
 
 	// ── Intent 보강 API (NPCBrainComponent가 PlanNextAction 마지막에 호출) ──
 /**
@@ -69,7 +65,7 @@ public:
 
 
 
->>>>>>> Stashed changes
+
 	// 외부 구독용 Delegate
 	UPROPERTY(BlueprintAssignable, Category = "Gimmick")
 	FOnPhaseEntered OnPhaseEntered;
@@ -80,10 +76,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Gimmick")
 	FOnGimmickAnnounce OnGimmickAnnounce;
 
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 protected:
 	virtual void BeginPlay() override;
 
@@ -92,18 +85,15 @@ protected:
 	virtual void OnGimmickTurnStart() {}
 	virtual void OnGimmickTurnEnd() {}
 
-<<<<<<< Updated upstream
-	// StatComponent.OnHPChanged에 자동 바인딩됨
-=======
+
+
+
 	//StatComponent.OnHPChanged에 자동바인딩 는 아직 구현 x
-	/*
->>>>>>> Stashed changes
+	
+
 	UFUNCTION()
 	virtual void HandleHPChanged(int32 OldHP, int32 NewHP) {}
-
-	// Unit.OnUnitDied에 자동 바인딩됨
-	UFUNCTION()
-	virtual void HandleOwnerDied(AUnit* Unit) {}
+	
 
 private:
 	void CheckTriggers();
