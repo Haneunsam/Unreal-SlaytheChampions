@@ -7,8 +7,8 @@
 
 /**
  * ECardRarity
- * 카드 희귀도 열거형.
- * DA_CardStyle 에서 희귀도별 이미지를 결정하는 데 사용.
+ * ī�� ��͵� ���.
+ * DA_CardStyle ���� ��͵��� �̹����� �����ϴ� �� ���.
  */
 UENUM(BlueprintType)
 enum class ECardRarity : uint8
@@ -21,8 +21,8 @@ enum class ECardRarity : uint8
 
 /**
  * ECardType
- * 카드 유형.
- * 공격/방어/스킬 등 카드의 역할을 구분.
+ * ī�� ����.
+ * ����/���/��ų �� ī���� ������ ����.
  */
 UENUM(BlueprintType)
 enum class ECardType : uint8
@@ -37,8 +37,8 @@ enum class ECardType : uint8
 
 /**
  * EJobClass
- * 직업 분류.
- * 카드가 어느 직업 전용인지, DA_CardStyle 에서 직업에 따른 스타일 적용.
+ * ���� ����.
+ * ī�尡 � ���� ��������, DA_CardStyle ���� ���п� ���.
  */
 UENUM(BlueprintType)
 enum class EJobClass : uint8
@@ -51,134 +51,134 @@ enum class EJobClass : uint8
 
 /**
  * ETargetType
- * 카드 대상 타입.
- * 단일 적/전체 적/자신/아군 등 카드 효과 적용 대상 구분.
+ * ī�� ��� Ÿ��.
+ * ���� ��/��ü ��/�ڽ�/�Ʊ� �� ī�� ȿ�� ���� ��� ����.
  */
 UENUM(BlueprintType)
 enum class ETargetType : uint8
 {
-    SingleEnemy UMETA(DisplayName = "SingleEnemy"),  // 단일 적 대상
-    AllEnemies  UMETA(DisplayName = "AllEnemies"),   // 적 전체
-    Self        UMETA(DisplayName = "Self"),          // 자기 자신
-    SingleAlly  UMETA(DisplayName = "SingleAlly"),   // 아군 단일 대상
-    AllAllies   UMETA(DisplayName = "AllAllies"),     // 아군 전체
-    Single_Team UMETA(DisplayName = "Single_Team"),  // 파티의 한명
+    SingleEnemy UMETA(DisplayName = "SingleEnemy"),  // �� ���� ���
+    AllEnemies  UMETA(DisplayName = "AllEnemies"),   // �� ��ü
+    Self        UMETA(DisplayName = "Self"),          // �ڱ� �ڽ�
+    SingleAlly  UMETA(DisplayName = "SingleAlly"),   // �Ʊ� ���� ���
+    AllAllies   UMETA(DisplayName = "AllAllies"),     // �Ʊ� ��ü
+    Single_Team UMETA(DisplayName = "Single_Team"),  // ��Ƽ�� ����
 };
 
 /**
  * FCardDataRow
  *
- * DT_Cards DataTable 의 Row Struct.
- * 카드 1장의 모든 데이터를 담는다.
+ * DT_Cards DataTable �� Row Struct.
+ * ī�� 1���� ��� ������ ��´�.
  *
- * [참고]
+ * [����]
  * - MainImage  : PaperSprite (pixelCardAssest_Sprite_XX)
- * - CardSubsystem 에서 RowName(카드 ID) 으로 조회
- * - HandComponent 에서 FName(카드 ID) 으로 관리
- * - CardWidget 의 SetCardData() 에 전달해서 UI 갱신
+ * - CardSubsystem ���� RowName(ī�� ID) ���� ��ȸ
+ * - HandComponent ���� FName(ī�� ID) ���� ����
+ * - CardWidget �� SetCardData() �� �����ؼ� UI ����
  */
 USTRUCT(BlueprintType)
 struct FCardDataRow : public FTableRowBase
 {
     GENERATED_BODY()
 
-    // 카드 식별 ------------------------------------------------------------------
+    // ���� �ĺ� ��������������������������������������������������������������������������������������������������������������������������
 
-    // 카드 고유 번호 (101, 201 등)
+    // 카드 고유 ID (DT_Cards의 RowName과 매핑, ex: Warrior_Attack)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")
-    FName Name;
+    FName CardID;
 
-    // 카드 이름 (한글, 영어 등) - UI 표시용
+    // ī�� �̸� (Ÿ��, ���� ��) - UI ǥ�ÿ�
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")
     FText CardName;
 
-    // 카드 설명 텍스트 - UI 표시용
+    // ī�� ���� �ؽ�Ʈ - UI ǥ�ÿ�
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")
     FText Description;
 
     /**
-     * 카드 대표 이미지 (PaperSprite).
-     * 카드 1장마다 다른 스프라이트 에셋 사용.
-     * DT_Cards 에서 pixelCardAssest_Sprite_XX 지정.
+     * ī�� ���� �̹��� (PaperSprite).
+     * ī�� 1�帶�� �ٸ� ��������Ʈ ����.
+     * DT_Cards ���� pixelCardAssest_Sprite_XX ����.
      */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")
     TSoftObjectPtr<UPaperSprite> MainImage;
 
-    // 카드 분류 ------------------------------------------------------------------
+    // ���� �з� ��������������������������������������������������������������������������������������������������������������������������
 
-    // 희귀도 (DA_CardStyle 의 희귀도별 이미지 선택에 사용)
+    // ��͵� (DA_CardStyle �� ��͵��� �̹��� ���ÿ� ���)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Category")
     ECardRarity Rarity = ECardRarity::Normal;
 
-    // 카드 타입 (공격/스킬 등)
+    // ī�� Ÿ�� (����/��ų ��)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Category")
     ECardType CardType = ECardType::Attack;
 
-    // 사용 가능 직업 제한 (Any 면 모든 직업 사용 가능)
+    // ��� ���� ���� (Any �� �� ���� ��� ����)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Category")
     EJobClass RequiredClass = EJobClass::Any;
 
-    // 카드 코스트 ----------------------------------------------------------------
+    // ���� �ڽ�Ʈ ����������������������������������������������������������������������������������������������������������������������
 
-    // 카드 사용 코스트 (파티 공유 코스트에서 차감)
+    // ī�� ��� �ڽ�Ʈ (��Ƽ ���� �ڽ�Ʈ���� ����)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Cost",
         meta = (ClampMin = "0", ClampMax = "10"))
     int32 Cost = 1;
 
-    // 카드 효과 수치 -------------------------------------------------------------
+    // ���� ȿ�� ��ġ ������������������������������������������������������������������������������������������������������������������
 
-    // 데미지량
+    // ���ط�
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "0"))
     int32 Damage = 0;
 
-    // 방어도
+    // ��
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "0"))
     int32 Block = 0;
 
-    // 드로우 수
+    // ��ο� ��
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "0"))
     int32 DrawCount = 0;
 
-    // 사용 횟수 (1 = 1회, 2 = 2회 반복)
+    // ��� Ƚ�� (1 = 1ȸ, 2 = 2ȸ ���)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "1"))
     int32 UsingCount = 1;
 
-    // 회복량
+    // ȸ����
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "0"))
     int32 HealAmount = 0;
 
-    // 카드 특수 효과 -------------------------------------------------------------
+    // ���� Ư�� ȿ�� ������������������������������������������������������������������������������������������������������������������
 
-    // 특수 효과 태그 (버프/디버프 ID 등)
+    // Ư�� ȿ�� �±� (����/����� ID ��)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect")
     FName EffectTag;
 
-    // 특수 효과 수치
+    // Ư�� ȿ�� ��ġ
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "0"))
     int32 EffectValue = 0;
 
-    // 카드 대상 ------------------------------------------------------------------
+    // ���� ��� ��������������������������������������������������������������������������������������������������������������������������
 
-    // 카드 효과 적용 대상
+    // ī�� ȿ�� ���� ���
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Target")
     ETargetType TargetType = ETargetType::SingleEnemy;
 
-    // 카드 밸런스 ----------------------------------------------------------------
+    // ���� �뷱�� ����������������������������������������������������������������������������������������������������������������������
 
-    // 카드 밸런스 점수 (기획 참고용)
+    // ī�� �뷱�� ���� (��ȹ ������)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Balance",
         meta = (ClampMin = "0"))
     int32 ScoreValue = 0;
 
-    // 카드 메타 ------------------------------------------------------------------
+    // ���� ��Ÿ ��������������������������������������������������������������������������������������������������������������������������
 
-    // 기획 메모 (디자이너 이상용)
+    // ��ȹ �޸� (��Ÿ�� �̻��)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Meta")
     FString Notes;
 };

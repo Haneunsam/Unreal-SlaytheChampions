@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
-#include "Engine/DataTable.h"
 #include "Save/GameSaveSystem.h"
 #include "STCGameInstance.generated.h"
 
@@ -14,7 +13,6 @@
  * 게임 전체 저장/로드를 담당하는 GameInstance.
  * SaveGameData / LoadGameData 로 챔피언 + 맵 + 덱 데이터를 한 슬롯에 저장.
  * 덱 데이터는 CachedSave 에 캐싱되어 매번 디스크 I/O 없이 접근 가능.
- * Init() 에서 스타터 덱 초기화를 자동으로 처리.
  */
 UCLASS()
 class SLAYTHECHAMPIONS_API USTCGameInstance : public UGameInstance
@@ -30,20 +28,6 @@ private:
 	TObjectPtr<UGameSaveSystem> CachedSave;
 
 public:
-	/* 스타터 덱 DataTable - Init() 에서 C++ 경로로 자동 로드 */
-	UPROPERTY()
-	TObjectPtr<UDataTable> StarterDeckWarrior;
-
-	UPROPERTY()
-	TObjectPtr<UDataTable> StarterDeckMage;
-
-	UPROPERTY()
-	TObjectPtr<UDataTable> StarterDeckHealer;
-
-public:
-	/* 게임 시작 시 1회 호출 - 스타터 덱 초기화 자동 처리 */
-	virtual void Init() override;
-
 	/* 챔피언 + 맵 + 덱 데이터를 한 번에 저장 */
 	UFUNCTION(BlueprintCallable, Category = "SaveSystem")
 	void SaveGameData();
@@ -95,11 +79,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveSystem|Deck")
 	void RemoveCard(int32 PawnIndex, FName CardName);
 
-private:
 	/**
 	 * 게임 최초 시작 시 스타터 덱으로 SaveGame 을 초기화.
 	 * 이미 저장 파일이 있으면 아무것도 하지 않음.
-	 * Init() 에서 자동 호출됨.
+	 *
+	 * @param StarterDeckWarrior  DT_StarterDeck_Warrior
+	 * @param StarterDeckMage     DT_StarterDeck_Mage
+	 * @param StarterDeckHealer   DT_StarterDeck_Healer
 	 */
-	void InitDeckIfNew();
+	UFUNCTION(BlueprintCallable, Category = "SaveSystem|Deck")
+	void InitDeckIfNew(UDataTable* StarterDeckWarrior, UDataTable* StarterDeckMage, UDataTable* StarterDeckHealer);
 };

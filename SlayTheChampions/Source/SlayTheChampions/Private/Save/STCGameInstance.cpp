@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 내부 헬퍼: 캐시가 없으면 디스크에서 로드, 그것도 없으면 새로 생성
 // ─────────────────────────────────────────────────────────────────────────────
-static UGameSaveSystem* EnsureCache(const FString& SlotName, TObjectPtr<UGameSaveSystem>& CachedSave)
+static UGameSaveSystem* EnsureCache(USTCGameInstance* GI, const FString& SlotName, TObjectPtr<UGameSaveSystem>& CachedSave)
 {
 	if (CachedSave)
 		return CachedSave;
@@ -34,30 +34,11 @@ static UGameSaveSystem* EnsureCache(const FString& SlotName, TObjectPtr<UGameSav
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GameInstance 초기화 - 게임 시작 시 1회 호출
-// ─────────────────────────────────────────────────────────────────────────────
-void USTCGameInstance::Init()
-{
-	Super::Init();
-
-	// 스타터 덱 DataTable C++ 에서 직접 로드 (에디터 지정 불필요)
-	StarterDeckWarrior = LoadObject<UDataTable>(nullptr,
-		TEXT("/Game/01_Card/01_Test_DT/DT_StarterDeck_Warrior.DT_StarterDeck_Warrior"));
-	StarterDeckMage = LoadObject<UDataTable>(nullptr,
-		TEXT("/Game/01_Card/01_Test_DT/DT_StarterDeck_Mage.DT_StarterDeck_Mage"));
-	StarterDeckHealer = LoadObject<UDataTable>(nullptr,
-		TEXT("/Game/01_Card/01_Test_DT/DT_StarterDeck_Healer.DT_StarterDeck_Healer"));
-
-	// 저장 파일이 없을 때만 스타터 덱으로 초기화
-	InitDeckIfNew();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // 저장
 // ─────────────────────────────────────────────────────────────────────────────
 void USTCGameInstance::SaveGameData()
 {
-	UGameSaveSystem* Save = EnsureCache(SaveSlotName, CachedSave);
+	UGameSaveSystem* Save = EnsureCache(this, SaveSlotName, CachedSave);
 	if (!Save) return;
 
 	// 챔피언 정보 수집
@@ -121,7 +102,7 @@ void USTCGameInstance::SaveDeckAfterBattle(int32 PawnIndex,
 	const TArray<FName>& Hand,
 	const TArray<FName>& DiscardPile)
 {
-	UGameSaveSystem* Save = EnsureCache(SaveSlotName, CachedSave);
+	UGameSaveSystem* Save = EnsureCache(this, SaveSlotName, CachedSave);
 	if (!Save) return;
 
 	// PawnIndex 범위를 넘으면 배열 확장
@@ -159,7 +140,7 @@ TArray<FName> USTCGameInstance::GetDeckCards(int32 PawnIndex) const
 // ─────────────────────────────────────────────────────────────────────────────
 void USTCGameInstance::AddCard(int32 PawnIndex, FName CardName)
 {
-	UGameSaveSystem* Save = EnsureCache(SaveSlotName, CachedSave);
+	UGameSaveSystem* Save = EnsureCache(this, SaveSlotName, CachedSave);
 	if (!Save) return;
 
 	if (!Save->SavedPartyDecks.IsValidIndex(PawnIndex))
@@ -181,7 +162,7 @@ void USTCGameInstance::AddCard(int32 PawnIndex, FName CardName)
 // ─────────────────────────────────────────────────────────────────────────────
 void USTCGameInstance::RemoveCard(int32 PawnIndex, FName CardName)
 {
-	UGameSaveSystem* Save = EnsureCache(SaveSlotName, CachedSave);
+	UGameSaveSystem* Save = EnsureCache(this, SaveSlotName, CachedSave);
 	if (!Save) return;
 
 	if (!Save->SavedPartyDecks.IsValidIndex(PawnIndex))
@@ -200,12 +181,12 @@ void USTCGameInstance::RemoveCard(int32 PawnIndex, FName CardName)
 // ─────────────────────────────────────────────────────────────────────────────
 // 게임 최초 시작 시 스타터 덱 초기화
 // ─────────────────────────────────────────────────────────────────────────────
-void USTCGameInstance::InitDeckIfNew()
+void USTCGameInstance::InitDeckIfNew(UDataTable* StarterDeckWarrior, UDataTable* StarterDeckMage, UDataTable* StarterDeckHealer)
 {
-	UGameSaveSystem* Save = EnsureCache(SaveSlotName, CachedSave);
+	// 이미 저장 파일이 있고 덱 데이터가 있으면 초기화 스킵
+	UGameSaveSystem* Save = EnsureCache(this, SaveSlotName, CachedSave);
 	if (!Save) return;
 
-	// 이미 덱 데이터가 있으면 초기화 스킵
 	if (Save->SavedPartyDecks.Num() > 0)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] InitDeckIfNew: Deck already exists - skip"));
