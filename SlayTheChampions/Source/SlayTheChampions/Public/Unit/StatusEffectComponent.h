@@ -15,6 +15,7 @@ enum class EEffectType : uint8
 	Block UMETA(DisplayName = "Block"),
 };
 
+// UI용
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEffectApplied, UStatusEffect*, Effect);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEffectRemoved, TSubclassOf<UStatusEffect>, EffectClass);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectValueChanged, EEffectType, Type, int32, OldValue, int32, NewValue);
@@ -24,15 +25,15 @@ class SLAYTHECHAMPIONS_API UStatusEffectComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
+public:
 	// Sets default values for this component's properties
 	UStatusEffectComponent();
 
-	//UstatEffect�ּҰ��� ������ �迭 ����
+	// UStatusEffect 주소값으로 관리하는 배열 목록
 	UPROPERTY(BlueprintReadOnly, Category = "StatusEffect")
 	TArray<UStatusEffect*> Active;
 
-	//�Լ� ȿ�� ����, ����, ã�� �Լ�
+	// 효과 적용, 제거, 찾기 함수
 	UFUNCTION(BlueprintCallable, Category = "StatusEffect")
 	UStatusEffect* ApplyEffect(TSubclassOf<UStatusEffect> EffectClass, int32 Stacks, int32 Duration);
 

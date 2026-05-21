@@ -18,11 +18,13 @@ class SLAYTHECHAMPIONS_API UChampionInstance : public UGameInstanceSubsystem
 
 private:
 	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance", meta = (AllowPrivateAccess = "true"))
-	FChampionsInfo ChampionsInfo;
+	FSaveChampionsInfo ChampionsInfo;
 
 	//유물 추가 필요
 public:
 	//저장할때마다 호출
-	void UpdateChampionsInfo(FChampionsInfo _info) { ChampionsInfo = _info; }
+	void UpdateChampionsInfo(FSaveChampionsInfo _info) { ChampionsInfo = _info; }
 	
+	const FSaveChampionsInfo GetChampionsInfo()const { return ChampionsInfo; }
+	void SetChampionsInf(FSaveChampionsInfo _info) { ChampionsInfo = _info; }
 };

@@ -16,20 +16,20 @@ void UGimmickComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//Fire ¹è¿­ ÃÊ±âÈ­
+	// Fired ë°°ì—´ ì´ˆê¸°í™”
 	if (Data)
 	{
 		Fired.SetNum(Data->Phases.Num());
 		for (bool& b : Fired) b = false;
 	}
 
-	// StatComponent.OnHPChanged ÀÚµ¿ ¹ÙÀÎµù
+	// StatComponent.OnHPChanged ìë™ ë°”ì¸ë”©
 	if (UStatComponent* Stat = GetOwner()->FindComponentByClass<UStatComponent>())
 	{
 		Stat->OnHPChanged.AddDynamic(this, &UGimmickComponent::HandleHPChanged);
 	}
 
-	// Unit.OnUnitDied ÀÚµ¿ ¹ÙÀÎµù
+	// Unit.OnUnitDied ìë™ ë°”ì¸ë”©
 	if (AUnit* Unit = Cast<AUnit>(GetOwner()))
 	{
 		Unit->OnUnitDied.AddDynamic(this, &UGimmickComponent::HandleOwnerDied);
@@ -52,7 +52,7 @@ void UGimmickComponent::OnTurnEnd()
 
 
 
-// ±âÁ¸ ÆäÀÌÁî ±â¹İ Æ®¸®°Å
+// ëª¨ë“  í˜ì´ì¦ˆì˜ ëª¨ë“  íŠ¸ë¦¬ê±° ê²€ì‚¬
 void UGimmickComponent::CheckTriggers()
 {
 	if (!Data) return;
@@ -83,7 +83,7 @@ bool UGimmickComponent::EvaluateTrigger(const FGimmickPhase& Phase) const
 	}
 
 	case EGimmickTrigger::OnDamaged:
-		// OnDamaged´Â CheckTriggers°¡ ¾Æ´Ï¶ó HandleHPChanged¿¡¼­ º°µµ Ã³¸®
+		// OnDamagedëŠ” CheckTriggersê°€ ì•„ë‹ˆë¼ HandleHPChangedì—ì„œ ì§ì ‘ ì²˜ë¦¬
 		return false;
 
 	default:

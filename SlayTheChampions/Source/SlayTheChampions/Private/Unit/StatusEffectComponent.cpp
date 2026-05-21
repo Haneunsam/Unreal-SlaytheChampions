@@ -19,7 +19,7 @@ UStatusEffect* UStatusEffectComponent::ApplyEffect(
 {
     if (!EffectClass || Stacks <= 0) return nullptr;
 
-    // ���� ȿ���� �̹� ������ ���� ����
+    // 같은 효과가 이미 존재하면 스택 합산
     if (UStatusEffect* Existing = FindEffect(EffectClass))
     {
         Existing->Stacks += Stacks;
@@ -27,7 +27,7 @@ UStatusEffect* UStatusEffectComponent::ApplyEffect(
         OnEffectApplied.Broadcast(Existing);
         return Existing;
     }
-    // ���ο� ȿ�� ����
+    // 새로운 효과 생성
     UStatusEffect* New = NewObject<UStatusEffect>(this, EffectClass);
     New->Stacks = Stacks;
     New->Duration = Duration;
@@ -41,17 +41,17 @@ UStatusEffect* UStatusEffectComponent::ApplyEffect(
 
 void UStatusEffectComponent::RemoveEffect(TSubclassOf<UStatusEffect> EffectClass)
 {
-    //������ ��ȸ�ϸ鼭 ã��
+    // 역순으로 순회하면서 찾기
     for (int32 i = Active.Num() - 1; i >= 0; --i)
     {
         if (Active[i] && Active[i]->IsA(EffectClass))
         {
-            //�迭�� ���� �ּҷ� �����Ͽ� StatusEffect.cpp�� �ִ� OnRemoved ����
-            //���� �Ƹ�  ����� ��ġ�Ͽ� �ƹ��͵� ���� ���ҵ�
+            // 배열의 마지막 주소로 덮어써서 StatusEffect.cpp에 있는 OnRemoved 호출
+            // 만약 아마 이렇게 작성하여 아무것도 없이 제거됨
             Active[i]->OnRemoved();
-            //Active�迭�� �ִ� �ش� �����̻� ����
+            // Active 배열에 있는 해당 상태이상 제거
             Active.RemoveAt(i);
-            //��ε�ĳ��Ʈ
+            // 브로드캐스트
             OnEffectRemoved.Broadcast(EffectClass);
         }
     }

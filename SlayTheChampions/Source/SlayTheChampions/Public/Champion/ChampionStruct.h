@@ -9,7 +9,7 @@ class AUnit;
 
 /*Champion Á¤º¸*/
 USTRUCT(BlueprintType)
-struct FChampionsInfo
+struct FSaveChampionsInfo
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ private:
 
 public:
 
-	FChampionsInfo()
+	FSaveChampionsInfo()
 	{
 	}
 
