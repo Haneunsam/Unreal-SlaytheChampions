@@ -88,12 +88,14 @@ protected:
 
 
 
-	//StatComponent.OnHPChanged에 자동바인딩 는 아직 구현 x
-	
-
+	//StatComponent.OnHPChanged에 자동바인딩
 	UFUNCTION()
 	virtual void HandleHPChanged(int32 OldHP, int32 NewHP) {}
 	
+	//Unit.OnUnitDied에 바인딩
+	UFUNCTION()
+	virtual void HandleOwnerDied(AUnit* Unit) {}
+
 
 private:
 	void CheckTriggers();

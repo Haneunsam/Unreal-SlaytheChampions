@@ -29,17 +29,28 @@ void UNPCBrainComponent::PlanNextAction(const TArray<AUnit*>& Allies, const TArr
 	PendingAction = PickNext();
 	AUnit* Target = PickTarget(PendingAction.TargetType, Allies, Enemies);
 
-	//IntentComponent 갱신
+	//Intent 구성
+	FIntent New;
+	New.Kind = PendingAction.IntentKind;
+	New.Value = PendingAction.Value;
+	New.Hits = PendingAction.Hits;
+	New.Target = Target;
+	New.DisplayText = PendingAction.DisplayName;
+
+
+	//보스 등 GimmickComponent를 가진 적은 기믹 정보로 Intent 보강
+	//일반 적은 nullptr로 스킵됨
+	if (UGimmickComponent* Gimmick = GetOwner()->FindComponentByClass<UGimmickComponent>())
+	{
+		Gimmick->AugmentIntent(New);
+	}
+
 	if (UIntentComponent* Intent = GetOwner()->FindComponentByClass<UIntentComponent>())
 	{
-		FIntent New;
-		New.Kind = PendingAction.IntentKind;
-		New.Value = PendingAction.Value;
-		New.Hits = PendingAction.Hits;
-		New.Target = Target;
-		New.DisplayText = PendingAction.DisplayName;
 		Intent->SetIntent(New);
 	}
+	
+
 }
 
 void UNPCBrainComponent::EmitActionEvent()
@@ -103,7 +114,7 @@ AUnit* UNPCBrainComponent::PickTarget(
 	}
 	case ETargetType::RamdomAlly:
 	{
-		TArray<AUnit*> A = Alive(Enemies);
+		TArray<AUnit*> A = Alive(Allies);
 		return A.IsEmpty() ? nullptr : A[FMath::RandRange(0, A.Num() - 1)];
 	}
 	//광역은 단일 타겟이 없음 CombatManager가 전체 적용

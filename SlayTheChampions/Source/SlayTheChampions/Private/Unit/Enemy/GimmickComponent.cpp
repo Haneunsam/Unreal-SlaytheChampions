@@ -31,11 +31,11 @@ void UGimmickComponent::BeginPlay()
 		Stat->OnHPChanged.AddDynamic(this, &UGimmickComponent::HandleHPChanged);
 	}
 
-	//// Unit.OnUnitDied 자동 바인딩
-	//if (AUnit* Unit = Cast<AUnit>(GetOwner()))
-	//{
-	//	Unit->OnUnitDied.AddDynamic(this, &UGimmickComponent::HandleOwnerDied);
-	//}
+	// Unit.OnUnitDied 자동 바인딩
+	if (AUnit* Unit = Cast<AUnit>(GetOwner()))
+	{
+		Unit->OnUnitDied.AddDynamic(this, &UGimmickComponent::HandleOwnerDied);
+	}
 
 }
 
