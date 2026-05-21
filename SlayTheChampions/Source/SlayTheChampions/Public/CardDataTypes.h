@@ -2,11 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "PaperSprite.h"
 #include "CardDataTypes.generated.h"
 
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-//  Enum : Ä«µå Èñ±Íµµ
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+/**
+ * ECardRarity
+ * Ä«µå Èñ±Íµµ µî±Þ.
+ * DA_CardStyle ¿¡¼­ Èñ±Íµµº° ÀÌ¹ÌÁö¸¦ ±¸ºÐÇÏ´Â µ¥ »ç¿ë.
+ */
 UENUM(BlueprintType)
 enum class ECardRarity : uint8
 {
@@ -16,9 +19,11 @@ enum class ECardRarity : uint8
     Status    UMETA(DisplayName = "Status"),
 };
 
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-//  Enum : Ä«µå Å¸ÀÔ
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+/**
+ * ECardType
+ * Ä«µå Á¾·ù.
+ * °ø°Ý/¹æ¾î/½ºÅ³ µî Ä«µåÀÇ ¼º°ÝÀ» ±¸ºÐ.
+ */
 UENUM(BlueprintType)
 enum class ECardType : uint8
 {
@@ -30,9 +35,11 @@ enum class ECardType : uint8
     Status  UMETA(DisplayName = "Status"),
 };
 
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-//  Enum : Á÷¾÷ ºÐ·ù
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+/**
+ * EJobClass
+ * Á÷¾÷ Á¾·ù.
+ * Ä«µå°¡ ¾î¶² Á÷¾÷ Àü¿ëÀÎÁö, DA_CardStyle Á÷¾÷ ±¸ºÐ¿¡ »ç¿ë.
+ */
 UENUM(BlueprintType)
 enum class EJobClass : uint8
 {
@@ -42,114 +49,136 @@ enum class EJobClass : uint8
     Healer  UMETA(DisplayName = "Healer"),
 };
 
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-//  Enum : ´ë»ó ¹üÀ§
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+/**
+ * ETargetType
+ * Ä«µå ´ë»ó Å¸ÀÔ.
+ * ´ÜÀÏ Àû/ÀüÃ¼ Àû/ÀÚ½Å/¾Æ±º µî Ä«µå È¿°ú Àû¿ë ´ë»ó ±¸ºÐ.
+ */
 UENUM(BlueprintType)
 enum class ETargetType : uint8
 {
-    SingleEnemy UMETA(DisplayName = "SingleEnemy"),
-    AllEnemies  UMETA(DisplayName = "AllEnemies"),
-    Self        UMETA(DisplayName = "Self"),
-    SingleAlly  UMETA(DisplayName = "SingleAlly"),
-    AllAllies   UMETA(DisplayName = "AllAllies"),
-    Single_Team UMETA(DisplayName = "Single_Team"),  // Healer ´ÜÀÏ ¾Æ±º ¹æ¾î Àü¿ë
+    SingleEnemy UMETA(DisplayName = "SingleEnemy"),  // Àû ´ÜÀÏ ´ë»ó
+    AllEnemies  UMETA(DisplayName = "AllEnemies"),   // Àû ÀüÃ¼
+    Self        UMETA(DisplayName = "Self"),          // ÀÚ±â ÀÚ½Å
+    SingleAlly  UMETA(DisplayName = "SingleAlly"),   // ¾Æ±º ´ÜÀÏ ´ë»ó
+    AllAllies   UMETA(DisplayName = "AllAllies"),     // ¾Æ±º ÀüÃ¼
+    Single_Team UMETA(DisplayName = "Single_Team"),  // ÆÄÆ¼¿ø ´ÜÀÏ
 };
 
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-//  DataTable Row Struct
-//  Import path: DT_Cards.csv ¡æ DataTable (FCardDataRow)
-// ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+/**
+ * FCardDataRow
+ *
+ * DT_Cards DataTable ÀÇ Row Struct.
+ * Ä«µå 1ÀåÀÇ ¸ðµç ½ºÆåÀ» ´ã´Â´Ù.
+ *
+ * [¿¬µ¿]
+ * - MainImage  : PaperSprite (pixelCardAssest_Sprite_XX)
+ * - CardSubsystem ¿¡¼­ RowName(Ä«µå ID) À¸·Î Á¶È¸
+ * - HandComponent ¿¡¼­ FName(Ä«µå ID) À¸·Î °ü¸®
+ * - CardWidget ÀÇ SetCardData() ¿¡ Àü´ÞÇØ¼­ UI °»½Å
+ */
 USTRUCT(BlueprintType)
 struct FCardDataRow : public FTableRowBase
 {
     GENERATED_BODY()
 
-    // ¦¡¦¡ ½Äº° ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    /** Ä«µå ID (DataTable RowName °ú µ¿ÀÏÇÏ°Ô À¯Áö) */
+    // ¦¡¦¡ ½Äº° ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+
+    // Ä«µå °íÀ¯ ¹øÈ£ (101, 201 µî)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")
     FName Name;
 
-    /** ÀÎ°ÔÀÓ Ç¥½Ã ÀÌ¸§ (ÇÑ±Û) */
+    // Ä«µå ÀÌ¸§ (Å¸°Ý, ¼öºñ µî) - UI Ç¥½Ã¿ë
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")
     FText CardName;
 
-    /** Ä«µå ¼³¸í ÅØ½ºÆ® */
+    // Ä«µå ¼³¸í ÅØ½ºÆ® - UI Ç¥½Ã¿ë
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")
     FText Description;
 
-    // ¦¡¦¡ ºÐ·ù ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    /**
+     * Ä«µå ¸ÞÀÎ ÀÌ¹ÌÁö (PaperSprite).
+     * Ä«µå 1Àå¸¶´Ù ´Ù¸¥ ½ºÇÁ¶óÀÌÆ® ÁöÁ¤.
+     * DT_Cards ¿¡¼­ pixelCardAssest_Sprite_XX ¼±ÅÃ.
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")
+    TSoftObjectPtr<UPaperSprite> MainImage;
+
+    // ¦¡¦¡ ºÐ·ù ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+
+    // Èñ±Íµµ (DA_CardStyle ÀÇ Èñ±Íµµº° ÀÌ¹ÌÁö ¼±ÅÃ¿¡ »ç¿ë)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Category")
     ECardRarity Rarity = ECardRarity::Normal;
 
+    // Ä«µå Å¸ÀÔ (°ø°Ý/½ºÅ³ µî)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Category")
     ECardType CardType = ECardType::Attack;
 
-    /** ÀÌ Ä«µå¸¦ »ç¿ëÇÒ ¼ö ÀÖ´Â Á÷¾÷. Any = °ø¿ë */
+    // »ç¿ë °¡´É Á÷¾÷ (Any ¸é Àü Á÷¾÷ »ç¿ë °¡´É)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Category")
     EJobClass RequiredClass = EJobClass::Any;
 
-    // ¦¡¦¡ ÄÚ½ºÆ® ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    /** ÆÄÆ¼ °ø¿ë ÄÚ½ºÆ® ¼Ò¸ð·® */
+    // ¦¡¦¡ ÄÚ½ºÆ® ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+
+    // Ä«µå »ç¿ë ÄÚ½ºÆ® (ÆÄÆ¼ °ø¿ë ÄÚ½ºÆ®¿¡¼­ Â÷°¨)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Cost",
         meta = (ClampMin = "0", ClampMax = "10"))
     int32 Cost = 1;
 
-    // ¦¡¦¡ È¿°ú ¼öÄ¡ ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    /** ±âº» ÇÇÇØ·® (0 = °ø°Ý ¾øÀ½) */
+    // ¦¡¦¡ È¿°ú ¼öÄ¡ ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+
+    // ÇÇÇØ·®
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "0"))
     int32 Damage = 0;
 
-    /** ºÎ¿©ÇÒ ¹æ¾îµµ (0 = ¹æ¾î ¾øÀ½) */
+    // ¹æ¾îµµ
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "0"))
     int32 Block = 0;
 
-    /** Ä«µå »ç¿ë ½Ã µå·Î¿ìÇÒ Àå¼ö */
+    // µå·Î¿ì ¼ö
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "0"))
     int32 DrawCount = 0;
 
-    /**
-     * Ä«µå »ç¿ë È½¼ö (´ëºÎºÐ 1).
-     * DoubleAttack Ã³·³ µ¿ÀÏ È¿°ú¸¦ NÈ¸ ¹Ýº¹ÇÒ ¶§ »ç¿ë.
-     */
+    // »ç¿ë È½¼ö (1 = 1È¸, 2 = 2È¸ »ç¿ë)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "1"))
     int32 UsingCount = 1;
 
-    /** È¸º¹·® (Èú·¯ Àü¿ë, 0 = È¸º¹ ¾øÀ½) */
+    // È¸º¹·®
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "0"))
     int32 HealAmount = 0;
 
-    // ¦¡¦¡ Æ¯¼ö È¿°ú ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    /**
-     * Æ¯¼ö È¿°ú ÅÂ±× (GameplayTag ¹®ÀÚ¿­ ¶Ç´Â Ä¿½ºÅÒ Å°).
-     * ºñ¾îÀÖÀ¸¸é Æ¯¼ö È¿°ú ¾øÀ½.
-     * ¿¹: "Buff.DefenseUp", "Debuff.Weak", "Field.Fire"
-     */
+    // ¦¡¦¡ Æ¯¼ö È¿°ú ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+
+    // Æ¯¼ö È¿°ú ÅÂ±× (¹öÇÁ/µð¹öÇÁ ID µî)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect")
     FName EffectTag;
 
-    /** EffectTag ¿¡ ´ëÀÀÇÏ´Â ½ºÅÃ/Áö¼Ó ¼öÄ¡ */
+    // Æ¯¼ö È¿°ú ¼öÄ¡
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
         meta = (ClampMin = "0"))
     int32 EffectValue = 0;
 
-    // ¦¡¦¡ ´ë»ó ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ¦¡¦¡ ´ë»ó ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+
+    // Ä«µå È¿°ú Àû¿ë ´ë»ó
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Target")
     ETargetType TargetType = ETargetType::SingleEnemy;
 
-    // ¦¡¦¡ ¹ë·±½º ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    /** ±âÈ¹ ¹ë·ù Á¡¼ö (Ä«µå ¹ë·ù ±âÁØÇ¥ ±â¹Ý) */
+    // ¦¡¦¡ ¹ë·±½º ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+
+    // Ä«µå ¹ë·±½º Á¡¼ö (±âÈ¹ Âü°í¿ë)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Balance",
         meta = (ClampMin = "0"))
     int32 ScoreValue = 0;
 
-    // ¦¡¦¡ ¸Þ¸ð ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    /** ±âÈ¹ ³ëÆ® (·±Å¸ÀÓ ¹Ì»ç¿ë) */
+    // ¦¡¦¡ ¸ÞÅ¸ ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+
+    // ±âÈ¹ ¸Þ¸ð (·±Å¸ÀÓ ¹Ì»ç¿ë)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Meta")
     FString Notes;
 };
