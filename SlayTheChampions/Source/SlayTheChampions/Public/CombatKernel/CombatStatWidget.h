@@ -2,46 +2,45 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Unit/StatusEffectComponent.h"
 #include "CombatStatWidget.generated.h"
 
 class UTextBlock;
+class UImage;
+class AUnit;
 class UStatComponent;
 class UStatusEffectComponent;
-class UStatusEffect;
 
-/**
- * 전투원 머리 위에 띄우는 스탯 위젯 (HP).
- * AUnit의 WidgetComponent에 할당.
- * InitWidgetFromUnit()으로 UStatComponent를 연결하면 이후 자동 갱신.
- */
 UCLASS()
 class SLAYTHECHAMPIONS_API UCombatStatWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
+	// AUnit 하나로 HP + Block 모두 연결
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void InitWidgetFromUnit(UStatComponent* InStat);
-
-	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void InitBlockDisplay(UStatusEffectComponent* InSEC);
+	void InitFromUnit(AUnit* InUnit);
 
 protected:
-	// BP에서 이름 맞춰 바인딩 (TextBlock 이름이 정확히 일치해야 함)
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* Text_HP;
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* Text_Defence;
 
+	// 방패 아이콘 - Block=0이면 숨김 (BP 디자이너에서 배치)
+	UPROPERTY(meta = (BindWidgetOptional))
+	UImage* Image_Block;
+
 private:
 	UPROPERTY()
 	UStatComponent* UnitStatComp;
 
-	// UStatComponent 델리게이트 핸들러 (OldValue 무시, NewValue가 현재 HP)
 	UFUNCTION()
 	void OnUnitHPChanged(int32 OldValue, int32 NewValue);
 
 	UFUNCTION()
-	void OnBlockEffectApplied(UStatusEffect* Effect);
+	void OnBlockValueChanged(EEffectType Type, int32 OldValue, int32 NewValue);
+
+	void UpdateBlockVisibility(int32 BlockValue);
 };

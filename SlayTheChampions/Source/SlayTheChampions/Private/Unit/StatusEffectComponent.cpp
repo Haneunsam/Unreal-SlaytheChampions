@@ -19,7 +19,7 @@ UStatusEffect* UStatusEffectComponent::ApplyEffect(
 {
     if (!EffectClass || Stacks <= 0) return nullptr;
 
-    // °°Àº È¿°ú°¡ ÀÌ¹Ì ÀÖÀ¸¸é ½ºÅÃ ´©Àû
+    // ï¿½ï¿½ï¿½ï¿½ È¿ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¹ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     if (UStatusEffect* Existing = FindEffect(EffectClass))
     {
         Existing->Stacks += Stacks;
@@ -27,7 +27,7 @@ UStatusEffect* UStatusEffectComponent::ApplyEffect(
         OnEffectApplied.Broadcast(Existing);
         return Existing;
     }
-    // »õ·Î¿î È¿°ú Àû¿ë
+    // ï¿½ï¿½ï¿½Î¿ï¿½ È¿ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     UStatusEffect* New = NewObject<UStatusEffect>(this, EffectClass);
     New->Stacks = Stacks;
     New->Duration = Duration;
@@ -41,17 +41,17 @@ UStatusEffect* UStatusEffectComponent::ApplyEffect(
 
 void UStatusEffectComponent::RemoveEffect(TSubclassOf<UStatusEffect> EffectClass)
 {
-    //³¡¿¡¼­ ¼øÈ¸ÇÏ¸é¼­ Ã£±â
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¸ï¿½Ï¸é¼­ Ã£ï¿½ï¿½
     for (int32 i = Active.Num() - 1; i >= 0; --i)
     {
         if (Active[i] && Active[i]->IsA(EffectClass))
         {
-            //¹è¿­¿¡ ³»ºÎ ÁÖ¼Ò·Î Á¢±ÙÇÏ¿© StatusEffect.cpp¿¡ ÀÖ´Â OnRemoved ½ÇÇà
-            //ÇöÀç ¾Æ¸¶  Çì´õ¿¡ À§Ä¡ÇÏ¿© ¾Æ¹«°Íµµ ½ÇÇà ¾ÈÇÒµí
+            //ï¿½è¿­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ö¼Ò·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¿ï¿½ StatusEffect.cppï¿½ï¿½ ï¿½Ö´ï¿½ OnRemoved ï¿½ï¿½ï¿½ï¿½
+            //ï¿½ï¿½ï¿½ï¿½ ï¿½Æ¸ï¿½  ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½Ï¿ï¿½ ï¿½Æ¹ï¿½ï¿½Íµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Òµï¿½
             Active[i]->OnRemoved();
-            //Active¹è¿­¿¡ ÀÖ´Â ÇØ´ç »óÅÂÀÌ»ó Á¦°Å
+            //Activeï¿½è¿­ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½Ø´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì»ï¿½ ï¿½ï¿½ï¿½ï¿½
             Active.RemoveAt(i);
-            //ºê·ÎµåÄ³½ºÆ®
+            //ï¿½ï¿½Îµï¿½Ä³ï¿½ï¿½Æ®
             OnEffectRemoved.Broadcast(EffectClass);
         }
     }
@@ -64,6 +64,19 @@ UStatusEffect* UStatusEffectComponent::FindEffect(TSubclassOf<UStatusEffect> Eff
 		if (E && E->IsA(EffectClass)) return E;
 	}
 	return nullptr;
+}
+
+void UStatusEffectComponent::SetEffectValue(EEffectType Type, int32 NewValue)
+{
+	const int32 OldValue = GetEffectValue(Type);
+	EffectValues.Add(Type, NewValue);
+	OnEffectValueChanged.Broadcast(Type, OldValue, NewValue);
+}
+
+int32 UStatusEffectComponent::GetEffectValue(EEffectType Type) const
+{
+	const int32* Found = EffectValues.Find(Type);
+	return Found ? *Found : 0;
 }
 
 

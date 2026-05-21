@@ -9,6 +9,30 @@ class UStatComponent;
 class AUnit;
 class UBoxComponent;
 
+// ── 턴 페이즈 ─────────────────────────────────────────────────────────
+UENUM(BlueprintType)
+enum class ETurnPhase : uint8
+{
+	DrawPhase             UMETA(DisplayName = "Draw Phase"),
+	PlayerActionPhase     UMETA(DisplayName = "Player Action Phase"),
+	PlayerExecutionPhase  UMETA(DisplayName = "Player Execution Phase"),
+	EnemyPhase            UMETA(DisplayName = "Enemy Phase"),
+};
+
+// ── 플레이어 액션 큐 항목 ──────────────────────────────────────────────
+USTRUCT(BlueprintType)
+struct FQueuedAction
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FCardDataRow Card;
+
+	UPROPERTY()
+	int32 CasterIndex = 0;
+};
+
+// ── 스폰 초기 데이터 ───────────────────────────────────────────────────
 USTRUCT(BlueprintType)
 struct FCombatantInitData
 {
@@ -17,10 +41,15 @@ struct FCombatantInitData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 MaxHP = 100;
 
-	// [임시] UStatComponent에 방어도가 생기면 주입 로직 추가 후 이 주석 제거
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 Defence = 0;
 };
+
+// ── 델리게이트 ─────────────────────────────────────────────────────────
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged,      ETurnPhase,    NewPhase);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionExecuted,    FCardDataRow,  Card);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnExecutionFinished);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyTurnStart,    int32,         EnemyIndex);
 
 UCLASS()
 class SLAYTHECHAMPIONS_API ACombatManager : public AActor
@@ -61,7 +90,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat|EnemyData")
 	FCombatantInitData EnemyData_2;
 
-	// ── 스폰 위치 박스 (에디터에서 직접 이동하여 위치 조정) ─────────
+	// ── 스폰 위치 박스 ────────────────────────────────────────────
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Slots")
 	UBoxComponent* PlayerBox_0;
 
@@ -77,43 +106,90 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Slots")
 	UBoxComponent* EnemyBox_2;
 
-	// ── 런타임 조회 ───────────────────────────────────────────────
+	// ── 턴 상태 ───────────────────────────────────────────────────
+	UPROPERTY(BlueprintReadOnly, Category = "Turn")
+	ETurnPhase CurrentPhase = ETurnPhase::DrawPhase;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Turn")
+	int32 TurnCount = 0;
+
+	// ── 턴 델리게이트 ─────────────────────────────────────────────
+	UPROPERTY(BlueprintAssignable, Category = "Turn")
+	FOnPhaseChanged OnPhaseChanged;
+
+	// 플레이어 액션 하나 실행됐을 때 (애니메이션 트리거용)
+	UPROPERTY(BlueprintAssignable, Category = "Turn")
+	FOnActionExecuted OnActionExecuted;
+
+	// 플레이어 큐 전부 소진됐을 때
+	UPROPERTY(BlueprintAssignable, Category = "Turn")
+	FOnExecutionFinished OnExecutionFinished;
+
+	// 적 행동 시작 (EnemyIndex번 적 행동할 차례)
+	UPROPERTY(BlueprintAssignable, Category = "Turn")
+	FOnEnemyTurnStart OnEnemyTurnStart;
+
+	// ── 전투 초기화 ───────────────────────────────────────────────
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void InitCombat();
 
+	// ── 카드 효과 실행 ────────────────────────────────────────────
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void ExecuteCard(const FCardDataRow& Card, int32 CasterIndex);
+
+	// ── 턴 함수 ───────────────────────────────────────────────────
+	// DrawPhase 시작 (버프/디버프 처리 → 방어도 리셋 → PlayerActionPhase)
+	UFUNCTION(BlueprintCallable, Category = "Turn")
+	void StartTurn();
+
+	// PlayerActionPhase: 카드 큐에 추가
+	UFUNCTION(BlueprintCallable, Category = "Turn")
+	void QueuePlayerAction(const FCardDataRow& Card, int32 CasterIndex);
+
+	// PlayerActionPhase 종료 → PlayerExecutionPhase 진입
+	UFUNCTION(BlueprintCallable, Category = "Turn")
+	void EndPlayerActionPhase();
+
+	// 큐에서 하나씩 실행 (애니메이션 완료 후 Blueprint에서 재호출)
+	UFUNCTION(BlueprintCallable, Category = "Turn")
+	void ExecuteNextAction();
+
+	// 큐 전부 즉시 실행 (스킵)
+	UFUNCTION(BlueprintCallable, Category = "Turn")
+	void SkipToEnd();
+
+	// 적 행동 완료 후 Blueprint에서 호출 → 다음 적으로 진행
+	UFUNCTION(BlueprintCallable, Category = "Turn")
+	void OnEnemyActionComplete();
+
+	// ── 스탯 조회 ─────────────────────────────────────────────────
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	UStatComponent* GetPlayerStat(int32 Index) const;
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	UStatComponent* GetEnemyStat(int32 Index) const;
 
-	// 카드 효과 실행 (CasterIndex: 시전자 플레이어 인덱스)
-	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void ExecuteCard(const FCardDataRow& Card, int32 CasterIndex);
-
-	// 턴 시작 시 호출 - 모든 유닛 효과 리셋
-	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void OnTurnStart();
-
 protected:
 	virtual void BeginPlay() override;
 
 private:
-	// Block 흡수 후 남은 데미지를 TakeDamage로 전달
-	void ApplyDamageWithBlock(AUnit* Target, int32 Damage, AUnit* Attacker);
 	UPROPERTY()
 	TArray<AUnit*> SpawnedPlayers;
 
 	UPROPERTY()
 	TArray<AUnit*> SpawnedEnemies;
 
-	// 박스 컴포넌트 생성 및 루트에 부착
-	UBoxComponent* SetupBox(const FName& BoxName,
-	                        const FVector& RelativeLocation,
-	                        const FColor& Color);
+	UPROPERTY()
+	TArray<FQueuedAction> ActionQueue;
 
-	// 박스 위치를 기준으로 유닛 스폰
-	AUnit* SpawnCombatant(TSubclassOf<AUnit> ActorClass,
-	                      UBoxComponent* Box,
-	                      const FCombatantInitData& Data);
+	int32 CurrentEnemyIndex = 0;
+
+	void SetPhase(ETurnPhase NewPhase);
+	void CheckCombatEnd();
+	void ApplyTurnStartEffects();
+	void StartEnemyPhase();
+	void ExecuteNextEnemyAction();
+
+	UBoxComponent* SetupBox(const FName& BoxName, const FVector& RelativeLocation, const FColor& Color);
+	AUnit* SpawnCombatant(TSubclassOf<AUnit> ActorClass, UBoxComponent* Box, const FCombatantInitData& Data);
 };

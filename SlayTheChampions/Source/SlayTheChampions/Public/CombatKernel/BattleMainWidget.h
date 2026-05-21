@@ -7,9 +7,12 @@
 #include "HandComponent.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "CombatKernel/CombatManager.h"
+#include "GameManagers/MouseManager.h"
 #include "BattleMainWidget.generated.h"
 
 class ACombatManager;
+class UTextBlock;
 
 USTRUCT(BlueprintType)
 struct FWidgetCardsStruct
@@ -89,5 +92,12 @@ public:
 	void HandleCardClicked(UCardWidget* Widget, const FCardDataRow& Card);
 
 protected:
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* Text_TurnCount;
+
 	virtual void NativeConstruct() override;
+
+private:
+	UFUNCTION()
+	void OnPhaseChanged(ETurnPhase NewPhase);
 };

@@ -9,10 +9,15 @@
 
 class AUnit;
 
+UENUM(BlueprintType)
+enum class EEffectType : uint8
+{
+	Block UMETA(DisplayName = "Block"),
+};
 
-//UI¿ë
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEffectApplied, UStatusEffect*, Effect);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEffectRemoved, TSubclassOf<UStatusEffect>, EffectClass);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectValueChanged, EEffectType, Type, int32, OldValue, int32, NewValue);
 
 UCLASS( ClassGroup=(Unit), meta=(BlueprintSpawnableComponent) )
 class SLAYTHECHAMPIONS_API UStatusEffectComponent : public UActorComponent
@@ -23,11 +28,11 @@ public:
 	// Sets default values for this component's properties
 	UStatusEffectComponent();
 
-	//UstatEffectÁÖ¼Ò°ªÀ» °¡Áö´Â ¹è¿­ ¼³°è
+	//UstatEffectï¿½Ö¼Ò°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ ï¿½ï¿½ï¿½ï¿½
 	UPROPERTY(BlueprintReadOnly, Category = "StatusEffect")
 	TArray<UStatusEffect*> Active;
 
-	//ÇÔ¼ö È¿°ú Àû¿ë, Á¦°Å, Ã£±â ÇÔ¼ö
+	//ï¿½Ô¼ï¿½ È¿ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½, Ã£ï¿½ï¿½ ï¿½Ô¼ï¿½
 	UFUNCTION(BlueprintCallable, Category = "StatusEffect")
 	UStatusEffect* ApplyEffect(TSubclassOf<UStatusEffect> EffectClass, int32 Stacks, int32 Duration);
 
@@ -40,4 +45,17 @@ public:
 
 	UPROPERTY(BlueprintAssignable) FOnEffectApplied OnEffectApplied;
 	UPROPERTY(BlueprintAssignable) FOnEffectRemoved OnEffectRemoved;
+
+	// ìˆ˜ì¹˜í˜• íš¨ê³¼ (Block ë“±) ì €ìž¥ì†Œ
+	UPROPERTY(BlueprintReadOnly, Category = "StatusEffect")
+	TMap<EEffectType, int32> EffectValues;
+
+	UFUNCTION(BlueprintCallable, Category = "StatusEffect")
+	void SetEffectValue(EEffectType Type, int32 NewValue);
+
+	UFUNCTION(BlueprintPure, Category = "StatusEffect")
+	int32 GetEffectValue(EEffectType Type) const;
+
+	UPROPERTY(BlueprintAssignable, Category = "StatusEffect")
+	FOnEffectValueChanged OnEffectValueChanged;
 };

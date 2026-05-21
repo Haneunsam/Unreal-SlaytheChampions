@@ -1,0 +1,30 @@
+[임시 Blueprint 기능 목록]
+정식 시스템 구현 시 아래 항목들을 제거하거나 교체해야 합니다.
+
+──────────────────────────────────────────────────────────────
+1. BP_GameModeTest — AddCard 수동 호출
+──────────────────────────────────────────────────────────────
+위치  : BP_GameModeTest > 이벤트 그래프 > BeginPlay
+내용  : WBP_BattleMainWidget->AddCard()를 하드코딩된 카드 데이터로 직접 호출
+이유  : 덱/손패 시스템이 없으므로 임시로 카드를 UI에 추가
+제거  : 덱(DrawPile) + 손패(Hand) 시스템 완성 후 → CombatManager::StartTurn 의
+        DrawPhase에서 드로우 로직으로 교체
+
+──────────────────────────────────────────────────────────────
+2. WBP_BattleMainWidget — OnActionExecuted → 즉시 ExecuteNextAction
+──────────────────────────────────────────────────────────────
+위치  : WBP_BattleMainWidget > 이벤트 그래프
+내용  : CombatManager.OnActionExecuted 델리게이트 바인딩 →
+        바인딩 즉시 CombatManager->ExecuteNextAction() 재호출
+이유  : 카드 실행 애니메이션이 없으므로 큐를 즉시 소진
+제거  : 카드 사용 애니메이션 완성 후 → 애니메이션 종료 이벤트에서
+        ExecuteNextAction()을 호출하는 방식으로 교체
+
+──────────────────────────────────────────────────────────────
+[C++ 임시 코드]
+──────────────────────────────────────────────────────────────
+위치  : CombatManager.cpp > ExecuteNextEnemyAction()
+내용  : OnEnemyTurnStart 브로드캐스트 직후 OnEnemyActionComplete() 자동 호출
+        주석: // [임시] 적 AI 로직 구현 시 제거
+이유  : 적 AI가 없으므로 턴이 멈추지 않도록 자동 진행
+제거  : 적 AI 완성 후 해당 라인 삭제, AI가 행동 완료 시 직접 호출하도록 변경

@@ -1,28 +1,31 @@
 #include "CombatKernel/CombatStatWidget.h"
-#include "CombatKernel/BlockEffect.h"
+#include "Unit/Unit.h"
 #include "Unit/StatComponent.h"
 #include "Unit/StatusEffectComponent.h"
 #include "Components/TextBlock.h"
+#include "Components/Image.h"
 
-void UCombatStatWidget::InitWidgetFromUnit(UStatComponent* InStat)
+void UCombatStatWidget::InitFromUnit(AUnit* InUnit)
 {
-	if (!InStat) return;
-	UnitStatComp = InStat;
+	if (!InUnit) return;
 
-	UnitStatComp->OnHPChanged.AddDynamic(this, &UCombatStatWidget::OnUnitHPChanged);
+	// StatComponent 연결 → HP 표시
+	UnitStatComp = InUnit->GetStat();
+	if (UnitStatComp)
+	{
+		UnitStatComp->OnHPChanged.AddDynamic(this, &UCombatStatWidget::OnUnitHPChanged);
+		OnUnitHPChanged(0, UnitStatComp->CurrentHP);
+	}
 
-	// 초기값 즉시 표시
-	OnUnitHPChanged(0, UnitStatComp->CurrentHP);
-}
+	// StatusEffectComponent 연결 → Block 표시
+	UStatusEffectComponent* SEC = InUnit->FindComponentByClass<UStatusEffectComponent>();
+	if (SEC)
+	{
+		SEC->OnEffectValueChanged.AddDynamic(this, &UCombatStatWidget::OnBlockValueChanged);
+	}
 
-void UCombatStatWidget::InitBlockDisplay(UStatusEffectComponent* InSEC)
-{
-	if (!InSEC) return;
-	InSEC->OnEffectApplied.AddDynamic(this, &UCombatStatWidget::OnBlockEffectApplied);
-
-	// 초기값 표시
-	if (Text_Defence)
-		Text_Defence->SetText(FText::FromString(TEXT("0")));
+	// Block 초기값 (0 → 숨김)
+	UpdateBlockVisibility(0);
 }
 
 void UCombatStatWidget::OnUnitHPChanged(int32 OldValue, int32 NewValue)
@@ -31,10 +34,22 @@ void UCombatStatWidget::OnUnitHPChanged(int32 OldValue, int32 NewValue)
 		Text_HP->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), NewValue, UnitStatComp->MaxHP)));
 }
 
-void UCombatStatWidget::OnBlockEffectApplied(UStatusEffect* Effect)
+void UCombatStatWidget::OnBlockValueChanged(EEffectType Type, int32 OldValue, int32 NewValue)
 {
-	if (!Effect || !Effect->IsA(UBlockEffect::StaticClass())) return;
+	if (Type != EEffectType::Block) return;
 
 	if (Text_Defence)
-		Text_Defence->SetText(FText::AsNumber(Effect->Stacks));
+		Text_Defence->SetText(FText::AsNumber(NewValue));
+
+	UpdateBlockVisibility(NewValue);
+}
+
+void UCombatStatWidget::UpdateBlockVisibility(int32 BlockValue)
+{
+	const ESlateVisibility BlockVisibility = BlockValue > 0
+		? ESlateVisibility::HitTestInvisible
+		: ESlateVisibility::Collapsed;
+
+	if (Text_Defence) Text_Defence->SetVisibility(BlockVisibility);
+	if (Image_Block)  Image_Block->SetVisibility(BlockVisibility);
 }

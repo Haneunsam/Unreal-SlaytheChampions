@@ -1,10 +1,12 @@
 #include "CombatKernel/CombatManager.h"
 #include "CombatKernel/EffectManager.h"
-#include "CombatKernel/BlockEffect.h"
+#include "CombatKernel/CombatStatWidget.h"
 #include "Unit/Unit.h"
 #include "Unit/StatComponent.h"
 #include "Unit/StatusEffectComponent.h"
+#include "Unit/StatusEffect.h"
 #include "Components/BoxComponent.h"
+#include "Components/WidgetComponent.h"
 
 ACombatManager::ACombatManager()
 {
@@ -75,6 +77,8 @@ void ACombatManager::InitCombat()
 			UE_LOG(LogTemp, Warning, TEXT("[CombatManager] Enemy[%d] spawned at %s"), i, *EnemyBoxes[i]->GetComponentLocation().ToString());
 		}
 	}
+
+	StartTurn();
 }
 
 AUnit* ACombatManager::SpawnCombatant(TSubclassOf<AUnit> ActorClass,
@@ -97,6 +101,15 @@ AUnit* ACombatManager::SpawnCombatant(TSubclassOf<AUnit> ActorClass,
 		Stat->MaxHP     = Data.MaxHP;
 		Stat->CurrentHP = Data.MaxHP;
 		// [임시] Defence 주입은 UStatComponent에 방어도 추가 후 처리
+	}
+
+	// CombatStatWidget 자동 연결
+	UWidgetComponent* WidgetComp = Actor->FindComponentByClass<UWidgetComponent>();
+	if (WidgetComp)
+	{
+		UCombatStatWidget* StatWidget = Cast<UCombatStatWidget>(WidgetComp->GetUserWidgetObject());
+		if (StatWidget)
+			StatWidget->InitFromUnit(Actor);
 	}
 
 	return Actor;
@@ -144,7 +157,7 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex)
 		if (Card.Damage > 0)
 		{
 			for (int32 i = 0; i < Card.UsingCount; i++)
-				ApplyDamageWithBlock(Target, Card.Damage, Caster);
+				UEffectManager::ProcessDamage(Target, Card.Damage, Caster);
 		}
 
 		// 회복
@@ -159,31 +172,46 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex)
 	}
 }
 
-void ACombatManager::ApplyDamageWithBlock(AUnit* Target, int32 Damage, AUnit* Attacker)
+void ACombatManager::CheckCombatEnd()
 {
-	if (!Target || Damage <= 0) return;
+	const bool bAllEnemiesDead = SpawnedEnemies.Num() > 0 &&
+		!SpawnedEnemies.ContainsByPredicate([](AUnit* U){ return U && U->IsAlive(); });
 
-	UStatusEffectComponent* SEC = Target->FindComponentByClass<UStatusEffectComponent>();
-	if (SEC)
+	if (bAllEnemiesDead)
 	{
-		UStatusEffect* BlockEff = SEC->FindEffect(UBlockEffect::StaticClass());
-		if (BlockEff && BlockEff->Stacks > 0)
-		{
-			const int32 Absorbed = FMath::Min(BlockEff->Stacks, Damage);
-			BlockEff->Stacks -= Absorbed;
-			Damage -= Absorbed;
-			UE_LOG(LogTemp, Warning, TEXT("[CombatManager] Block 흡수=%d 남은Block=%d 남은Damage=%d"), Absorbed, BlockEff->Stacks, Damage);
-		}
+		UE_LOG(LogTemp, Warning, TEXT("[CombatManager] 모든 적 사망 — 전투 승리"));
+		// TODO: 전투 종료 처리 (승리 화면, 보상 등) 구현 시 여기서 페이즈 진행 중단
+		return;
 	}
 
-	if (Damage <= 0) return;
+	const bool bAllPlayersDead = SpawnedPlayers.Num() > 0 &&
+		!SpawnedPlayers.ContainsByPredicate([](AUnit* U){ return U && U->IsAlive(); });
 
-	UStatComponent* Stat = Target->GetStat();
-	if (Stat)
-		Stat->TakeDamage(Damage, Attacker);
+	if (bAllPlayersDead)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatManager] 모든 플레이어 사망 — 게임 오버"));
+		// TODO: 게임 오버 처리 (패배 화면 등) 구현 시 여기서 페이즈 진행 중단
+	}
 }
 
-void ACombatManager::OnTurnStart()
+
+void ACombatManager::SetPhase(ETurnPhase NewPhase)
+{
+	CheckCombatEnd();
+
+	CurrentPhase = NewPhase;
+	OnPhaseChanged.Broadcast(NewPhase);
+
+	switch (NewPhase)
+	{
+		case ETurnPhase::DrawPhase:            UE_LOG(LogTemp, Warning, TEXT("[Turn %d] 드로우턴"), TurnCount);      break;
+		case ETurnPhase::PlayerActionPhase:    UE_LOG(LogTemp, Warning, TEXT("[Turn %d] 플레이어 행동턴"), TurnCount); break;
+		case ETurnPhase::PlayerExecutionPhase: UE_LOG(LogTemp, Warning, TEXT("[Turn %d] 행동 큐 실행턴"), TurnCount); break;
+		case ETurnPhase::EnemyPhase:           UE_LOG(LogTemp, Warning, TEXT("[Turn %d] 몬스터턴"), TurnCount);      break;
+	}
+}
+
+void ACombatManager::ApplyTurnStartEffects()
 {
 	TArray<AUnit*> AllUnits;
 	AllUnits.Append(SpawnedPlayers);
@@ -195,12 +223,114 @@ void ACombatManager::OnTurnStart()
 		UStatusEffectComponent* SEC = Unit->FindComponentByClass<UStatusEffectComponent>();
 		if (!SEC) continue;
 
+		// 방어도 리셋
+		if (SEC->GetEffectValue(EEffectType::Block) > 0)
+			SEC->SetEffectValue(EEffectType::Block, 0);
+
+		// 버프/디버프 delta 적용
 		for (UStatusEffect* Effect : SEC->Active)
-		{
-			if (Effect)
-				Effect->OnTurnEnd();
-		}
+			if (Effect) Effect->OnTurnEnd();
 	}
+}
+
+void ACombatManager::StartTurn()
+{
+	TurnCount++;
+	UE_LOG(LogTemp, Warning, TEXT("[CombatManager] Turn %d 시작"), TurnCount);
+
+	SetPhase(ETurnPhase::DrawPhase);
+	ApplyTurnStartEffects();
+
+	// TODO: 카드 드로우
+
+	SetPhase(ETurnPhase::PlayerActionPhase);
+}
+
+void ACombatManager::QueuePlayerAction(const FCardDataRow& Card, int32 CasterIndex)
+{
+	if (CurrentPhase != ETurnPhase::PlayerActionPhase) return;
+
+	FQueuedAction Action;
+	Action.Card        = Card;
+	Action.CasterIndex = CasterIndex;
+	ActionQueue.Add(Action);
+
+	UE_LOG(LogTemp, Warning, TEXT("[CombatManager] 큐 추가: %s (큐 크기=%d)"), *Card.Name.ToString(), ActionQueue.Num());
+}
+
+void ACombatManager::EndPlayerActionPhase()
+{
+	if (CurrentPhase != ETurnPhase::PlayerActionPhase) return;
+	SetPhase(ETurnPhase::PlayerExecutionPhase);
+	ExecuteNextAction();
+}
+
+void ACombatManager::ExecuteNextAction()
+{
+	if (CurrentPhase != ETurnPhase::PlayerExecutionPhase) return;
+
+	if (ActionQueue.Num() == 0)
+	{
+		OnExecutionFinished.Broadcast();
+		StartEnemyPhase();
+		return;
+	}
+
+	FQueuedAction Action = ActionQueue[0];
+	ActionQueue.RemoveAt(0);
+
+	ExecuteCard(Action.Card, Action.CasterIndex);
+	OnActionExecuted.Broadcast(Action.Card);
+}
+
+void ACombatManager::SkipToEnd()
+{
+	if (CurrentPhase != ETurnPhase::PlayerExecutionPhase) return;
+
+	while (ActionQueue.Num() > 0)
+	{
+		FQueuedAction Action = ActionQueue[0];
+		ActionQueue.RemoveAt(0);
+		ExecuteCard(Action.Card, Action.CasterIndex);
+	}
+
+	OnExecutionFinished.Broadcast();
+	StartEnemyPhase();
+}
+
+void ACombatManager::StartEnemyPhase()
+{
+	CurrentEnemyIndex = 0;
+	SetPhase(ETurnPhase::EnemyPhase);
+	ExecuteNextEnemyAction();
+}
+
+void ACombatManager::ExecuteNextEnemyAction()
+{
+	// 죽은 적 건너뜀
+	while (SpawnedEnemies.IsValidIndex(CurrentEnemyIndex) &&
+		   (!SpawnedEnemies[CurrentEnemyIndex] || !SpawnedEnemies[CurrentEnemyIndex]->IsAlive()))
+	{
+		CurrentEnemyIndex++;
+	}
+
+	if (!SpawnedEnemies.IsValidIndex(CurrentEnemyIndex))
+	{
+		// 모든 적 행동 완료 → 다음 턴
+		StartTurn();
+		return;
+	}
+
+	OnEnemyTurnStart.Broadcast(CurrentEnemyIndex);
+
+	// [임시] 적 AI 로직 구현 시 제거
+	OnEnemyActionComplete();
+}
+
+void ACombatManager::OnEnemyActionComplete()
+{
+	CurrentEnemyIndex++;
+	ExecuteNextEnemyAction();
 }
 
 UStatComponent* ACombatManager::GetPlayerStat(int32 Index) const
