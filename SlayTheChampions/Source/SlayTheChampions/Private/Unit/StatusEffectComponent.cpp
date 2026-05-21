@@ -66,5 +66,18 @@ UStatusEffect* UStatusEffectComponent::FindEffect(TSubclassOf<UStatusEffect> Eff
 	return nullptr;
 }
 
+void UStatusEffectComponent::SetEffectValue(EEffectType Type, int32 NewValue)
+{
+	const int32 OldValue = GetEffectValue(Type);
+	EffectValues.Add(Type, NewValue);
+	OnEffectValueChanged.Broadcast(Type, OldValue, NewValue);
+}
+
+int32 UStatusEffectComponent::GetEffectValue(EEffectType Type) const
+{
+	const int32* Found = EffectValues.Find(Type);
+	return Found ? *Found : 0;
+}
+
 
 
