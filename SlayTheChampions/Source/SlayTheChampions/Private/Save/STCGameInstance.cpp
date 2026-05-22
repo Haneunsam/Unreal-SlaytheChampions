@@ -4,7 +4,6 @@
 #include "Save/GameSaveSystem.h"
 #include "Champion/ChampionInstance.h"
 #include "Map/RunSystem.h"
-#include "StarterDeckRow.h"
 #include "Engine/DataTable.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -34,7 +33,7 @@ static UGameSaveSystem* EnsureCache(USTCGameInstance* GI, const FString& SlotNam
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 저장
+// 저장 (챔피언 + 맵 정보. 덱은 UCardSaveGame 에서 별도 저장)
 // ─────────────────────────────────────────────────────────────────────────────
 void USTCGameInstance::SaveGameData()
 {
@@ -53,15 +52,12 @@ void USTCGameInstance::SaveGameData()
 		Save->SavedMapInfo = MapSub->GetMapInfo();
 	}
 
-	// 덱 데이터는 CachedSave->SavedPartyDecks 에 이미 최신 상태로 유지됨
-	// (SaveDeckAfterBattle / AddCard / RemoveCard 호출 시마다 갱신)
-
 	UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
 	UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] SaveGameData completed"));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 로드
+// 로드 (챔피언 + 맵 정보. 덱은 UCardSaveGame 에서 별도 로드)
 // ─────────────────────────────────────────────────────────────────────────────
 void USTCGameInstance::LoadGameData()
 {
@@ -90,151 +86,17 @@ void USTCGameInstance::LoadGameData()
 		MapSub->SetMapInfo(CachedSave->SavedMapInfo);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] LoadGameData completed - %d party decks"),
-		CachedSave->SavedPartyDecks.Num());
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 전투 종료 시 덱 저장 (A방식: DrawPile + Hand + DiscardPile 합산)
-// ─────────────────────────────────────────────────────────────────────────────
-void USTCGameInstance::SaveDeckAfterBattle(int32 PawnIndex,
-	const TArray<FName>& DrawPile,
-	const TArray<FName>& Hand,
-	const TArray<FName>& DiscardPile)
-{
-	UGameSaveSystem* Save = EnsureCache(this, SaveSlotName, CachedSave);
-	if (!Save) return;
-
-	// PawnIndex 범위를 넘으면 배열 확장
-	if (!Save->SavedPartyDecks.IsValidIndex(PawnIndex))
-	{
-		Save->SavedPartyDecks.SetNum(PawnIndex + 1);
-	}
-
-	// 세 더미를 합쳐서 저장
-	TArray<FName> Combined;
-	Combined.Append(DrawPile);
-	Combined.Append(Hand);
-	Combined.Append(DiscardPile);
-
-	Save->SavedPartyDecks[PawnIndex].DeckCards = Combined;
-
-	UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
-	UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] Pawn%d deck saved after battle - %d cards"),
-		PawnIndex, Combined.Num());
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 파티원 덱 카드 목록 반환 (캐시에서 읽음)
-// ─────────────────────────────────────────────────────────────────────────────
-TArray<FName> USTCGameInstance::GetDeckCards(int32 PawnIndex) const
-{
-	if (!CachedSave || !CachedSave->SavedPartyDecks.IsValidIndex(PawnIndex))
-		return {};
-
-	return CachedSave->SavedPartyDecks[PawnIndex].DeckCards;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 카드 보상 시 추가
-// ─────────────────────────────────────────────────────────────────────────────
-void USTCGameInstance::AddCard(int32 PawnIndex, FName CardName)
-{
-	UGameSaveSystem* Save = EnsureCache(this, SaveSlotName, CachedSave);
-	if (!Save) return;
-
-	if (!Save->SavedPartyDecks.IsValidIndex(PawnIndex))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[STCGameInstance] AddCard: Invalid PawnIndex %d"), PawnIndex);
-		return;
-	}
-
-	Save->SavedPartyDecks[PawnIndex].DeckCards.Add(CardName);
-	UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
-
-	UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] Pawn%d card added - %s (total %d)"),
-		PawnIndex, *CardName.ToString(),
-		Save->SavedPartyDecks[PawnIndex].DeckCards.Num());
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 카드 제거
-// ─────────────────────────────────────────────────────────────────────────────
-void USTCGameInstance::RemoveCard(int32 PawnIndex, FName CardName)
-{
-	UGameSaveSystem* Save = EnsureCache(this, SaveSlotName, CachedSave);
-	if (!Save) return;
-
-	if (!Save->SavedPartyDecks.IsValidIndex(PawnIndex))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[STCGameInstance] RemoveCard: Invalid PawnIndex %d"), PawnIndex);
-		return;
-	}
-
-	Save->SavedPartyDecks[PawnIndex].DeckCards.Remove(CardName);
-	UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
-
-	UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] Pawn%d card removed - %s"),
-		PawnIndex, *CardName.ToString());
+	UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] LoadGameData completed"));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 게임 최초 시작 시 스타터 덱 초기화
+// 덱 저장/로드는 UCardSaveGame ("PlayerDeckSave" 슬롯) + UCardManager 에서 전담.
+// 이 함수는 덱을 건드리지 않음 - 하위 호환용으로 남겨둠.
 // ─────────────────────────────────────────────────────────────────────────────
 void USTCGameInstance::InitDeckIfNew(UDataTable* StarterDeckWarrior, UDataTable* StarterDeckMage, UDataTable* StarterDeckHealer)
 {
-	// 이미 저장 파일이 있고 덱 데이터가 있으면 초기화 스킵
-	UGameSaveSystem* Save = EnsureCache(this, SaveSlotName, CachedSave);
-	if (!Save) return;
-
-	if (Save->SavedPartyDecks.Num() > 0)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] InitDeckIfNew: Deck already exists - skip"));
-		return;
-	}
-
-	// 파티원 3명 슬롯 초기화
-	Save->SavedPartyDecks.SetNum(3);
-
-	// Pawn0: Warrior
-	Save->SavedPartyDecks[0].JobClass = EJobClass::Warrior;
-	if (StarterDeckWarrior)
-	{
-		for (const FName& RowName : StarterDeckWarrior->GetRowNames())
-		{
-			if (const FStarterDeckRow* Row = StarterDeckWarrior->FindRow<FStarterDeckRow>(RowName, TEXT("InitDeck_Warrior")))
-				Save->SavedPartyDecks[0].DeckCards.Add(Row->CardID);
-		}
-		UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] Warrior deck initialized - %d cards"),
-			Save->SavedPartyDecks[0].DeckCards.Num());
-	}
-
-	// Pawn1: Mage
-	Save->SavedPartyDecks[1].JobClass = EJobClass::Mage;
-	if (StarterDeckMage)
-	{
-		for (const FName& RowName : StarterDeckMage->GetRowNames())
-		{
-			if (const FStarterDeckRow* Row = StarterDeckMage->FindRow<FStarterDeckRow>(RowName, TEXT("InitDeck_Mage")))
-				Save->SavedPartyDecks[1].DeckCards.Add(Row->CardID);
-		}
-		UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] Mage deck initialized - %d cards"),
-			Save->SavedPartyDecks[1].DeckCards.Num());
-	}
-
-	// Pawn2: Healer
-	Save->SavedPartyDecks[2].JobClass = EJobClass::Healer;
-	if (StarterDeckHealer)
-	{
-		for (const FName& RowName : StarterDeckHealer->GetRowNames())
-		{
-			if (const FStarterDeckRow* Row = StarterDeckHealer->FindRow<FStarterDeckRow>(RowName, TEXT("InitDeck_Healer")))
-				Save->SavedPartyDecks[2].DeckCards.Add(Row->CardID);
-		}
-		UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] Healer deck initialized - %d cards"),
-			Save->SavedPartyDecks[2].DeckCards.Num());
-	}
-
-	UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
-	UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] InitDeckIfNew completed"));
+	// 덱 초기화는 UCardManager::InitializePartyDecks() 에서 처리.
+	// 이 함수는 더 이상 덱을 직접 초기화하지 않음.
+	UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] InitDeckIfNew: Deck is managed by UCardManager - skipped"));
 }

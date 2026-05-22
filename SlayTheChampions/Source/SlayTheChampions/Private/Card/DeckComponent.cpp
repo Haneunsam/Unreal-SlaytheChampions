@@ -18,7 +18,7 @@ void UDeckComponent::InitializeDeck(const TArray<FName>& InDeckNames, TArray<FNa
     // 초기 셔플 (Fisher-Yates, Algo::RandomShuffle 내부 구현)
     Algo::RandomShuffle(DrawPile);
 
-    UE_LOG(LogTemp, Log,
+    UE_LOG(LogTemp, Warning,
         TEXT("UDeckComponent: Deck initialized. DrawPile=%d cards."),
         DrawPile.Num());
 }
@@ -37,7 +37,7 @@ TArray<FName> UDeckComponent::DrawCards(int32 Count, TArray<FName>& InOutHand)
             if (DiscardPile.IsEmpty())
             {
                 // 뽑을 카드가 아예 없음
-                UE_LOG(LogTemp, Log,
+                UE_LOG(LogTemp, Warning,
                     TEXT("UDeckComponent: DrawCards - No cards left to draw."));
                 break;
             }
@@ -72,7 +72,7 @@ void UDeckComponent::DiscardAll(TArray<FName>& InOutHand)
     DiscardPile.Append(InOutHand);
     InOutHand.Reset();
 
-    UE_LOG(LogTemp, Log,
+    UE_LOG(LogTemp, Warning,
         TEXT("UDeckComponent: Hand discarded. DiscardPile=%d cards."),
         DiscardPile.Num());
 }
@@ -89,7 +89,7 @@ void UDeckComponent::ExhaustCard(FName CardName)
     ExhaustPile.Add(CardName);
     OnCardExhausted.Broadcast(CardName);
 
-    UE_LOG(LogTemp, Log,
+    UE_LOG(LogTemp, Warning,
         TEXT("UDeckComponent: '%s' exhausted. ExhaustPile=%d cards."),
         *CardName.ToString(), ExhaustPile.Num());
 }
@@ -106,7 +106,7 @@ void UDeckComponent::RecycleDiscardIntoDraw()
 
     OnDeckRecycled.Broadcast();
 
-    UE_LOG(LogTemp, Log,
+    UE_LOG(LogTemp, Warning,
         TEXT("UDeckComponent: DiscardPile recycled into DrawPile. %d cards reshuffled."),
         DrawPile.Num());
 }
