@@ -1,5 +1,8 @@
 #include "Card/HandComponent.h"
 #include "Card/DeckComponent.h"
+#include "Card/CardSubsystem.h"
+#include "Card/CardDataTypes.h"
+#include "Engine/GameInstance.h"
 
 UHandComponent::UHandComponent()
 {
@@ -8,7 +11,7 @@ UHandComponent::UHandComponent()
 
 // ── 초기화 ───────────────────────────────────────────────────────────────────
 
-// begine 보단 빠르지만 begine 느낌
+// BeginPlay 보단 빠르지만 BeginPlay 느낌
 void UHandComponent::InitializeDeck(UDeckComponent* InDeckComponent, const TArray<FName>& InDeckNames)
 {
     // DeckComponent 참조 저장
@@ -75,10 +78,31 @@ bool UHandComponent::PlayCard(FName CardName)
 
     Hand.RemoveAt(Idx);
 
-    // DiscardPile 이동은 DeckComponent 에 위임
     if (DeckComponent)
     {
-        DeckComponent->DiscardCard(CardName);
+        // 소멸 카드(bExhaust)이면 ExhaustPile 로, 아니면 DiscardPile 로 이동
+        bool bShouldExhaust = false;
+
+        if (UWorld* World = GetWorld())
+        {
+            if (UGameInstance* GI = World->GetGameInstance())
+            {
+                if (UCardSubsystem* CS = GI->GetSubsystem<UCardSubsystem>())
+                {
+                    const FCardDataRow* Row = CS->GetCard(CardName);
+                    bShouldExhaust = Row && Row->bExhaust;
+                }
+            }
+        }
+
+        if (bShouldExhaust)
+        {
+            DeckComponent->ExhaustCard(CardName);
+        }
+        else
+        {
+            DeckComponent->DiscardCard(CardName);
+        }
     }
 
     OnCardPlayed.Broadcast(CardName);
@@ -93,7 +117,7 @@ void UHandComponent::DiscardHand()
     if (!DeckComponent)
     {
         // DeckComponent 없이도 Hand는 비워줌
-        Hand.Reset(); // Reset()함수는 언리얼에 기본으로 내장되어 있는 함수로 
+        Hand.Reset();
         BroadcastHandChanged();
         return;
     }
