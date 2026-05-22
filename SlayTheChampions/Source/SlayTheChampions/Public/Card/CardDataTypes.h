@@ -7,6 +7,8 @@
 
 /**
  * ECardRarity
+ * ī�� ��͵� ���.
+ * DA_CardStyle ���� ��͵��� �̹����� �����ϴ� �� ���.
  * 카드 희귀도 열거형.
  * DA_CardStyle 에서 희귀도별 이미지를 참조하는 데 사용.
  */
@@ -89,7 +91,7 @@ struct FCardDataRow : public FTableRowBase
 
     // 카드 고유 번호 (101, 201 등)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")
-    FName Name;
+    FName CardID;
 
     // 카드 이름 (타이틀, 한글 등) - UI 표시용
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")

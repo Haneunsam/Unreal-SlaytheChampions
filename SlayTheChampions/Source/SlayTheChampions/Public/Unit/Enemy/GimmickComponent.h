@@ -14,8 +14,8 @@ class AUnit;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseEntered, const FGimmickPhase&, Phase);
 
-//����� �ܺ� �ý��ۿ� ��û�ϴ� Delegate
-//CombatManager�� ����ó��
+// 기믹이 외부 시스템에 요청하는 Delegate
+// CombatManager에서 처리
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGimmickDamageRequest, ETargetType, TargetType, int32, Damage);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGimmickAnnounce, const FText&, Text);
 
@@ -24,29 +24,29 @@ class SLAYTHECHAMPIONS_API UGimmickComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
+public:
 	// Sets default values for this component's properties
 	UGimmickComponent();
 
-	//������
+	// 기믹 데이터
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gimmick")
 	UGimmickData* Data = nullptr;
 
-	//�� ����� �̹� �ߵ��ߴ��� ����(bOneShot ó����)
+	// 각 페이즈가 이미 발동했는지 여부(bOneShot 처리용)
 	UPROPERTY(BlueprintReadOnly, Category = "Gimmick")
 	TArray<bool> Fired;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Gimmick")
 	int32 TurnCounter = 0;
 
-	// CombatManager�� ȣ��
+	// CombatManager에서 호출
 	UFUNCTION(BlueprintCallable, Category = "Gimmick")
 	void OnTurnStart();
-		
+
 	UFUNCTION(BlueprintCallable, Category = "Gimmick")
 	void OnTurnEnd();
-	
-	// �ܺ� ������ Delegate
+
+	// 외부 시스템 Delegate
 	UPROPERTY(BlueprintAssignable, Category = "Gimmick")
 	FOnPhaseEntered OnPhaseEntered;
 
@@ -59,16 +59,16 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	// ���� ����Ŭ������ virtual hooks ����
-	// OnTurnStart/End ���ο��� ȣ���
+	// 파생 서브클래스용 virtual hooks 정의
+	// OnTurnStart/End 내부에서 호출됨
 	virtual void OnGimmickTurnStart() {}
 	virtual void OnGimmickTurnEnd() {}
 
-	// StatComponent.OnHPChanged�� �ڵ� ���ε���
+	// StatComponent.OnHPChanged에 자동 바인딩됨
 	UFUNCTION()
 	virtual void HandleHPChanged(int32 OldHP, int32 NewHP) {}
 
-	// Unit.OnUnitDied�� �ڵ� ���ε���
+	// Unit.OnUnitDied에 자동 바인딩됨
 	UFUNCTION()
 	virtual void HandleOwnerDied(AUnit* Unit) {}
 
