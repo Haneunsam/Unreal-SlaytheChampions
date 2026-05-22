@@ -24,29 +24,42 @@ void UNPCBrainComponent::PlanNextAction(const TArray<AUnit*>& Allies, const TArr
 	//패턴이 없거나 패턴 액션이 없으면 바로 리턴
 	if (!Pattern || Pattern->Actions.IsEmpty()) return;
 	
-	//PickNext,PickTarget private함수를 호출하여 다음 액션에 저장
-	// 
-	PendingAction = PickNext();
-	AUnit* Target = PickTarget(PendingAction.TargetType, Allies, Enemies);
-
+	// 기믹 컴포넌트를 먼저 조회 (행동 억제 판정 + Intent 경고 보강, 두 군데에서 사용)
+	UGimmickComponent* Gimmick = GetOwner()->FindComponentByClass<UGimmickComponent>();
 	//Intent 구성
 	FIntent New;
-	New.Kind = PendingAction.ResolveIntentKind();
-	New.Value = PendingAction.Value;
-	New.Hits = PendingAction.Hits;
-	New.TargetType = PendingAction.TargetType; //광역 단일 구분
-	New.Target = Target;
-	New.DisplayText = PendingAction.DisplayName;
-	
-	//행동에 딸린 상태효과를 Intent에 그대로 실어 보낸다.
-	//CombatManager가 StatusEffectComponent::AApplyEffect(Type,Value,Duration)로 바로 사용.
-	New.EffectType = PendingAction.EffectType;
-	New.EffectValue = PendingAction.EffectValue;
-	New.EffectDuration = PendingAction.EffectDuration;
+	if (Gimmick && Gimmick->SuppressesAction())
+	{
+		PendingAction = FEnemyAction();
+		PendingAction.ActionType = EActionType::NoAttack;
 
+		New.Kind = EIntentKind::NoAttack;
+		New.TargetType = ETargetType::Self;
+		// Value / Hits / Effect 등은 기본값(0 / 1 / None) 그대로
+	}
+	else
+	{
+		//PickNext,PickTarget private함수를 호출하여 다음 액션에 저장
+		// 
+		PendingAction = PickNext();
+		AUnit* Target = PickTarget(PendingAction.TargetType, Allies, Enemies);
+
+		New.Kind = PendingAction.ResolveIntentKind();
+		New.Value = PendingAction.Value;
+		New.Hits = PendingAction.Hits;
+		New.TargetType = PendingAction.TargetType; //광역 단일 구분
+		New.Target = Target;
+		New.DisplayText = PendingAction.DisplayName;
+
+		//행동에 딸린 상태효과를 Intent에 그대로 실어 보낸다.
+		//CombatManager가 StatusEffectComponent::AApplyEffect(Type,Value,Duration)로 바로 사용.
+		New.EffectType = PendingAction.EffectType;
+		New.EffectValue = PendingAction.EffectValue;
+		New.EffectDuration = PendingAction.EffectDuration;
+	}
 	//보스 등 GimmickComponent를 가진 적은 기믹 정보로 Intent 보강
 	//일반 적은 nullptr로 스킵됨
-	if (UGimmickComponent* Gimmick = GetOwner()->FindComponentByClass<UGimmickComponent>())
+	if (Gimmick)
 	{
 		Gimmick->AugmentIntent(New);
 	}

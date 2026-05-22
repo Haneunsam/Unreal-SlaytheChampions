@@ -37,6 +37,8 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Gimmick|Sleep")
 	bool IsSleeping() const { return bSleeping; }
 
+	virtual bool SuppressesAction() const override;
+
 	// 피격 시 조기 각성 옵션 (데이터로 ON/OFF)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gimmick|Sleep")
 	bool bWakeOnDamage = false;

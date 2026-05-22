@@ -3,6 +3,12 @@
 
 #include "Unit/Enemy/Gimmick/Gimmick_SlowStarter.h"
 
+bool UGimmick_SlowStarter::SuppressesAction() const
+{
+	//잠들어있는 동안은 패턴을 하지 않는다.
+	return IsSleeping();
+}
+
 bool UGimmick_SlowStarter::WillTriggerNextTurn() const
 {
 	return bSleeping && GetPredictedTurn() >= SleepDuration;

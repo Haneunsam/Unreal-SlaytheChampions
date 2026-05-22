@@ -65,6 +65,15 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Gimmick")
 	virtual bool WillTriggerNextTurn() const { return false; }
 
+	/**
+	 * 다가오는 적 턴에 이 기믹이 유닛의 "행동 자체"를 막는지.
+	 *  - true면 NPCBrainComponent가 패턴 액션을 뽑지 않고 무행동(NoAttack) Intent를 낸다.
+	 *    SequenceIndex를 소모하지 않으므로 억제가 풀린 뒤 패턴이 끊김 없이 이어진다.
+	 *  - 대표 예: Gimmick_SlowStarter 수면 중.
+	 * 행동을 막지 않는 일반 기믹은 override 불필요(기본 false).
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Gimmick")
+	virtual bool SuppressesAction() const { return false; }
 
 	//외부 구독용 Delegate
 	UPROPERTY(BlueprintAssignable, Category = "Gimmick")
