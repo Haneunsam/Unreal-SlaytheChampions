@@ -1,10 +1,10 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Map/MapEnum.h"
 #include "MapStruct.generated.h"
 
-/*Area 정보*/
+/* Area 정보 */
 USTRUCT(BlueprintType)
 struct FAreaInfo
 {
@@ -38,7 +38,7 @@ struct FAreaInfo
 	}
 };
 
-/*Map Area배치 확률*/
+/* Map Area 배치 확률 */
 USTRUCT(BlueprintType)
 struct FAreaSpawnProbability
 {
@@ -63,7 +63,7 @@ struct FAreaSpawnProbability
 	}
 };
 
-/*Map Area 고정 배치 층수*/
+/* Map Area 고정 배치 위치 */
 USTRUCT(BlueprintType)
 struct FAreaFixedPlacement
 {
@@ -87,7 +87,64 @@ struct FAreaFixedPlacement
 	}
 };
 
-/*파티 시스템 가져오기 위한 스냅샵*/
+/* 저장된 Area 데이터 */
+USTRUCT(BlueprintType)
+struct FSaveAreaData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bHasArea = false;
+
+	UPROPERTY()
+	FAreaInfo AreaInfo;
+
+	UPROPERTY()
+	TArray<int32> NextAreaIndices;
+};
+/* 저장된 Map 데이터 */
+USTRUCT(BlueprintType)
+struct  FSaveMapInfo
+{
+	GENERATED_BODY()
+	/* Run 진행상태 */
+	UPROPERTY()
+	ERunState CurrentRunState = ERunState::Ready;
+
+	/* 저장된 맵 가로폭 */
+	UPROPERTY()
+	int32 SavedMapWidth = 0;
+
+	/* 저장된 맵 세로폭 */
+	UPROPERTY()
+	int32 SavedMapHeight = 0;
+
+	/* 저장된 맵 데이터 유무 여부 */
+	UPROPERTY()
+	bool bHasSavedMap = false;
+
+	/* 저장된 맵 데이터 배열 */
+	UPROPERTY()
+	TArray<FSaveAreaData> SavedMap;
+
+	/* 현재 Area의 정보 */
+	UPROPERTY()
+	FAreaInfo CurrentRoomInfo;
+
+	/* 현재 Area의 층 인덱스 */
+	UPROPERTY()
+	int32 CurrentFloorIndex = INDEX_NONE;
+
+	/* 현재 Area의 방 인덱스 */
+	UPROPERTY()
+	int32 CurrentRoomIndex = INDEX_NONE;
+
+	/* 이동했던 Area의 데이터 유무 여부 */
+	UPROPERTY()
+	bool bHasCurrentRoom = false;
+};
+
+/* 파티 시스템 스냅샷용 저장 데이터 */
 USTRUCT(BlueprintType)
 struct FRunPartySnapshot
 {
@@ -97,7 +154,7 @@ struct FRunPartySnapshot
 	TArray<FName> PartyMemberIds;
 };
 
-/*카드 덱 시스템 가져오기 위한 스냅샵*/
+/* 카드 덱 시스템 스냅샷용 저장 데이터 */
 USTRUCT(BlueprintType)
 struct FRunDeckSnapshot
 {
@@ -107,7 +164,7 @@ struct FRunDeckSnapshot
 	TArray<FName> DeckOwnerIds;
 };
 
-/*유물 시스템 가져오기 위한 스냅샵*/
+/* 유물 시스템 스냅샷용 저장 데이터 */
 USTRUCT(BlueprintType)
 struct FRunRelicSnapshot
 {
@@ -116,4 +173,3 @@ struct FRunRelicSnapshot
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Run")
 	TArray<FName> RelicIds;
 };
-
