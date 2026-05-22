@@ -1,4 +1,4 @@
-#include "CardStyleDataAsset.h"
+#include "Card/CardStyleDataAsset.h"
 
 UPaperSprite* UCardStyleDataAsset::GetRarityBorder(ECardRarity Rarity) const
 {

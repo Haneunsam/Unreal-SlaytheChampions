@@ -1,5 +1,5 @@
 #include "CombatKernel/BattleMainWidget.h"
-#include "CardWidget.h"
+#include "Card/CardWidget.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 

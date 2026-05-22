@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "CardDataTypes.h"
-#include "CardWidget.h"
+#include "Card/CardDataTypes.h"
+#include "Card/CardWidget.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "BattleMainWidget.generated.h"

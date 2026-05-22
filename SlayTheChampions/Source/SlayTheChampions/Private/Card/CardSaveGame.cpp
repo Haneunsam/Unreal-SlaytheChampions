@@ -1,5 +1,5 @@
-#include "CardSaveGame.h"
-#include "StarterDeckRow.h"
+#include "Card/CardSaveGame.h"
+#include "Card/StarterDeckRow.h"
 #include "Engine/DataTable.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -24,7 +24,7 @@ void UCardSaveGame::WriteSave(UCardSaveGame* SaveGame)
 
 UCardSaveGame* UCardSaveGame::LoadOrCreate(UDataTable* StarterDeckWarrior, UDataTable* StarterDeckMage)
 {
-    // ±âÁ¸ SaveGame ÆÄÀÏÀÌ ÀÖÀ¸¸é ºÒ·¯¿È
+    // ï¿½ï¿½ï¿½ï¿½ SaveGame ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ò·ï¿½ï¿½ï¿½
     UCardSaveGame* Save = LoadSave();
     if (Save)
     {
@@ -32,16 +32,16 @@ UCardSaveGame* UCardSaveGame::LoadOrCreate(UDataTable* StarterDeckWarrior, UData
         return Save;
     }
 
-    // SaveGame ¾øÀ¸¸é DT¿¡¼­ ÃÊ±â µ¦ »ý¼º
+    // SaveGame ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DTï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     UE_LOG(LogTemp, Log, TEXT("[CardSaveGame] No SaveGame found - Creating from DataTable"));
 
     Save = Cast<UCardSaveGame>(
         UGameplayStatics::CreateSaveGameObject(UCardSaveGame::StaticClass()));
 
-    // Pawn1(Warrior), Pawn2(Mage) 2¸í ÃÊ±âÈ­
+    // Pawn1(Warrior), Pawn2(Mage) 2ï¿½ï¿½ ï¿½Ê±ï¿½È­
     Save->PartyDecks.SetNum(2);
 
-    // Pawn1: Warrior ½ÃÀÛ µ¦
+    // Pawn1: Warrior ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
     Save->PartyDecks[0].JobClass = EJobClass::Warrior;
     if (StarterDeckWarrior)
     {
@@ -56,7 +56,7 @@ UCardSaveGame* UCardSaveGame::LoadOrCreate(UDataTable* StarterDeckWarrior, UData
             Save->PartyDecks[0].DeckCards.Num());
     }
 
-    // Pawn2: Mage ½ÃÀÛ µ¦
+    // Pawn2: Mage ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
     Save->PartyDecks[1].JobClass = EJobClass::Mage;
     if (StarterDeckMage)
     {
@@ -87,7 +87,7 @@ void UCardSaveGame::SaveDeckAfterBattle(int32 PawnIndex,
         return;
     }
 
-    // A¹æ½Ä: DrawPile + Hand + DiscardPile ÇÕÃÄ¼­ ÀúÀå
+    // Aï¿½ï¿½ï¿½: DrawPile + Hand + DiscardPile ï¿½ï¿½ï¿½Ä¼ï¿½ ï¿½ï¿½ï¿½ï¿½
     TArray<FName> Combined;
     Combined.Append(DrawPile);
     Combined.Append(Hand);

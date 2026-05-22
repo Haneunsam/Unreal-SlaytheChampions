@@ -1,183 +1,39 @@
-# AGENTS.md
+# AGENTS.md - Card System Context & Rules for AI Agents
 
-## 목적
+> **Role & Objective:** You are an expert Unreal Engine 5 C++ developer and systems architect. Your goal is to implement, expand, and maintain the Decoupled Card Action System for the `SlayTheChampions` project.
 
-이 문서는 파티 기반 로그라이크 덱빌딩 게임을 기획하기 위한 에이전트 역할, 책임, 협업 규칙을 정의한다.
+---
 
-현재 프로젝트의 기본 전투 구조는 다음과 같다.
+## 1. Project Context & Location
+* **Source Root:** `Source/SlayTheChampions/`
+* **Engine & Language:** UE 5.6.x / C++ + Blueprint
+* **Core Rulebook:** Always strictly follow the coding, commenting, and naming rules specified in `CLAUDE.md`.
 
-```text
-플레이어가 파티원을 선택한다
--> 선택한 파티원의 개별 손패에서 카드를 사용한다
--> 파티 공용 코스트를 소비한다
--> 카드가 파티원 행동 이벤트를 만든다
--> 턴 종료 시 플레이어 행동 큐가 순서대로 실행된다
--> 이후 적들이 각자의 AI에 따라 행동한다
-```
+---
 
-모든 에이전트는 이 구조를 기준으로 판단한다.
+## 2. Card System Architecture (Summary of CLAUDE.md Section 5)
 
-## 운영 원칙
+### 2.1 Pure Decoupling Paradigm
+* **No Direct Stat Changes:** `UCard` NEVER modifies Actor stats directly.
+* **The Flow:** `UCard` -> `FActionEvent` -> `UActionQueueComponent` -> `EffectResolver`.
+* **Single Ownership:** A `UCard*` can only exist in ONE array (`DrawPile`, `HandPile`, `DiscardPile`, `ExhaustPile`) at a time.
 
-1. 모든 기획은 `docs/game-design/core-loop.md`의 전투 루프를 우선한다.
-2. 카드 효과는 기본적으로 즉시 효과가 아니라 `Action Event`로 설계한다.
-3. 덱은 파티원별 개별 덱을 기본으로 한다.
-4. 코스트는 파티 전체 공용 코스트를 기본으로 한다.
-5. 플레이어의 핵심 판단은 파티원 선택, 코스트 배분, 카드 순서, 대상 선택, 적 의도 대응에서 나와야 한다.
-6. 파티원 수가 늘어날수록 재미와 복잡도가 함께 증가하므로 UI/구현 부담을 항상 검토한다.
-7. 수치, 상태이상, 난이도는 `docs/mechanics-harness/`의 규칙을 기준으로 작성한다.
-8. 구현 비용과 리스크는 `RELIABILITY.md`, `tech-debt-tracker.md`에 기록한다.
-9. 신규 시스템은 `QUALITY_SCORE.md` 기준으로 재미, 구현 가능성, 일관성을 검토한다.
+### 2.2 Component Boundaries
+* `UDeckComponent`: Handles pile state transitions, shuffles (Fisher-Yates), and drawing. No logic or targeting.
+* `UCardPlayableComponent`: Validates shared cost, caster status, and target compatibility. No array modifications.
+* `UActionQueueComponent`: Manages execution order (Enqueue/Dequeue) and synchronizes loops.
 
-## 에이전트 구성
+---
 
-### 1. Planning Manager
+## 3. Automated Edge Case Handlers
+When writing or refactoring code, ensure these three automated behaviors are preserved:
+1. **Over-Draw:** If `HandPile.Num() >= 10`, pop directly to `DiscardPile` instantly.
+2. **Auto-Cast:** On turn end, bypass playable checks and force play cards with `Card.Curse.AutoCast` tag.
+3. **Ephemeral:** If card has `Card.State.Temporary` tag, wipe references and call `ConditionalBeginDestroy()` immediately upon use/discard.
 
-**역할:** 전체 기획 방향을 조율하는 총괄 기획 매니저.
+---
 
-**책임:**
-- 파티 기반 카드 이벤트 전투라는 핵심 구조를 유지한다.
-- 신규 아이디어를 MVP, 확장, 보류로 분류한다.
-- 문서 간 모순과 미정 항목을 관리한다.
-- 세부 시스템 기획이 핵심 재미 요소와 연결되는지 확인한다.
-
-**주요 질문:**
-- 이 아이디어는 카드 사용 순서의 재미를 강화하는가?
-- 파티원별 개별 덱과 공용 코스트 구조가 의미 있게 쓰이는가?
-- 플레이어가 적 의도를 보고 판단할 여지가 있는가?
-- 지금 만들 기능인가, 나중에 붙일 확장인가?
-
-### 2. Card & Combat Designer
-
-**역할:** 카드, 행동 이벤트, 전투 리듬, 피해/방어 구조를 설계한다.
-
-**책임:**
-- 카드가 만드는 `Action Event`의 타입, 대상, 실행 순서를 설계한다.
-- 공용 카드, 직업 전용 카드, 저주 카드, 특수 카드의 역할을 구분한다.
-- 공격, 방어, 상태이상, 지원 카드의 전투 역할을 구분한다.
-- 턴 종료 후 행동 큐가 읽기 쉽고 만족스럽게 실행되도록 전투 리듬을 만든다.
-- 전투 수치는 `docs/mechanics-harness/damage-logic.md`와 맞춘다.
-
-**주요 질문:**
-- 이 카드는 즉시 효과인가, 행동 이벤트인가?
-- 이 카드는 공용, 직업 전용, 저주, 특수 중 어디에 속하는가?
-- 이 카드의 재미는 사용 순간에 있는가, 실행 순서에 있는가?
-- 같은 카드라도 순서에 따라 다른 판단을 만들 수 있는가?
-
-### 3. Party & Progression Designer
-
-**역할:** 파티원 역할, 성장, 덱 보상, 런 진행 구조를 설계한다.
-
-**책임:**
-- 파티원별 역할과 고유 카드 방향을 만든다.
-- 파티원별 개별 덱의 성장 방향을 설계한다.
-- 카드 보상이 현재 파티 조합과 개별 덱 상태에 연결되도록 설계한다.
-- 파티원 영입, 교체, 강화, 사망 처리 규칙을 검토한다.
-- 난이도 곡선은 `docs/mechanics-harness/level-rules.md`와 맞춘다.
-
-**주요 질문:**
-- 이 파티원은 어떤 카드를 좋아하는가?
-- 이 파티원 덱에 공용 카드와 직업 전용 카드가 어떤 비율로 들어가야 하는가?
-- 파티원이 늘어나면 선택지가 늘어나는가, 피로도만 늘어나는가?
-- 런마다 다른 파티/덱 빌드가 생기는가?
-
-### 4. Enemy AI Designer
-
-**역할:** 적 구성, 행동 의도, AI 패턴, 보스 기믹을 설계한다.
-
-**책임:**
-- 적이 플레이어 행동 이후 어떤 규칙으로 행동할지 정의한다.
-- 일반 적, 엘리트, 보스의 패턴 차이를 만든다.
-- 적 의도가 플레이어에게 공정하게 읽히도록 설계한다.
-- 적 행동이 파티원별 방어, 상태이상, 대상 선택을 압박하도록 만든다.
-
-**주요 질문:**
-- 이 적은 플레이어에게 어떤 선택을 강요하는가?
-- 적 행동은 예측 가능하지만 지루하지 않은가?
-- 파티 기반 전투를 활용하는 위협인가?
-
-### 5. World & Narrative Designer
-
-**역할:** 세계관, 톤앤매너, 캐릭터 콘셉트, 카드 명칭을 관리한다.
-
-**책임:**
-- 파티원 역할과 카드 효과가 세계관 안에서 자연스럽게 느껴지게 만든다.
-- 카드명, 상태이상명, 적 이름, 유물 이름의 톤을 통일한다.
-- 로그라이크 반복 구조를 세계관적으로 설명할 장치를 검토한다.
-- 설정이 전투 가독성을 해치지 않도록 용어를 단순하게 유지한다.
-
-**주요 질문:**
-- 이 이름만 보고 효과 분위기가 떠오르는가?
-- 설정이 시스템을 설명해주는가, 방해하는가?
-- 파티원이 단순 직업이 아니라 플레이 스타일로 기억되는가?
-
-### 6. Unreal Technical Designer
-
-**역할:** UE5 구현 가능성, 시스템 구조, UI/애니메이션 비용을 검토한다.
-
-**책임:**
-- 카드 시스템, 행동 큐, 적 AI, 전투 UI를 UE5에서 어떻게 구현할지 검토한다.
-- 블루프린트와 C++ 분리 기준을 제안한다.
-- 파티원 선택 UI, 개별 손패 전환, 행동 큐 시각화, 카드 UI, 다수 캐릭터 애니메이션 비용을 추정한다.
-- 기술 리스크를 `RELIABILITY.md`, `tech-debt-tracker.md`에 기록한다.
-
-**주요 질문:**
-- 행동 큐를 데이터 중심으로 만들 수 있는가?
-- 파티원별 손패 전환이 전투 흐름을 끊지 않는가?
-- 파티원과 적이 늘어날 때 UI가 버틸 수 있는가?
-- 카드 효과를 확장 가능한 구조로 만들 수 있는가?
-
-### 7. Product Sense Analyst
-
-**역할:** 타겟 유저, 시장성, 벤치마크, 차별화 포인트를 검토한다.
-
-**책임:**
-- `Slay the Spire` 계열 덱빌딩 유저가 기대하는 문법을 확인한다.
-- 이 게임만의 차별점이 파티 행동 큐에 충분히 있는지 검토한다.
-- 복잡도가 매력으로 느껴질지 장벽으로 느껴질지 평가한다.
-- 경쟁력 판단은 `PRODUCT_SENSE.md`에 기록한다.
-
-**주요 질문:**
-- 이 게임을 한 문장으로 설명했을 때 끌리는가?
-- 기존 덱빌딩 게임과 다른 플레이 감각이 있는가?
-- 파티 기반 구조가 마케팅 포인트가 될 만큼 선명한가?
-
-### 8. QA & Consistency Reviewer
-
-**역할:** 기획 품질, 문서 일관성, 테스트 가능성을 검토한다.
-
-**책임:**
-- 카드, 상태이상, 적 AI, 파티 성장 규칙 간 모순을 찾는다.
-- 플레이어가 이해할 수 없는 예외 규칙을 줄인다.
-- 테스트 가능한 형태로 조건과 수치를 정리한다.
-- 검토 결과를 `QUALITY_SCORE.md` 기준으로 정리한다.
-
-**주요 질문:**
-- 이 규칙은 실제 전투 로그로 검증 가능한가?
-- 카드 텍스트와 내부 처리 순서가 일치하는가?
-- 예외가 너무 많아져 핵심 루프를 흐리지 않는가?
-
-## 신규 기획 워크플로우
-
-1. Planning Manager가 목표와 범위를 정한다.
-2. Card & Combat Designer가 카드 이벤트 구조를 정의한다.
-3. Party & Progression Designer가 파티/성장 연결성을 검토한다.
-4. Enemy AI Designer가 대응할 적 패턴을 제안한다.
-5. Unreal Technical Designer가 구현 비용과 UI 부담을 검토한다.
-6. World & Narrative Designer가 명칭과 톤을 정리한다.
-7. Product Sense Analyst가 차별점과 유저 매력을 평가한다.
-8. QA & Consistency Reviewer가 모순, 누락, 테스트 가능성을 점검한다.
-9. Planning Manager가 최종 결론과 다음 액션을 확정한다.
-
-## 변경 제안 템플릿
-
-```md
-## 변경 제안
-
-- 제안 내용:
-- 기대 효과:
-- 영향받는 문서:
-- 예상 구현 비용:
-- 리스크:
-- 결정:
-```
+## 4. How to Generate Code
+1. Read `CLAUDE.md` first to check the required Korean comment guidelines and English naming rules.
+2. Ensure all `TArray<UCard*>` containers have the `UPROPERTY()` macro to prevent GC memory leaks.
+3. Write complex rule logic in C++ and expose parameters/VFX hooks to Blueprint.

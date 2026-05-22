@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CardDataTypes.h"
+#include "Card/CardDataTypes.h"
 #include "CombatTypes.generated.h"
 
 class AUnit;
 
-//Áø¿µ ±¸ºÐ
+//ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 UENUM(BlueprintType)
 enum class ETeam : uint8
 {
@@ -18,7 +18,7 @@ enum class ETeam : uint8
 };
 
 
-//Àû Çàµ¿ ¿­°ÜÇü
+//ï¿½ï¿½ ï¿½àµ¿ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 UENUM(BlueprintType)
 enum class EIntentKind : uint8
 {
@@ -29,14 +29,14 @@ enum class EIntentKind : uint8
     Unknown UMETA(DisplayName = "Unknown")
 };
 
-// UI°¡ ÀÌ ±¸Á¶Ã¼¸¸ ÀÐ¾î¼­ ¸Ó¸®À§¿¡ ¾ÆÀÌÄÜÀ» Ç¥½ÃÇÏ°Ô ¼³°è
+// UIï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½Ð¾î¼­ ï¿½Ó¸ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½
 USTRUCT(BlueprintType)
 struct SLAYTHECHAMPIONS_API FIntent
 {
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadOnly) EIntentKind Kind = EIntentKind::Unknown;
-    UPROPERTY(BlueprintReadOnly) int32       Value = 0;  // ¿¹»ó µ¥¹ÌÁö or ºí·Ï·®
+    UPROPERTY(BlueprintReadOnly) int32       Value = 0;  // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ or ï¿½ï¿½ï¿½Ï·ï¿½
     UPROPERTY(BlueprintReadOnly) int32       Hits = 1;
     UPROPERTY(BlueprintReadOnly) TWeakObjectPtr<AUnit> Target;
     UPROPERTY(BlueprintReadOnly) FText       DisplayText;
@@ -56,30 +56,30 @@ struct SLAYTHECHAMPIONS_API FIntent
 UENUM(BlueprintType)
 enum class EPatternMode : uint8
 {
-    Sequential UMETA(DisplayName = "Sequential"), //¼ø¼­´ë·Î ¹Ýº¹
-    Weighted UMETA(DisplayName = "Weighted")//°¡ÁßÄ¡·£´ý
+    Sequential UMETA(DisplayName = "Sequential"), //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ýºï¿½
+    Weighted UMETA(DisplayName = "Weighted")//ï¿½ï¿½ï¿½ï¿½Ä¡ï¿½ï¿½ï¿½ï¿½
 };
 
-// Àû Çàµ¿ ÇÑ °³ÀÇ Á¤ÀÇ. EnemyPatternData ¹è¿­¿¡ ÀúÀåµÊ.
+// ï¿½ï¿½ ï¿½àµ¿ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½. EnemyPatternData ï¿½è¿­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.
 USTRUCT(BlueprintType)
 struct SLAYTHECHAMPIONS_API FEnemyAction
 {
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly) EIntentKind  IntentKind = EIntentKind::Attack;
-    UPROPERTY(EditAnywhere, BlueprintReadOnly) int32        Value = 0;   // µ¥¹ÌÁö or ºí·Ï·®
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) int32        Value = 0;   // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ or ï¿½ï¿½ï¿½Ï·ï¿½
     UPROPERTY(EditAnywhere, BlueprintReadOnly) int32        Hits = 1;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) ETargetType  TargetType = ETargetType::SingleEnemy;
-    UPROPERTY(EditAnywhere, BlueprintReadOnly) float        Weight = 1.f;   // Weighted ¸ðµå¿¡¼­¸¸ »ç¿ë
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) float        Weight = 1.f;   // Weighted ï¿½ï¿½å¿¡ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FText        DisplayName;
 };
 
 UENUM(BlueprintType)
 enum class EGimmickTrigger : uint8
 {
-    HPThresholdBelow UMETA(DisplayName = "HP Below Threshold"), // HP°¡ X% ÀÌÇÏ
-    TurnCountReached UMETA(DisplayName = "Turn Count Reached"), // NÅÏ °æ°ú
-    OnDamaged        UMETA(DisplayName = "On Damaged")          // ÇÇ°Ý ½Ã
+    HPThresholdBelow UMETA(DisplayName = "HP Below Threshold"), // HPï¿½ï¿½ X% ï¿½ï¿½ï¿½ï¿½
+    TurnCountReached UMETA(DisplayName = "Turn Count Reached"), // Nï¿½ï¿½ ï¿½ï¿½ï¿½
+    OnDamaged        UMETA(DisplayName = "On Damaged")          // ï¿½Ç°ï¿½ ï¿½ï¿½
 };
 
 USTRUCT(BlueprintType)
@@ -89,9 +89,9 @@ struct SLAYTHECHAMPIONS_API FGimmickPhase
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FName           PhaseName;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) EGimmickTrigger Trigger = EGimmickTrigger::HPThresholdBelow;
-    UPROPERTY(EditAnywhere, BlueprintReadOnly) float           TriggerValue = 0.5f; // HP¸é 0~1 ºñÀ², TurnÀÌ¸é ÅÏ ¼ö
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) float           TriggerValue = 0.5f; // HPï¿½ï¿½ 0~1 ï¿½ï¿½ï¿½ï¿½, Turnï¿½Ì¸ï¿½ ï¿½ï¿½ ï¿½ï¿½
     //UPROPERTY(EditAnywhere, BlueprintReadOnly) UEnemyPatternData* SwapToPattern = nullptr;
     //UPROPERTY(EditAnywhere, BlueprintReadOnly) TArray<TSubclassOf<UStatusEffect>> ApplyOnEnter;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FText           AnnounceText;
-    UPROPERTY(EditAnywhere, BlueprintReadOnly) bool            bOneShot = true; // true¸é ÇÑ ¹ø¸¸ ¹ßµ¿
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) bool            bOneShot = true; // trueï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ßµï¿½
 };

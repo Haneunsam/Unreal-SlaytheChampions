@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Unit/CombatTypes.h"
-#include "CardDataTypes.h"
+#include "Card/CardDataTypes.h"
 #include "GimmickComponent.generated.h"
 
 class UGimmickData;
@@ -14,8 +14,8 @@ class AUnit;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseEntered, const FGimmickPhase&, Phase);
 
-//±â¹ÍÀÌ ¿ÜºÎ ½Ã½ºÅÛ¿¡ ¿äÃ»ÇÏ´Â Delegate
-//CombatManager°¡ ½ÇÁ¦Ã³¸®
+//ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Üºï¿½ ï¿½Ã½ï¿½ï¿½Û¿ï¿½ ï¿½ï¿½Ã»ï¿½Ï´ï¿½ Delegate
+//CombatManagerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã³ï¿½ï¿½
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGimmickDamageRequest, ETargetType, TargetType, int32, Damage);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGimmickAnnounce, const FText&, Text);
 
@@ -28,25 +28,25 @@ public:
 	// Sets default values for this component's properties
 	UGimmickComponent();
 
-	//µ¥ÀÌÅÍ
+	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gimmick")
 	UGimmickData* Data = nullptr;
 
-	//°¢ ÆäÀÌÁî°¡ ÀÌ¹Ì ¹ßµ¿Çß´ÂÁö ÃßÀû(bOneShot Ã³¸®¿ë)
+	//ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½î°¡ ï¿½Ì¹ï¿½ ï¿½ßµï¿½ï¿½ß´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(bOneShot Ã³ï¿½ï¿½ï¿½ï¿½)
 	UPROPERTY(BlueprintReadOnly, Category = "Gimmick")
 	TArray<bool> Fired;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Gimmick")
 	int32 TurnCounter = 0;
 
-	// CombatManager°¡ È£Ãâ
+	// CombatManagerï¿½ï¿½ È£ï¿½ï¿½
 	UFUNCTION(BlueprintCallable, Category = "Gimmick")
 	void OnTurnStart();
 		
 	UFUNCTION(BlueprintCallable, Category = "Gimmick")
 	void OnTurnEnd();
 	
-	// ¿ÜºÎ ±¸µ¶¿ë Delegate
+	// ï¿½Üºï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Delegate
 	UPROPERTY(BlueprintAssignable, Category = "Gimmick")
 	FOnPhaseEntered OnPhaseEntered;
 
@@ -59,16 +59,16 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	// ¦¡¦¡ ¼­ºêÅ¬·¡½º¿ë virtual hooks ¦¡¦¡
-	// OnTurnStart/End ³»ºÎ¿¡¼­ È£ÃâµÊ
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Å¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ virtual hooks ï¿½ï¿½ï¿½ï¿½
+	// OnTurnStart/End ï¿½ï¿½ï¿½Î¿ï¿½ï¿½ï¿½ È£ï¿½ï¿½ï¿½
 	virtual void OnGimmickTurnStart() {}
 	virtual void OnGimmickTurnEnd() {}
 
-	// StatComponent.OnHPChanged¿¡ ÀÚµ¿ ¹ÙÀÎµùµÊ
+	// StatComponent.OnHPChangedï¿½ï¿½ ï¿½Úµï¿½ ï¿½ï¿½ï¿½Îµï¿½ï¿½ï¿½
 	UFUNCTION()
 	virtual void HandleHPChanged(int32 OldHP, int32 NewHP) {}
 
-	// Unit.OnUnitDied¿¡ ÀÚµ¿ ¹ÙÀÎµùµÊ
+	// Unit.OnUnitDiedï¿½ï¿½ ï¿½Úµï¿½ ï¿½ï¿½ï¿½Îµï¿½ï¿½ï¿½
 	UFUNCTION()
 	virtual void HandleOwnerDied(AUnit* Unit) {}
 
