@@ -1,7 +1,6 @@
 #include "CombatKernel/BattleMainWidget.h"
 #include "CombatKernel/CombatManager.h"
-#include "CardWidget.h"
-#include "HandComponent.h"
+#include "Card/CardWidget.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"

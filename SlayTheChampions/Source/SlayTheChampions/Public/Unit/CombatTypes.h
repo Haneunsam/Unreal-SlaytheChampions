@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CardDataTypes.h"
+#include "Card/CardDataTypes.h"
 #include "CombatTypes.generated.h"
 
 class AUnit;

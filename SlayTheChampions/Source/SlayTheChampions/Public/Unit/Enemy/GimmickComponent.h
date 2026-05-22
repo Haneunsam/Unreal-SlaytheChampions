@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Unit/CombatTypes.h"
-#include "CardDataTypes.h"
+#include "Card/CardDataTypes.h"
 #include "GimmickComponent.generated.h"
 
 class UGimmickData;

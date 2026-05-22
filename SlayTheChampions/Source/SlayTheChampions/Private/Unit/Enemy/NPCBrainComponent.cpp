@@ -21,7 +21,11 @@ void UNPCBrainComponent::PlanNextAction(const TArray<AUnit*>& Allies, const TArr
 {
 	// 행동 계획
 	// 패턴이 없거나 비어있는 액션이 없으면 바로 종료
-	if (!Pattern || Pattern->Actions.IsEmpty()) return;
+	if (!Pattern || Pattern->Actions.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[NPCBrain] %s — Pattern이 없거나 비어있음. PendingAction이 기본값으로 유지됩니다."), *GetOwner()->GetName());
+		return;
+	}
 
 	// PickNext, PickTarget private 함수를 호출하여 다음 액션에 반영
 	//
@@ -69,10 +73,26 @@ FEnemyAction UNPCBrainComponent::PickNext()
 	{
 		float Total = 0.f;
 		for (const FEnemyAction& A : Actions) Total += FMath::Max(0.f, A.Weight);
+
+		// 모든 weight가 0 이하거나 전부 동일하면 균등 랜덤 선택
+		const float FirstW = FMath::Max(0.f, Actions[0].Weight);
+		bool bAllEqual = true;
+		for (const FEnemyAction& A : Actions)
+		{
+			if (!FMath::IsNearlyEqual(FMath::Max(0.f, A.Weight), FirstW))
+			{
+				bAllEqual = false;
+				break;
+			}
+		}
+		if (Total <= 0.f || bAllEqual)
+			return Actions[FMath::RandRange(0, Actions.Num() - 1)];
+
+		// 가중치 기반 랜덤 선택
 		float Roll = FMath::FRandRange(0.f, Total);
 		for (const FEnemyAction& A : Actions)
 		{
-			Roll -= A.Weight;
+			Roll -= FMath::Max(0.f, A.Weight);
 			if (Roll <= 0.f) return A;
 		}
 		return Actions.Last();

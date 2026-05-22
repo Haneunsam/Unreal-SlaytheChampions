@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "CardDataTypes.h"
+#include "Card/CardDataTypes.h"
 #include "PaperSprite.h"
 #include "CardStyleDataAsset.generated.h"
 

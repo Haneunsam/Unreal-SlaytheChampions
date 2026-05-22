@@ -2,9 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "CardDataTypes.h"
-#include "CardWidget.h"
-#include "HandComponent.h"
+#include "Card/CardDataTypes.h"
+#include "Card/CardWidget.h"
+#include "Card/HandComponent.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "CombatKernel/CombatManager.h"
