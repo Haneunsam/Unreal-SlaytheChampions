@@ -11,7 +11,12 @@ class UEnemyPatternData;
 class AUnit;
 
 // ActionQueue와의 연결점, CombatManager가 이것을 사용
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionEmitted, const FEnemyAction&, Action);
+// 송출 타입을 FEnemyAction → FIntent로 변경.
+// 이유: FEnemyAction에는 해결된 Target(AUnit*)이 없고 TargetType만 있다.
+//       FIntent는 Target까지 해결되어 있고 EffectType/Value/Duration도 담겨 있어
+//       CombatManager가 추가 가공 없이 한 턴을 그대로 실행할 수 있다.
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionEmitted, const FIntent&, Intent);
 
 UCLASS( ClassGroup=(Unit), meta=(BlueprintSpawnableComponent) )
 class SLAYTHECHAMPIONS_API UNPCBrainComponent : public UActorComponent
@@ -32,6 +37,12 @@ public:
 	//결정된 행동 EmitActionEvent에서 사용
 	UPROPERTY(BlueprintReadOnly, Category = "Brain")
 	FEnemyAction PendingAction;	
+
+
+	//PlanNextAction이 완성한 Intent. EmitActionEvent가 이것을 송출한다.
+	UPROPERTY(BlueprintReadOnly, Category = "Brain")
+	FIntent PendingIntent;
+
 
 	//턴 시작시 CombatMananger 가 호출 ->행동결정 + IntentComponent갱신
 	UFUNCTION(BlueprintCallable, Category = "Brain")

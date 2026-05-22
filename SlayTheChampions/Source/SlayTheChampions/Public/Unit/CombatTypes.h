@@ -17,13 +17,17 @@ enum class ETeam : uint8
     Neutral UMETA(DisplayName = "Neutral")
 };
 
-//  적 행동 카테고리
-//  EEffectType이 None일 때만 디자이너가 직접 선택 (Attack/Defend).
-//  EEffectType이 Buff_/Debuff_이면 FEnemyAction::ResolveIntentKind()가 자동 도출.
 
+// ──────────────────────────────────────────────
+//  적 행동의 "의도(Intent)" 종류.
+//  주의: 이 enum은 디자이너가 에디터에서 직접 고르는 값이 아니다.
+//        FEnemyAction::ResolveIntentKind()가 ActionType + EffectType으로
+//        자동 도출하는 "결과값"이다. UI 표시 / CombatManager 분기에만 사용.
+// ──────────────────────────────────────────────
 UENUM(BlueprintType)
 enum class EIntentKind : uint8
 {
+    NoAttack = 0 UMETA(DisplayName = "NoAttack"),
     Attack UMETA(DisplayName = "Attack"),
     Defend UMETA(DisplayName = "Defend"),
     Buff    UMETA(DisplayName = "Buff"),
@@ -31,21 +35,19 @@ enum class EIntentKind : uint8
     Unknown UMETA(DisplayName = "Unknown")
 };
 
-//상태효과 종류 (단일 Enum)
-
 // ──────────────────────────────────────────────
 //  상태 효과 종류 (단일 enum)
-//  - 0          : None (Attack/Defend 액션 또는 미사용)
+//  - 0          : None (효과 없음)
+//  - 1          : Shield (보호막 — 별도 취급)
 //  - 100~199    : Buff
 //  - 200~299    : Debuff
 //  값 범위로 IsBuff/IsDebuff를 분기한다.
-//  Buff_Block은 의도적으로 제외 — 방어도는 CombatStatComponent 담당.
 // ──────────────────────────────────────────────
 UENUM(BlueprintType)
 enum class EEffectType : uint8
 {
     None = 0   UMETA(DisplayName = "None"),
-
+    Shield = 1 UMETA(DisplayName = "보호막"),
     // ── Buff (100~199) ─────────────────────
     Buff_AttackUp = 100 UMETA(DisplayName = "공격력 증가"),
     Buff_DefenseUp = 101 UMETA(DisplayName = "방어력 증가"),
@@ -57,6 +59,7 @@ enum class EEffectType : uint8
     Debuff_Burn = 202 UMETA(DisplayName = "작열"),
     Debuff_Frail = 203 UMETA(DisplayName = "허약")
 };
+
 // ──────────────────────────────────────────────
 //  EEffectType 헬퍼
 //  범위 기반: enum 항목 추가 시 IsBuff/IsDebuff 수정 불필요
@@ -82,6 +85,36 @@ namespace EffectTypeHelpers
         return EIntentKind::Unknown;
     }
 }
+
+
+// ──────────────────────────────────────────────
+//  타겟 종류.
+//  FIntent / FEnemyAction 보다 먼저 선언되어야 한다.
+// ──────────────────────────────────────────────
+UENUM(BlueprintType)
+enum class ETargetType : uint8
+{
+    SingleEnemy UMETA(DisplayName = "Single Enemy"),
+    ALlEnemies  UMETA(DisplayName = "All Enemies"),
+    Self        UMETA(DisplayName = "Self"),
+    RamdomAlly  UMETA(DisplayName = "Random Ally"),
+    AllAlies    UMETA(DisplayName = "All Alies")
+};
+
+// ──────────────────────────────────────────────
+//  적 행동 카테고리 (디자이너 전용 선택지).
+//  에디터 드롭다운에는 이 3개만 노출된다.
+//  버프/디버프는 여기서 고르지 않고, EffectType 필드로 부여한다.
+// ──────────────────────────────────────────────
+UENUM(BlueprintType)
+enum class EActionType : uint8
+{
+    Attack   UMETA(DisplayName = "공격"),
+    Defend   UMETA(DisplayName = "보호막"),
+    NoAttack UMETA(DisplayName = "무행동")
+};
+
+
 
 //// ──────────────────────────────────────────────
 ////  런타임 상태 효과 인스턴스 (USTRUCT)
@@ -118,7 +151,16 @@ struct SLAYTHECHAMPIONS_API FStatusEffects
     int32 FloorValue = -2147483648; // INT32_MIN
 };
 
-// UI가 이 구조체만 읽어서 머리위에 아이콘을 표시하게 설계
+
+
+
+
+// ──────────────────────────────────────────────
+//  적 의도(Intent).
+//  UI 위젯이 이 구조체만 읽어서 머리 위에 아이콘을 표시한다.
+//  CombatManager도 이 구조체 하나만 받아서 적의 한 턴을 실행한다.
+//  즉 UI와 전투 실행 양쪽의 "공용 계약서".
+// ──────────────────────────────────────────────
 USTRUCT(BlueprintType)
 struct SLAYTHECHAMPIONS_API FIntent
 {
@@ -128,8 +170,20 @@ struct SLAYTHECHAMPIONS_API FIntent
     UPROPERTY(BlueprintReadOnly) EIntentKind Kind = EIntentKind::Unknown;
     UPROPERTY(BlueprintReadOnly) int32       Value = 0;  // 예상 데미지 or 블록량
     UPROPERTY(BlueprintReadOnly) int32       Hits = 1;
+
+    /** 타겟 범위. nullptr Target만 봐서는 광역/사망구분이 안 되므로 반드시 필요. */
+    UPROPERTY(BlueprintReadOnly) ETargetType TargetType = ETargetType::SingleEnemy;
+
+    /** 해결된 단일 대상. 광역(ALlEnemies/AllAlies)일 때는 무시되고 null일 수 있음. */
     UPROPERTY(BlueprintReadOnly) TWeakObjectPtr<AUnit> Target;
+
     UPROPERTY(BlueprintReadOnly) FText       DisplayText;
+
+    // ── 이 행동에 딸린 상태효과 (None이면 효과 없음) ─────────
+    /** CombatManager가 StatusEffectComponent::AApplyEffect(Type,Value,Duration)로 그대로 전달. */
+    UPROPERTY(BlueprintReadOnly) EEffectType EffectType = EEffectType::None;
+    UPROPERTY(BlueprintReadOnly) int32       EffectValue = 0;
+    UPROPERTY(BlueprintReadOnly) int32       EffectDuration = 0;
 
     // ── 보스 기믹이 보강하는 추가 정보 (보스 전용, 선택) ───
     /** 다음 턴에 기믹이 발동할 예정인지 여부. UI가 경고 아이콘 표시용으로 사용. */
@@ -139,17 +193,6 @@ struct SLAYTHECHAMPIONS_API FIntent
 };
 
 
-
-UENUM(BlueprintType)
-enum class ETargetType : uint8
-{
-    SingleEnemy UMETA(DisplayName = "Single Enemy"),
-    ALlEnemies UMETA(DisplayName = "All Enemies"),
-    Self UMETA(Displayname = "Self"),
-    RamdomAlly UMETA(DisplayName = "Random Ally"),
-    AllAlies UMETA(DisplayName = "All Alies")
-};
-
 UENUM(BlueprintType)
 enum class EPatternMode : uint8
 {
@@ -157,18 +200,43 @@ enum class EPatternMode : uint8
     Weighted UMETA(DisplayName = "Weighted")//가중치랜덤
 };
 
-// 적 행동 한 개의 정의. EnemyPatternData 배열에 저장됨.
+
+
+// ──────────────────────────────────────────────
+//  적 행동 한 개의 정의. EnemyPatternData.Actions 배열에 저장됨.
+//  ActionType : 디자이너가 고르는 행동 카테고리 (공격/보호막/무행동)
+//  EffectType : 이 행동에 함께 부여할 상태효과 (None이면 효과 없음)
+//  IntentKind는 직접 고르지 않고 ResolveIntentKind()가 자동 도출한다.
+// ──────────────────────────────────────────────
 USTRUCT(BlueprintType)
 struct SLAYTHECHAMPIONS_API FEnemyAction
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly) EIntentKind  IntentKind = EIntentKind::Attack;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) EActionType  ActionType = EActionType::Attack;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) int32        Value = 0;   // 데미지 or 블록량
     UPROPERTY(EditAnywhere, BlueprintReadOnly) int32        Hits = 1;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) ETargetType  TargetType = ETargetType::SingleEnemy;
+
+    // ── 이 행동에 딸린 상태효과 ──────────────────────────
+    /** 부여할 효과 종류. None이면 효과 없음. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) EEffectType  EffectType = EEffectType::None;
+    /** 효과 강도/스택. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) int32        EffectValue = 0;
+    /** 효과 지속 턴. -1 = 무한, 0 = 즉시 제거. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) int32        EffectDuration = 0;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly) float        Weight = 1.f;   // Weighted 모드에서만 사용
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FText        DisplayName;
+
+    /**
+     * ActionType + EffectType으로 최종 EIntentKind를 도출한다.
+     * - Attack  → Attack
+     * - Defend  → Defend
+     * - NoAttack → 효과가 있으면 Buff/Debuff, 없으면 NoAttack
+     * 구현은 CombatTypes.cpp 참고.
+     */
+    EIntentKind ResolveIntentKind() const;
 };
 
 UENUM(BlueprintType)

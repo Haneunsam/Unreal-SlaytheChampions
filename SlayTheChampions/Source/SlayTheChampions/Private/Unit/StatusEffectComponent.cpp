@@ -92,7 +92,47 @@ void UStatusEffectComponent::ClampValue(FStatusEffects& Effect) const
     if (Effect.Value < Effect.FloorValue) Effect.Value = Effect.FloorValue;
 }
 
+void UStatusEffectComponent::OnTurnStart()
+{
+    // bResetOnTurnStart == true인 효과를 즉시 제거.
+    // 대표 예: Block(방어도). 자기 턴이 시작되면 무조건 사라진다.
+    for (int32 i = AActive.Num() - 1; i >= 0; --i)
+    {
+        if (AActive[i].bResetOnTurnStart)
+        {
+            AActive.RemoveAt(i);
+            //OnEffectRemoved.Broadcast(AActive[i].EffectType);
+        }
+    }
+}
 
+void UStatusEffectComponent::OnTurnEnd()
+{
+    // 뒤에서 앞으로 순회 (RemoveAt 시 인덱스 밀림 방지)
+    for (int32 i = AActive.Num() - 1; i >= 0; --i)
+    {
+        FStatusEffects& E = AActive[i];
+
+        // 1. DeltaPerTurn 적용
+        //    작열(Burn): DefaultDeltaPerTurn = -1 → 매 턴 Value 1씩 감소
+        //    재생(Regen): DefaultDeltaPerTurn = +N → 매 턴 Value N씩 증가 (힐 로직은 CombatManager가 Value를 읽어 처리)
+        if (E.DeltaPerTurn != 0)
+        {
+            E.Value += E.DeltaPerTurn;
+            ClampValue(E); // FloorValue 아래로 내려가지 않도록
+        }
+
+        // 2. Count 감소 (-1은 무한이므로 건너뜀)
+        if (E.Count > 0) --E.Count;
+
+        // 3. 만료 판정: Count가 0이 되면 제거
+        if (E.Count == 0)
+        {
+            //OnEffectRemoved.Broadcast(E.EffectType);
+            AActive.RemoveAt(i);
+        }
+    }
+}
 
 
 

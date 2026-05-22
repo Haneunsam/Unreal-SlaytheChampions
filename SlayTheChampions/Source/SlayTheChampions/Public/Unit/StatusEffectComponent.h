@@ -58,6 +58,23 @@ public:
 	const FStatusEffects* FFindEffect(EEffectType Type) const;
 
 
+	//턴처리
+	//자기 턴 시작시 Combatmanager가 호출
+	//bResetOnTurnStart == true인 효과를 즉시 제거한다.
+	//방어도(Block)처럼 자기 턴이 시작되면 사라지는 효과.
+	UFUNCTION(BlueprintCallable, Category = "StatusEffect")
+	void OnTurnStart();
+
+	/**
+	 * 자기 턴 종료 시 CombatManager가 호출.
+	 * 아래 세 가지를 순서대로 처리한다.
+	 * 1. DeltaPerTurn 적용 → Value += DeltaPerTurn (작열 등 매 턴 닳는 효과)
+	 * 2. FloorValue 클램프
+	 * 3. Count 감소 (-1은 무한) → Count == 0이면 효과 제거
+	 */
+	UFUNCTION(BlueprintCallable, Category = "StatusEffect")
+	void OnTurnEnd();
+
 private:
 	/** Value를 FloorValue로 클램프하는 헬퍼. */
 	void ClampValue(FStatusEffects& Effect) const;

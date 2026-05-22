@@ -31,12 +31,18 @@ void UNPCBrainComponent::PlanNextAction(const TArray<AUnit*>& Allies, const TArr
 
 	//Intent 구성
 	FIntent New;
-	New.Kind = PendingAction.IntentKind;
+	New.Kind = PendingAction.ResolveIntentKind();
 	New.Value = PendingAction.Value;
 	New.Hits = PendingAction.Hits;
+	New.TargetType = PendingAction.TargetType; //광역 단일 구분
 	New.Target = Target;
 	New.DisplayText = PendingAction.DisplayName;
 	
+	//행동에 딸린 상태효과를 Intent에 그대로 실어 보낸다.
+	//CombatManager가 StatusEffectComponent::AApplyEffect(Type,Value,Duration)로 바로 사용.
+	New.EffectType = PendingAction.EffectType;
+	New.EffectValue = PendingAction.EffectValue;
+	New.EffectDuration = PendingAction.EffectDuration;
 
 	//보스 등 GimmickComponent를 가진 적은 기믹 정보로 Intent 보강
 	//일반 적은 nullptr로 스킵됨
@@ -44,6 +50,8 @@ void UNPCBrainComponent::PlanNextAction(const TArray<AUnit*>& Allies, const TArr
 	{
 		Gimmick->AugmentIntent(New);
 	}
+	//완성된 Intent를 저장 (EmitActionEvent가 이것을 송출)
+	PendingIntent = New;
 
 	if (UIntentComponent* Intent = GetOwner()->FindComponentByClass<UIntentComponent>())
 	{
@@ -56,7 +64,7 @@ void UNPCBrainComponent::PlanNextAction(const TArray<AUnit*>& Allies, const TArr
 void UNPCBrainComponent::EmitActionEvent()
 {
 	//ActionQueue로 송출
-	OnActionEmitted.Broadcast(PendingAction);
+	OnActionEmitted.Broadcast(PendingIntent);
 }
 
 //sequential 코드리뷰
