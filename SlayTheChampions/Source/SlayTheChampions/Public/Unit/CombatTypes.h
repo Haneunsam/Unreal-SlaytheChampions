@@ -32,6 +32,7 @@ enum class EIntentKind : uint8
     Defend UMETA(DisplayName = "Defend"),
     Buff    UMETA(DisplayName = "Buff"),
     Debuff  UMETA(DisplayName = "Debuff"),
+    Shield UMETA(Displayname = "Shield"),
     Unknown UMETA(DisplayName = "Unknown")
 };
 
@@ -77,11 +78,17 @@ namespace EffectTypeHelpers
         const uint8 V = static_cast<uint8>(Type);
         return V >= 200 && V < 300;
     }
+    FORCEINLINE bool IsShield(EEffectType Type)
+    {
+        const uint8 V = static_cast<uint8>(Type);
+        return V == 1;
+    }
 
     FORCEINLINE EIntentKind ToIntentKind(EEffectType Type)
     {
         if (IsBuff(Type))   return EIntentKind::Buff;
         if (IsDebuff(Type)) return EIntentKind::Debuff;
+        if (IsShield(Type)) return EIntentKind::Shield;
         return EIntentKind::Unknown;
     }
 }
@@ -110,7 +117,6 @@ UENUM(BlueprintType)
 enum class EActionType : uint8
 {
     Attack   UMETA(DisplayName = "공격"),
-    Defend   UMETA(DisplayName = "보호막"),
     NoAttack UMETA(DisplayName = "무행동")
 };
 
@@ -171,10 +177,10 @@ struct SLAYTHECHAMPIONS_API FIntent
     UPROPERTY(BlueprintReadOnly) int32       Value = 0;  // 예상 데미지 or 블록량
     UPROPERTY(BlueprintReadOnly) int32       Hits = 1;
 
-    /** 타겟 범위. nullptr Target만 봐서는 광역/사망구분이 안 되므로 반드시 필요. */
+    /* 타겟 범위. */
     UPROPERTY(BlueprintReadOnly) ETargetType TargetType = ETargetType::SingleEnemy;
 
-    /** 해결된 단일 대상. 광역(ALlEnemies/AllAlies)일 때는 무시되고 null일 수 있음. */
+    /* 해결된 단일 대상. 광역(ALlEnemies/AllAlies)일 때는 무시되고 null일 수 있음. */
     UPROPERTY(BlueprintReadOnly) TWeakObjectPtr<AUnit> Target;
 
     UPROPERTY(BlueprintReadOnly) FText       DisplayText;
@@ -204,7 +210,7 @@ enum class EPatternMode : uint8
 
 // ──────────────────────────────────────────────
 //  적 행동 한 개의 정의. EnemyPatternData.Actions 배열에 저장됨.
-//  ActionType : 디자이너가 고르는 행동 카테고리 (공격/보호막/무행동)
+//  ActionType : 디자이너가 고르는 행동 카테고리 (공격/무행동)
 //  EffectType : 이 행동에 함께 부여할 상태효과 (None이면 효과 없음)
 //  IntentKind는 직접 고르지 않고 ResolveIntentKind()가 자동 도출한다.
 // ──────────────────────────────────────────────

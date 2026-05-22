@@ -15,10 +15,6 @@ EIntentKind FEnemyAction::ResolveIntentKind() const
     {
     case EActionType::Attack:
         return EIntentKind::Attack;
-
-    case EActionType::Defend:
-        return EIntentKind::Defend;
-
     case EActionType::NoAttack:
         // 무행동이라도 효과가 붙어 있으면 그 효과의 성격(Buff/Debuff)을 의도로 삼는다.
         if (EffectType != EEffectType::None)
