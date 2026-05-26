@@ -16,12 +16,12 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
-	/*디버그용*/
+	/*?붾쾭洹몄슜*/
 	UFUNCTION()
 	void DebugReturnToMap();
 
 private:
-	/*디버그용*/
+	/*?붾쾭洹몄슜*/
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	FName ReturnLevelName = TEXT("GridMap");
 };
