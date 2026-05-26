@@ -8,7 +8,7 @@
 
 class AUnit;
 
-// UI¿Í ¿¬°áµÇ´Â ÀÌº¥Æ® ¼±¾ð
+// UIï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç´ï¿½ ï¿½Ìºï¿½Æ® ï¿½ï¿½ï¿½ï¿½
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, int32, OldValue, int32, NewValue);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBlockChanged, int32, OldValue, int32, NewValue);
 

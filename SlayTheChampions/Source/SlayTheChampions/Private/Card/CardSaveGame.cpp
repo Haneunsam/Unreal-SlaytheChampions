@@ -100,6 +100,7 @@ void UCardSaveGame::SaveDeckAfterBattle(int32 PawnIndex,
         PawnIndex, Combined.Num());
 }
 
+// 카드를 추가할 때 마다 호출 해줘야함
 void UCardSaveGame::AddCard(int32 PawnIndex, FName CardName)
 {
     UCardSaveGame* Save = LoadSave();
@@ -117,6 +118,7 @@ void UCardSaveGame::AddCard(int32 PawnIndex, FName CardName)
         Save->PartyDecks[PawnIndex].DeckCards.Num());
 }
 
+// 카드를 (덱에서 카드 지울때)제거할 때 마다 호출 해줘야함
 void UCardSaveGame::RemoveCard(int32 PawnIndex, FName CardName)
 {
     UCardSaveGame* Save = LoadSave();

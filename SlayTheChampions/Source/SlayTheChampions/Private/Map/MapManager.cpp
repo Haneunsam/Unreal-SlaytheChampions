@@ -47,6 +47,18 @@ bool UMapManager::HasMapData() const
 	return MapCreator ? MapCreator->HasMapData() : false;
 }
 
+void UMapManager::WriteMapInfo(FSaveMapInfo& OutMapInfo) const
+{
+	if (MapCreator)
+	{
+		MapCreator->WriteMapInfo(OutMapInfo);
+	}
+}
+
+bool UMapManager::RestoreMapFromSaveInfo(const FSaveMapInfo& InMapInfo)
+{
+	return MapCreator ? MapCreator->RestoreMapFromSaveInfo(InMapInfo) : false;
+}
 void UMapManager::RefreshDebugMapState()
 {
 	if (MapCreator)

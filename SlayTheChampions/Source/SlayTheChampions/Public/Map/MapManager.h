@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Map/MapStruct.h"
 #include "MapManager.generated.h"
 
 class UArea;
@@ -35,6 +36,10 @@ public:
 	void RestoreMapWorld();
 
 	bool HasMapData() const;
+
+	void WriteMapInfo(FSaveMapInfo& OutMapInfo) const;
+
+	bool RestoreMapFromSaveInfo(const FSaveMapInfo& InMapInfo);
 
 	void RefreshDebugMapState();
 

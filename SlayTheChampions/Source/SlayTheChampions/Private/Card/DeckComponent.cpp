@@ -12,6 +12,7 @@ void UDeckComponent::InitializeDeck(const TArray<FName>& InDeckNames, TArray<FNa
 {
     DrawPile = InDeckNames;
     DiscardPile.Reset();
+    ExhaustPile.Reset();  // 소멸 파일 초기화 -> 이전 전투 소멸 카드들이 InDeckNames 에 포함되어 복귀 (A방식)
     OutHand.Reset();
 
     // 초기 셔플 (Fisher-Yates, Algo::RandomShuffle 내부 구현)
@@ -79,6 +80,18 @@ void UDeckComponent::DiscardAll(TArray<FName>& InOutHand)
 void UDeckComponent::DiscardCard(FName CardName)
 {
     DiscardPile.Add(CardName);
+}
+
+// ── 소멸 ─────────────────────────────────────────────────────────────────────
+
+void UDeckComponent::ExhaustCard(FName CardName)
+{
+    ExhaustPile.Add(CardName);
+    OnCardExhausted.Broadcast(CardName);
+
+    UE_LOG(LogTemp, Log,
+        TEXT("UDeckComponent: '%s' exhausted. ExhaustPile=%d cards."),
+        *CardName.ToString(), ExhaustPile.Num());
 }
 
 // ── Private ──────────────────────────────────────────────────────────────────

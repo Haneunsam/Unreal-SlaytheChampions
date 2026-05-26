@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -12,7 +12,7 @@
  * - DataTable ���� ī�� �����͸� �ε塤ĳ���Ѵ�.
  * - ������ �� Ǯ, ���� ī�� Ǯ ��ȸ�� �����Ѵ�.
  * - ���� ���� ���� ��𼭵� GEngine->GetEngineSubsystem ���� ���� ����.
- *
+ * 안녕하세요.
  * ��� �� (C++):
  *   UCardSubsystem* CS = GetGameInstance()->GetSubsystem<UCardSubsystem>();
  *   const FCardDataRow* Row = CS->GetCard(FName("Warrior_Attack"));

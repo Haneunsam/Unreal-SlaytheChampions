@@ -53,6 +53,12 @@ Saved/
 
 # Claude Code
 .claude/
+CLAUDE.md
+Claude.md
+
+# 테스트용 임시 콘텐츠
+TestContents/
+**/TestContents/
 
 # Automation / local machine files
 *.swp
