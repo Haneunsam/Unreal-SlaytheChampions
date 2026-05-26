@@ -37,6 +37,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Gimmick|Shield")
 	int32 ProcessIncomingDamage(int32 RawDamage);
 
+	virtual bool WillTriggerNextTurn() const override;
+
 	// UI가 스택 변화를 구독
 	UPROPERTY(BlueprintAssignable, Category = "Gimmick|Shield")
 	FOnShieldStackChanged OnShieldStackChanged;

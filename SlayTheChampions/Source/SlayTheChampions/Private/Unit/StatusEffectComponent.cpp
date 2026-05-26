@@ -1,8 +1,9 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
+ï»¿//// Fill out your copyright notice in the Description page of Project Settings.
+//
+//
 #include "Unit/StatusEffectComponent.h"
 #include "Unit/Unit.h"
+#include "Unit/StatusEffectmap.h"
 
 // Sets default values for this component's properties
 UStatusEffectComponent::UStatusEffectComponent()
@@ -14,57 +15,125 @@ UStatusEffectComponent::UStatusEffectComponent()
 	// ...
 }
 
-UStatusEffect* UStatusEffectComponent::ApplyEffect(
-	TSubclassOf<UStatusEffect> EffectClass, int32 Stacks, int32 Duration)
+
+//íš¨ê³¼ ì²˜ë¦¬
+void UStatusEffectComponent::AApplyEffect(EEffectType Type, int32 Value, int32 Duration)
 {
-    if (!EffectClass || Stacks <= 0) return nullptr;
+    if (Type == EEffectType::None || !EffectMap) return;
 
-    // °°Àº È¿°ú°¡ ÀÌ¹Ì ÀÖÀ¸¸é ½ºÅÃ ´©Àû
-    if (UStatusEffect* Existing = FindEffect(EffectClass))
+    // ê°™ì€ ì¢…ë¥˜ íš¨ê³¼ê°€ ìˆìœ¼ë©´ ëˆ„ì 
+    if (FStatusEffects* Existing = FFindEffect(Type))
     {
-        Existing->Stacks += Stacks;
-        if (Duration > Existing->Duration) Existing->Duration = Duration;
-        OnEffectApplied.Broadcast(Existing);
-        return Existing;
-    }
-    // »õ·Î¿î È¿°ú Àû¿ë
-    UStatusEffect* New = NewObject<UStatusEffect>(this, EffectClass);
-    New->Stacks = Stacks;
-    New->Duration = Duration;
-    New->Owner = Cast<AUnit>(GetOwner());
-    New->OnApplied();
+        Existing->Value += Value;
+        ClampValue(*Existing);
 
-    Active.Add(New);
-    OnEffectApplied.Broadcast(New);
-    return New;
+        // ì§€ì† í„´ì€ ë” ê¸´ ìª½ìœ¼ë¡œ (-1ì€ ë¬´í•œ, ë¬´ì¡°ê±´ ìš°ì„ )
+        if (Existing->Count != -1)
+        {
+            if (Duration == -1)            Existing->Count = -1;
+            else if (Duration > Existing->Count) Existing->Count = Duration;
+        }
+        
+        //OnEffectValueChanged.Broadcast(*Existing)
+        return;
+    }
+    // ìƒˆ íš¨ê³¼: ë§¤í•‘ DataAssetì—ì„œ í…œí”Œë¦¿ ë°›ì•„ ë¹Œë“œ
+    FStatusEffects NewEffect;
+    if (!EffectMap->BuildRuntimeEffect(Type, Value, Duration, NewEffect))return;
+
+    AActive.Add(NewEffect);
+    //OnEffectApplied.Broadcast(NewEffect);
 }
 
-void UStatusEffectComponent::RemoveEffect(TSubclassOf<UStatusEffect> EffectClass)
+void UStatusEffectComponent::RRemoveEffect(EEffectType Type)
 {
-    //³¡¿¡¼­ ¼øÈ¸ÇÏ¸é¼­ Ã£±â
-    for (int32 i = Active.Num() - 1; i >= 0; --i)
+    for (int32 i = AActive.Num() - 1; i >= 0; --i)
     {
-        if (Active[i] && Active[i]->IsA(EffectClass))
+        if (AActive[i].EffectType == Type)
         {
-            //¹è¿­¿¡ ³»ºÎ ÁÖ¼Ò·Î Á¢±ÙÇÏ¿© StatusEffect.cpp¿¡ ÀÖ´Â OnRemoved ½ÇÇà
-            //ÇöÀç ¾Æ¸¶  Çì´õ¿¡ À§Ä¡ÇÏ¿© ¾Æ¹«°Íµµ ½ÇÇà ¾ÈÇÒµí
-            Active[i]->OnRemoved();
-            //Active¹è¿­¿¡ ÀÖ´Â ÇØ´ç »óÅÂÀÌ»ó Á¦°Å
-            Active.RemoveAt(i);
-            //ºê·ÎµåÄ³½ºÆ®
-            OnEffectRemoved.Broadcast(EffectClass);
+            AActive.RemoveAt(i);
+            //OnEffectRemoved.Broadcast(Type);
+            // ê°™ì€ Typeì´ ì¤‘ë³µ ì¶”ê°€ë  ì¼ì€ ì—†ì§€ë§Œ, ì•ˆì „í•˜ê²Œ ê³„ì† ìˆœíšŒ
         }
     }
 }
 
-UStatusEffect* UStatusEffectComponent::FindEffect(TSubclassOf<UStatusEffect> EffectClass) const
+bool UStatusEffectComponent::HHasEffect(EEffectType Type) const
 {
-	for (UStatusEffect* E : Active)
-	{
-		if (E && E->IsA(EffectClass)) return E;
-	}
-	return nullptr;
+    return FFindEffect(Type) != nullptr;
 }
+
+int32 UStatusEffectComponent::GGetEffectValue(EEffectType Type) const
+{
+    const FStatusEffects* E = FFindEffect(Type);
+    return E ? E->Value : 0;
+}
+
+FStatusEffects* UStatusEffectComponent::FFindEffect(EEffectType Type)
+{
+    for (FStatusEffects& E : AActive)
+    {
+        if (E.EffectType == Type) return &E;
+    }
+    return nullptr;
+}
+
+const FStatusEffects* UStatusEffectComponent::FFindEffect(EEffectType Type) const
+{
+    for (const FStatusEffects& E : AActive)
+    {
+        if (E.EffectType == Type) return &E;
+    }
+    return nullptr;
+}
+
+void UStatusEffectComponent::ClampValue(FStatusEffects& Effect) const
+{
+    if (Effect.Value < Effect.FloorValue) Effect.Value = Effect.FloorValue;
+}
+
+void UStatusEffectComponent::OnTurnStart()
+{
+    // bResetOnTurnStart == trueì¸ íš¨ê³¼ë¥¼ ì¦‰ì‹œ ì œê±°.
+    // ëŒ€í‘œ ì˜ˆ: Block(ë°©ì–´ë„). ìê¸° í„´ì´ ì‹œì‘ë˜ë©´ ë¬´ì¡°ê±´ ì‚¬ë¼ì§„ë‹¤.
+    for (int32 i = AActive.Num() - 1; i >= 0; --i)
+    {
+        if (AActive[i].bResetOnTurnStart)
+        {
+            AActive.RemoveAt(i);
+            //OnEffectRemoved.Broadcast(AActive[i].EffectType);
+        }
+    }
+}
+
+void UStatusEffectComponent::OnTurnEnd()
+{
+    // ë’¤ì—ì„œ ì•ìœ¼ë¡œ ìˆœíšŒ (RemoveAt ì‹œ ì¸ë±ìŠ¤ ë°€ë¦¼ ë°©ì§€)
+    for (int32 i = AActive.Num() - 1; i >= 0; --i)
+    {
+        FStatusEffects& E = AActive[i];
+
+        // 1. DeltaPerTurn ì ìš©
+        //    ì‘ì—´(Burn): DefaultDeltaPerTurn = -1 â†’ ë§¤ í„´ Value 1ì”© ê°ì†Œ
+        //    ì¬ìƒ(Regen): DefaultDeltaPerTurn = +N â†’ ë§¤ í„´ Value Nì”© ì¦ê°€ (í ë¡œì§ì€ CombatManagerê°€ Valueë¥¼ ì½ì–´ ì²˜ë¦¬)
+        if (E.DeltaPerTurn != 0)
+        {
+            E.Value += E.DeltaPerTurn;
+            ClampValue(E); // FloorValue ì•„ë˜ë¡œ ë‚´ë ¤ê°€ì§€ ì•Šë„ë¡
+        }
+
+        // 2. Count ê°ì†Œ (-1ì€ ë¬´í•œì´ë¯€ë¡œ ê±´ë„ˆëœ€)
+        if (E.Count > 0) --E.Count;
+
+        // 3. ë§Œë£Œ íŒì •: Countê°€ 0ì´ ë˜ë©´ ì œê±°
+        if (E.Count == 0)
+        {
+            //OnEffectRemoved.Broadcast(E.EffectType);
+            AActive.RemoveAt(i);
+        }
+    }
+}
+
 
 
 

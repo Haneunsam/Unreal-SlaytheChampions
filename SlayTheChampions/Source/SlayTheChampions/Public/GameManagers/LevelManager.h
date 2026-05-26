@@ -32,8 +32,4 @@ public:
     /*Level열릴시 호출되는 이벤트*/
     UFUNCTION()
     void OnLevelStarted(UWorld* World);
-
-private:
-    /*디버그용*/
-    void SpawnDebugInputActor(UWorld* World);
 };

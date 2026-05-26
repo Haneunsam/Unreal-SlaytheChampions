@@ -1,5 +1,5 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+////// Fill out your copyright notice in the Description page of Project Settings.
+////
 #pragma once
 
 #include "CoreMinimal.h"
@@ -34,10 +34,10 @@ public:
 
 	bool IsExpired() const { return Duration == 0 || Stacks <= 0; }
 };
-
-
-//상태이상 구현부
-//1. 보호막버프
-//2. 공격력증가버프
-//3. 받는피해증가디버프
-//4. 주는피해감소디버프 
+////
+////
+//////상태이상 구현부
+//////1. 보호막버프
+//////2. 공격력증가버프
+//////3. 받는피해증가디버프
+//////4. 주는피해감소디버프 

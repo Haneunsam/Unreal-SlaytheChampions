@@ -22,6 +22,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pattern")
 	TArray<FEnemyAction> Actions;
 
+	/*UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pattern")
+	TArray<FStatusEffects> Effects;*/
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pattern")
 	bool bLoop = true;
 };

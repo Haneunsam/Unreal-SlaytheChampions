@@ -26,11 +26,16 @@ void UGimmick_Shield::BeginPlay()
 
 int32 UGimmick_Shield::ProcessIncomingDamage(int32 RawDamage)
 {
-	if (CurrentStacks < 0) return RawDamage;
+	if (CurrentStacks <= 0) return RawDamage;
 	const int32 Old = CurrentStacks;
 	--CurrentStacks;
 	OnShieldStackChanged.Broadcast(Old, CurrentStacks);
 	return 1;
+}
+
+bool UGimmick_Shield::WillTriggerNextTurn() const
+{
+	return HasShield();
 }
 
 

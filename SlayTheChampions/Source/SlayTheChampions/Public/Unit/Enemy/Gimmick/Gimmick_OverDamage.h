@@ -33,6 +33,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gimmick|DPSCheck")
 	int32 RageDamage = 50;
 
+	virtual bool WillTriggerNextTurn() const override;
+
 	// 분노 연출용 텍스트
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gimmick|DPSCheck")
 	FText RageAnnounce;

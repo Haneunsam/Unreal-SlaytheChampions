@@ -51,9 +51,6 @@ Saved/
 *.udebugsymbols
 *.uprojectdirs
 
-# Claude Code
-.claude/
-
 # Automation / local machine files
 *.swp
 *.swo

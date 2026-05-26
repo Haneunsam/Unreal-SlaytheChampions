@@ -4,6 +4,12 @@
 #include "Unit/Enemy/Gimmick/Gimmick_OverDamage.h"
 
 
+bool UGimmick_OverDamage::WillTriggerNextTurn() const
+{
+	const int32 T = GetPredictedTurn();
+	return CheckInterval > 0 && T > 0 && (T % CheckInterval == 0);
+}
+
 void UGimmick_OverDamage::OnGimmickTurnStart()
 {
 	// CheckInterval 턴마다 판정 (첫 구간은 TurnCounter == CheckInterval)
@@ -13,7 +19,7 @@ void UGimmick_OverDamage::OnGimmickTurnStart()
 		if (AccumulatedDamage < RequiredDamage)
 		{
 			// 기믹 데미지 요청
-			OnGimmickDamageRequest.Broadcast(ETargetType::AllEnemies, RageDamage);
+			OnGimmickDamageRequest.Broadcast(ETargetType::ALlEnemies, RageDamage);
 			OnGimmickAnnounce.Broadcast(RageAnnounce);
 		}
 		AccumulatedDamage = 0;
