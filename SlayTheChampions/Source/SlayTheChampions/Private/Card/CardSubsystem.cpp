@@ -1,16 +1,15 @@
-#include "CardSubsystem.h"
+#include "Card/CardSubsystem.h"
 #include "Engine/DataTable.h"
 
-// 서브시스템 Lifecycle -------------------------------------------------------
+// ── Lifecycle ────────────────────────────────────────────────────────────────
 
 void UCardSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
-    // 에셋 경로 기반 경로로 DataTable 자동 로드
-    // 실제 경로는 프로젝트에 맞게 조정
+    // 전체 카드 풀 DataTable 자동 로드 (경로 확정)
     static const FSoftObjectPath CardTablePath(
-        TEXT("01/DT_Cards"));
+        TEXT("/Game/01_Card/01_Test_DT/DT_Cards.DT_Cards"));
 
     if (UDataTable* Loaded = Cast<UDataTable>(CardTablePath.TryLoad()))
     {
@@ -25,7 +24,7 @@ void UCardSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     }
 }
 
-// Public API -----------------------------------------------------------------
+// ── Public API ───────────────────────────────────────────────────────────────
 
 void UCardSubsystem::LoadCardDataTable(UDataTable* InTable)
 {
@@ -118,7 +117,7 @@ TArray<FName> UCardSubsystem::GetAllCardNames() const
     return CardDataTable->GetRowNames();
 }
 
-// Private Helpers ------------------------------------------------------------
+// ── Private Helpers ──────────────────────────────────────────────────────────
 
 int32 UCardSubsystem::RarityToInt(ECardRarity Rarity)
 {

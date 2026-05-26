@@ -4,7 +4,7 @@
 #include "Save/GameSaveSystem.h"
 #include "Champion/ChampionInstance.h"
 #include "Map/RunSystem.h"
-#include "StarterDeckRow.h"
+#include "Card/StarterDeckRow.h"
 #include "Engine/DataTable.h"
 #include "Kismet/GameplayStatics.h"
 

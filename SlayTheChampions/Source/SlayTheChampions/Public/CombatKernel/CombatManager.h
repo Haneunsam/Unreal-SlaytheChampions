@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "CardDataTypes.h"
+#include "Card/CardDataTypes.h"
 #include "Unit/CombatTypes.h"
 #include "CombatManager.generated.h"
 

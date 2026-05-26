@@ -6,7 +6,7 @@
 #include "GameFramework/SaveGame.h"
 #include "Champion/ChampionStruct.h"
 #include "Map/MapStruct.h"
-#include "CardDataTypes.h"
+#include "Card/CardDataTypes.h"
 #include "GameSaveSystem.generated.h"
 
 /**
