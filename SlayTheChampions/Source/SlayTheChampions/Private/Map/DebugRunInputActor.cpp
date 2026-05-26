@@ -7,13 +7,14 @@
 ADebugRunInputActor::ADebugRunInputActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	AutoReceiveInput = EAutoReceiveInput::Player0;
 }
 
 void ADebugRunInputActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//디버그용
+	//?붾쾭洹몄슜
 	if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
 	{
 		EnableInput(PlayerController);
@@ -26,7 +27,7 @@ void ADebugRunInputActor::BeginPlay()
 
 void ADebugRunInputActor::DebugReturnToMap()
 {
-	//디버그용
+	//?붾쾭洹몄슜
 	if (!GetWorld())
 	{
 		return;
@@ -40,7 +41,7 @@ void ADebugRunInputActor::DebugReturnToMap()
 
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		//디버그용
+		//?붾쾭洹몄슜
 		if (URunSystem* RunSystem = GameInstance->GetSubsystem<URunSystem>())
 		{
 			RunSystem->AreaCleared();
