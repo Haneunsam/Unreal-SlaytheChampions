@@ -11,17 +11,17 @@ UCardUserComponent::UCardUserComponent()
     PrimaryComponentTick.bCanEverTick = false;
 }
 
-// ── Lifecycle ────────────────────────────────────────────────────────────────
+// ── 라이프사이클 ──────────────────────────────────────────────────────────────
 
 void UCardUserComponent::BeginPlay()
 {
     Super::BeginPlay();
 
-    // DeckComponent 를 Owner 에 동적 생성 후 등록
+    // Owner 에 DeckComponent 를 동적으로 생성하고 컴포넌트로 등록
     DeckComponent = NewObject<UDeckComponent>(GetOwner(), UDeckComponent::StaticClass(), TEXT("DeckComponent"));
     DeckComponent->RegisterComponent();
 
-    // CardManager 에 DeckComponent 등록
+    // CardManager 에 이 폰의 DeckComponent 를 등록 (외부 접근 창구 역할)
     if (UGameInstance* GI = GetWorld()->GetGameInstance())
     {
         if (UCardManager* CM = GI->GetSubsystem<UCardManager>())
@@ -30,11 +30,11 @@ void UCardUserComponent::BeginPlay()
         }
     }
 
-    // 덱 자동 초기화
+    // 덱 초기화 (SaveGame → OverrideDeckNames → CardSubsystem 순)
     InitializeDeck();
 }
 
-// ── 덱 초기화 / 저장 ─────────────────────────────────────────────────────────
+// ── 덱 초기화 / 저장 ──────────────────────────────────────────────────────────
 
 void UCardUserComponent::InitializeDeck()
 {
@@ -42,7 +42,7 @@ void UCardUserComponent::InitializeDeck()
 
     TArray<FName> DeckNames;
 
-    // 1순위: SaveGame 에서 덱 불러오기
+    // 1순위: SaveGame 슬롯에서 이전 전투 덱 불러오기
     TArray<FName> SavedDeck = UCardSaveGame::GetDeckCards(PawnIndex);
     if (SavedDeck.Num() > 0)
     {
@@ -52,7 +52,7 @@ void UCardUserComponent::InitializeDeck()
             PawnIndex, DeckNames.Num());
     }
 
-    // 2순위: OverrideDeckNames 직접 지정 (테스트용)
+    // 2순위: 에디터에서 직접 지정한 OverrideDeckNames (테스트용)
     if (DeckNames.IsEmpty() && OverrideDeckNames.Num() > 0)
     {
         DeckNames = OverrideDeckNames;
@@ -61,7 +61,7 @@ void UCardUserComponent::InitializeDeck()
             PawnIndex, DeckNames.Num());
     }
 
-    // 3순위: CardSubsystem 에서 직업 기반 자동 조회
+    // 3순위: CardSubsystem 에서 직업(JobClass) 기반으로 자동 조회
     if (DeckNames.IsEmpty())
     {
         if (UGameInstance* GI = GetWorld()->GetGameInstance())
@@ -76,6 +76,7 @@ void UCardUserComponent::InitializeDeck()
         }
     }
 
+    // 세 경로 모두 실패 시 덱 초기화 불가
     if (DeckNames.IsEmpty())
     {
         UE_LOG(LogTemp, Warning,
@@ -84,7 +85,7 @@ void UCardUserComponent::InitializeDeck()
         return;
     }
 
-    // DeckComponent 초기화 (셔플 포함), Hand 는 빈 상태로 시작
+    // DeckComponent 초기화 (Fisher-Yates 셔플 포함), Hand 는 빈 상태로 시작
     DeckComponent->InitializeDeck(DeckNames, Hand);
     UE_LOG(LogTemp, Warning,
         TEXT("[CardUserComponent] Pawn%d - Deck initialized (%d cards)."),
@@ -95,7 +96,7 @@ void UCardUserComponent::SaveDeckToSaveGame()
 {
     if (!DeckComponent) return;
 
-    // DrawPile + Hand + DiscardPile 합산 저장 (ExhaustPile 제외)
+    // DrawPile + Hand + DiscardPile 합산 저장 (ExhaustPile 은 전투 내 임시 소멸이므로 제외)
     UCardSaveGame::SaveDeckAfterBattle(
         PawnIndex,
         DeckComponent->GetDrawPile(),
@@ -111,6 +112,7 @@ void UCardUserComponent::SaveDeckToSaveGame()
 
 void UCardUserComponent::DrawStartOfTurn()
 {
+    // 턴 시작 시 기본 장 수(DefaultDrawCount) 만큼 드로우
     DrawCards(DefaultDrawCount);
 }
 
@@ -118,8 +120,10 @@ void UCardUserComponent::DrawCards(int32 Count)
 {
     if (!DeckComponent) return;
 
+    // DeckComponent 에서 Count 장 드로우 후 Hand 에 추가
     TArray<FName> Drawn = DeckComponent->DrawCards(Count, Hand);
 
+    // 한 장이라도 드로우됐으면 UI 갱신용 델리게이트 브로드캐스트
     if (!Drawn.IsEmpty())
     {
         BroadcastHandChanged();
@@ -128,6 +132,7 @@ void UCardUserComponent::DrawCards(int32 Count)
 
 bool UCardUserComponent::PlayCard(FName CardName)
 {
+    // Hand 에서 해당 카드 위치 탐색
     const int32 Idx = Hand.IndexOfByKey(CardName);
     if (Idx == INDEX_NONE)
     {
@@ -137,11 +142,12 @@ bool UCardUserComponent::PlayCard(FName CardName)
         return false;
     }
 
+    // Hand 에서 제거
     Hand.RemoveAt(Idx);
 
     if (DeckComponent)
     {
-        // 소멸 카드(bExhaust)이면 ExhaustPile, 아니면 DiscardPile
+        // bExhaust 카드면 ExhaustPile(소멸), 일반 카드면 DiscardPile(버리기)
         if (IsExhaustCard(CardName))
         {
             DeckComponent->ExhaustCard(CardName);
@@ -152,6 +158,7 @@ bool UCardUserComponent::PlayCard(FName CardName)
         }
     }
 
+    // 카드 사용 이벤트 및 Hand 변경 이벤트 브로드캐스트
     OnCardPlayed.Broadcast(CardName);
     BroadcastHandChanged();
     return true;
@@ -161,7 +168,7 @@ void UCardUserComponent::DiscardHand()
 {
     if (!DeckComponent) return;
 
-    // Hand 전체를 DiscardPile 로 이동
+    // Hand 전체를 DiscardPile 로 이동 (턴 종료 시 호출)
     DeckComponent->DiscardAll(Hand);
 
     BroadcastHandChanged();
@@ -188,11 +195,13 @@ int32 UCardUserComponent::GetExhaustPileCount() const
 
 void UCardUserComponent::BroadcastHandChanged()
 {
+    // Hand 배열 전체를 UI 등 외부에 전달
     OnHandChanged.Broadcast(Hand);
 }
 
 bool UCardUserComponent::IsExhaustCard(FName CardName) const
 {
+    // CardSubsystem 에서 카드 데이터를 조회해 bExhaust 플래그 반환
     if (UGameInstance* GI = GetWorld()->GetGameInstance())
     {
         if (UCardSubsystem* CS = GI->GetSubsystem<UCardSubsystem>())
