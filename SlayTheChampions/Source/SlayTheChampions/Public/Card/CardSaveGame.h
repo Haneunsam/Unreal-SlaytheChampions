@@ -2,34 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
-#include "Card/CardDataTypes.h"
+#include "Save/GameSaveSystem.h"
 #include "CardSaveGame.generated.h"
-
-/**
- * FPlayerDeckSaveData
- *
- * ��Ƽ�� 1���� �� �����͸� �����ϴ� ����ü.
- * UCardSaveGame �ȿ� ��Ƽ�� ����ŭ �迭�� �����ȴ�.
- * Index 0 = Pawn1, Index 1 = Pawn2
- */
-USTRUCT(BlueprintType)
-struct FPlayerDeckSaveData
-{
-    GENERATED_BODY()
-
-    // �� ���� ���� ���� (Warrior, Mage, Healer ��)
-    UPROPERTY(BlueprintReadWrite)
-    EJobClass JobClass = EJobClass::Warrior;
-
-    /**
-     * ī�� ID �迭.
-     * DT_Cards �� RowName ���� (��: Warrior_Attack, Warrior_Defend)
-     * ���� ���� �� DrawPile + Hand + DiscardPile �� ���ļ� ����.
-     * ���� ���� �� �� �迭�� �����ؼ� DrawPile �� ���.
-     */
-    UPROPERTY(BlueprintReadWrite)
-    TArray<FName> DeckCards;
-};
 
 /**
  * UCardSaveGame
