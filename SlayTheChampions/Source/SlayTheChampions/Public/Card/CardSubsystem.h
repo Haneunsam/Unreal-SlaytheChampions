@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -9,16 +9,16 @@
  * UCardSubsystem
  *
  * GameInstance Subsystem.
- * - DataTable ���� ī�� �����͸� �ε塤ĳ���Ѵ�.
- * - ������ �� Ǯ, ���� ī�� Ǯ ��ȸ�� �����Ѵ�.
- * - ���� ���� ���� ��𼭵� GEngine->GetEngineSubsystem ���� ���� ����.
- * 안녕하세요.
- * ��� �� (C++):
+ * - DataTable 에서 카드 데이터를 로드/캐시한다.
+ * - 직업별 덱 풀, 보상 카드 풀 조회를 제공한다.
+ * - 게임 어디서든 GetGameInstance()->GetSubsystem 으로 접근 가능.
+ *
+ * 사용법 (C++):
  *   UCardSubsystem* CS = GetGameInstance()->GetSubsystem<UCardSubsystem>();
  *   const FCardDataRow* Row = CS->GetCard(FName("Warrior_Attack"));
  *
- * ��� �� (Blueprint):
- *   GetGameInstance �� GetSubsystem(CardSubsystem) -> GetCard / GetCardsByClass
+ * 사용법 (Blueprint):
+ *   GetGameInstance -> GetSubsystem(CardSubsystem) -> GetCard / GetCardsByClass
  */
 UCLASS()
 class SLAYTHECHAMPIONS_API UCardSubsystem : public UGameInstanceSubsystem
@@ -26,52 +26,53 @@ class SLAYTHECHAMPIONS_API UCardSubsystem : public UGameInstanceSubsystem
     GENERATED_BODY()
 
 public:
-    // ���� Subsystem Lifecycle ����������������������������������������������������������������������������������������������
+    // ── Subsystem 라이프사이클 ───────────────────────────────────────────────
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
-    // ���� ������ ���̺� ���� ������������������������������������������������������������������������������������������������
+    // ── 데이터 테이블 로드 ──────────────────────────────────────────────────
     /**
-     * ��Ÿ�ӿ� DataTable �� ��ü�ϰų� �ٽ� �ε��� �� ȣ��.
-     * Initialize ���� �ڵ����� ȣ��ǹǷ� ���� ���� ȣ���� �ʿ� ����.
+     * 런타임에 DataTable 을 교체하거나 다시 로드할 때 호출.
+     * Initialize 에서 자동으로 호출되므로 일반적으로 직접 호출 불필요.
      */
     UFUNCTION(BlueprintCallable, Category = "Card|Data")
     void LoadCardDataTable(UDataTable* InTable);
 
-    // ���� ī�� ��ȸ ������������������������������������������������������������������������������������������������������������������
+    // ── 카드 조회 ────────────────────────────────────────────────────────────
 
     /**
-     * RowName ���� ���� ī�� �����͸� �����´�. ������ nullptr.
-     * (const ������ ��ȯ�� UFUNCTION �Ұ� -> C++ ����)
+     * RowName 기반 단일 카드 데이터를 반환한다. 없으면 nullptr.
+     * (const 포인터 반환은 UFUNCTION 불가 -> C++ 전용)
      */
     const FCardDataRow* GetCard(FName RowName) const;
 
-    /** ������ �ش��ϴ� ī�� RowName ��� ��ȯ (Any ���� ī�� ����). */
+    /** 직업에 해당하는 카드 RowName 목록 반환 (Any 직업 카드 포함). */
     UFUNCTION(BlueprintCallable, Category = "Card|Query")
     TArray<FName> GetCardNamesByClass(EJobClass JobClass) const;
 
     /**
-     * ������ �ش��ϴ� FCardDataRow ������ ��� ��ȯ.
-     * (const ������ �迭�� UFUNCTION �Ұ� -> C++ ����)
+     * 직업에 해당하는 FCardDataRow 포인터 목록 반환.
+     * (const 포인터 배열은 UFUNCTION 불가 -> C++ 전용)
      */
     TArray<const FCardDataRow*> GetCardsByClass(EJobClass JobClass) const;
 
     /**
-     * ���� ī�� Ǯ: ���� + ��͵� ������� �ĺ� ��� ��ȯ.
-     * (��͵� ���͸� ���� ��ü�� ���ϸ� Rarity = Normal �ܸ̿� Any �� ó��)
+     * 보상 카드 풀: 직업 + 최소 희귀도 이상 카드 반환.
+     * (희귀도 필터링 시 Normal 이하는 Any 로 처리)
      */
     UFUNCTION(BlueprintCallable, Category = "Card|Reward")
     TArray<FName> GetRewardPool(EJobClass JobClass, ECardRarity MinRarity) const;
 
-    /** ��ü ī�� RowName ��� */
+    /** 전체 카드 RowName 목록 반환 */
     UFUNCTION(BlueprintCallable, Category = "Card|Query")
     TArray<FName> GetAllCardNames() const;
 
 private:
-    // ���� ���� ���� ������������������������������������������������������������������������������������������������������������������
-    /** �����Ϳ��� �Ҵ�: Content/Data/DT_Cards */
+    // ── 내부 데이터 ──────────────────────────────────────────────────────────
+
+    /** 에디터에서 할당: Content/Data/DT_Cards */
     UPROPERTY()
     TObjectPtr<UDataTable> CardDataTable;
 
-    /** Rarity ��ġȭ ���� (���� Ǯ ���͸���) */
+    /** Rarity 수치화 헬퍼 (보상 풀 필터링용) */
     static int32 RarityToInt(ECardRarity Rarity);
 };

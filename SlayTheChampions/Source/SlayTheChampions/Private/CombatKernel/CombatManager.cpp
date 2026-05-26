@@ -1,4 +1,4 @@
-#include "CombatKernel/CombatManager.h"
+﻿#include "CombatKernel/CombatManager.h"
 #include "CombatKernel/EffectManager.h"
 #include "CombatKernel/CombatStatWidget.h"
 #include "Unit/Unit.h"
@@ -9,6 +9,7 @@
 #include "Unit/Enemy/IntentComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
 
 // 생성자: 스폰 위치 박스 컴포넌트들을 미리 배치
 ACombatManager::ACombatManager()
@@ -67,6 +68,14 @@ void ACombatManager::InitCombat()
 		{
 			SpawnedPlayers.Add(Actor);
 			UE_LOG(LogTemp, Warning, TEXT("[CombatManager] Player[%d] spawned at %s"), i, *PlayerBoxes[i]->GetComponentLocation().ToString());
+
+			// PawnIndex 주입 후 덱 재초기화 (BP 기본값 0을 덮어씀)
+			UCardUserComponent* CardComp = Actor->FindComponentByClass<UCardUserComponent>();
+			if (CardComp)
+			{
+				CardComp->PawnIndex = i;
+				CardComp->InitializeDeck();
+			}
 		}
 	}
 
@@ -264,7 +273,14 @@ void ACombatManager::StartTurn()
 	ApplyTurnStartEffects(SpawnedPlayers); // DrawPhase: 플레이어 Shield 리셋 + 상태효과 tick
 	PlanAllEnemyActions(); // DrawPhase: 모든 적의 이번 턴 행동을 미리 결정
 
-	// TODO: 카드 드로우
+	// 모든 플레이어 유닛의 CardUserComponent 에 턴 시작 드로우 요청
+	for (AUnit* Player : SpawnedPlayers)
+	{
+		if (!Player) continue;
+		UCardUserComponent* CardComp = Player->FindComponentByClass<UCardUserComponent>();
+		if (CardComp)
+			CardComp->DrawStartOfTurn();
+	}
 
 	SetPhase(ETurnPhase::PlayerActionPhase);
 }
