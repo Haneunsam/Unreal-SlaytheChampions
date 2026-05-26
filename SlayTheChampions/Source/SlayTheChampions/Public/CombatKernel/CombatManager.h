@@ -207,6 +207,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	UStatComponent* GetEnemyStat(int32 Index) const;
 
+	// 스폰된 플레이어 유닛 목록 반환 (BattleMainWidget 등 외부 시스템에서 참조용)
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	const TArray<AUnit*>& GetSpawnedPlayers() const { return SpawnedPlayers; }
+
 protected:
 	virtual void BeginPlay() override;
 

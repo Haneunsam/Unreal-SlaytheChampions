@@ -1,18 +1,15 @@
 #include "CombatKernel/BattleMainWidget.h"
 #include "CombatKernel/CombatManager.h"
-#include "Card/CardWidget.h"
-#include "Components/CanvasPanel.h"
-#include "Components/CanvasPanelSlot.h"
+#include "Unit/Unit.h"
+#include "Card/CardUserComponent.h"
+#include "Card/CardSubsystem.h"
 #include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
 
-// 위젯 초기화: HandComponent 생성, CombatManager 탐색 및 바인딩, 마우스 활성화
+// 위젯 초기화: CombatManager 탐색 및 바인딩, 플레이어 클릭 이벤트 바인딩, 마우스 활성화
 void UBattleMainWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-
-	// 손패 컴포넌트 생성
-	Hand = NewObject<UHandComponent>(this, UHandComponent::StaticClass(), TEXT("HandComponent"));
 
 	// CombatManager 자동 탐색
 	CombatManager = Cast<ACombatManager>(
@@ -24,9 +21,12 @@ void UBattleMainWidget::NativeConstruct()
 		// BeginPlay에서 이미 StartTurn이 호출됐으므로 초기값 직접 설정
 		if (Text_TurnCount)
 			Text_TurnCount->SetText(FText::FromString(FString::Printf(TEXT("Turn %d"), CombatManager->TurnCount)));
+
+		// SpawnedPlayers 클릭 이벤트 바인딩
+		BindPlayerClickEvents();
 	}
 	else
-		UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] CombatManager를 레벨에서 찾지 못했습니다."));
+		UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] CombatManager not found in level."));
 
 	// 마우스 커서 표시
 	UMouseManager* MouseManager = GetGameInstance()->GetSubsystem<UMouseManager>();
@@ -43,105 +43,72 @@ void UBattleMainWidget::OnPhaseChanged(ETurnPhase NewPhase)
 		Text_TurnCount->SetText(FText::FromString(FString::Printf(TEXT("Turn %d"), CombatManager->TurnCount)));
 }
 
-// 카드 위젯을 생성하고 HandCanvas에 추가. WidgetCards 목록에도 등록
-void UBattleMainWidget::AddCard(const FCardDataRow& InCardData)
+// SpawnedPlayers 각각의 OnUnitClicked에 바인딩
+void UBattleMainWidget::BindPlayerClickEvents()
 {
-	UCardWidget* LocalWidgetCard = CreateWidget<UCardWidget>(GetOwningPlayer(), NewCard);
-	if (!LocalWidgetCard || !HandCanvas) return;
+	if (!CombatManager) return;
 
-	UE_LOG(LogTemp, Warning, TEXT("[AddCard] Cost=%d Damage=%d Heal=%d Draw=%d"), InCardData.Cost, InCardData.Damage, InCardData.HealAmount, InCardData.DrawCount);
-
-	LocalWidgetCard->SetCardData(InCardData, nullptr);
-
-	UCanvasPanelSlot* CanvasSlot = HandCanvas->AddChildToCanvas(LocalWidgetCard);
-	if (CanvasSlot) CanvasSlot->SetAutoSize(true);
-
-	// 위젯 추적 목록에 등록
-	FWidgetCardsStruct NewEntry;
-	NewEntry.CardWidget = LocalWidgetCard;
-	NewEntry.Canvas     = HandCanvas;
-	NewEntry.CardSlot   = CanvasSlot;
-	WidgetCards.Add(NewEntry);
-}
-
-// 카드 효과를 CombatManager에 위임하고, 드로우 효과가 있으면 HandComponent를 통해 처리
-void UBattleMainWidget::OnCardExecuted_Implementation(const FCardDataRow& Card)
-{
-	UE_LOG(LogTemp, Warning, TEXT("[OnCardExecuted] CombatManager=%s Damage=%d"), CombatManager ? TEXT("OK") : TEXT("NULL"), Card.Damage);
-	// 카드 효과 실행 (CombatManager에 위임)
-	if (CombatManager)
-		CombatManager->ExecuteCard(Card, 0);
-
-	// 카드 드로우 효과 처리
-	if (Card.DrawCount > 0 && Hand)
+	for (AUnit* Unit : CombatManager->GetSpawnedPlayers())
 	{
-		TArray<FName> Drawn = Hand->DrawCards(Card.DrawCount);
-		// [임시] 드로우한 카드 UI 추가 — HandComponent ↔ UI 연결 구현 시 처리
+		if (Unit)
+			Unit->OnUnitClicked.AddDynamic(this, &UBattleMainWidget::HandlePlayerClicked);
 	}
 }
 
-// 카드 클릭 시 호출. 페이즈·코스트 검증 후 카드를 큐에 추가하고 UI에서 제거
-void UBattleMainWidget::HandleCardClicked(UCardWidget* Widget, const FCardDataRow& Card)
+// 플레이어 유닛 클릭 시 호출
+// 이전 선택의 CardUserComponent 바인딩을 해제하고, 새 유닛의 CardUserComponent를 바인딩 후 현재 손패를 표시
+void UBattleMainWidget::HandlePlayerClicked(AUnit* Unit)
 {
-	// PlayerActionPhase일 때만 카드 사용 가능
-	if (!CombatManager || CombatManager->CurrentPhase != ETurnPhase::PlayerActionPhase) return;
-	// 코스트 부족 시 사용 불가
-	if (SharedCost < Card.Cost) return;
+	if (!Unit) return;
+	UE_LOG(LogTemp, Log, TEXT("[BattleMainWidget] Player clicked: %s"), *Unit->GetName());
 
-	// 클릭한 카드 위젯을 WidgetCards에서 찾아 UI에서 제거
-	const int32 RemoveIndex = WidgetCards.IndexOfByPredicate([&](const FWidgetCardsStruct& Entry)
+	// 이전 선택 유닛의 CardUserComponent 바인딩 해제
+	if (SelectedUnit)
 	{
-		return Entry.CardWidget == Widget;
-	});
-
-	if (RemoveIndex != INDEX_NONE)
-	{
-		if (WidgetCards[RemoveIndex].CardWidget)
-			WidgetCards[RemoveIndex].CardWidget->RemoveFromParent();
-		WidgetCards.RemoveAt(RemoveIndex);
+		UCardUserComponent* PrevCard = SelectedUnit->FindComponentByClass<UCardUserComponent>();
+		if (PrevCard)
+			PrevCard->OnHandChanged.RemoveDynamic(this, &UBattleMainWidget::HandleHandChanged);
 	}
 
-	if (Hand)
-		Hand->PlayCard(Card.CardID);
+	SelectedUnit = Unit;
+	OnPlayerSelected(Unit);
 
-	// 코스트 차감 후 UI 갱신
-	SharedCost -= Card.Cost;
-	OnCostChanged(SharedCost, MaxCost);
-
-	// 즉시 실행 대신 큐에 추가
-	CombatManager->QueuePlayerAction(Card, 0);
-
-	OrganizeCards(20.0f);
-}
-
-// 손패 카드들을 화면 하단에 일정 간격으로 정렬
-void UBattleMainWidget::OrganizeCards(float OffsetX)
-{
-	float OutBottomPadding = 0.f;
-	float OutCenterOfScreen = 0.f;
-	FN_GetScreenInfo(BottomMargin, CardHeight, OutBottomPadding, OutCenterOfScreen);
-
-	for (int32 i = 0; i < WidgetCards.Num(); i++)
+	// 새 유닛의 CardUserComponent 바인딩 및 현재 손패 즉시 표시
+	UCardUserComponent* CardComp = Unit->FindComponentByClass<UCardUserComponent>();
+	if (CardComp)
 	{
-		UCanvasPanelSlot* CardSlot = WidgetCards[i].CardSlot;
-		if (!CardSlot) continue;
-
-		CardSlot->SetAutoSize(false);
-		CardSlot->SetSize(FVector2D(CardWidth, CardHeight));
-		// OffsetX 간격으로 카드를 가로로 배치
-		CardSlot->SetPosition(FVector2D(OutBottomPadding + OffsetX * i, OutCenterOfScreen));
-		CardSlot->SetZOrder(i + 1);
+		CardComp->OnHandChanged.AddDynamic(this, &UBattleMainWidget::HandleHandChanged);
+		HandleHandChanged(CardComp->GetHand());
+	}
+	else
+	{
+		// CardUserComponent가 없으면 빈 손패 전달
+		OnHandUpdated(TArray<FCardDataRow>());
 	}
 }
 
-// 뷰포트 크기를 기반으로 카드 배치에 필요한 X 시작점(OutBottomPadding)과 Y 위치(OutCenterOfScreen)를 계산
-void UBattleMainWidget::FN_GetScreenInfo(float InBottomMargin, float InCardHeight, float& OutBottomPadding, float& OutCenterOfScreen)
+// CardUserComponent::OnHandChanged 수신
+// 카드 ID 목록을 CardSubsystem으로 조회해 FCardDataRow 배열로 변환 후 BP에 전달
+void UBattleMainWidget::HandleHandChanged(const TArray<FName>& CardNames)
 {
-	FVector2D ViewportSize;
-	GEngine->GameViewport->GetViewportSize(ViewportSize);
+	UCardSubsystem* CS = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UCardSubsystem>()
+		: nullptr;
 
-	// X의 1/3 지점을 카드 배치 시작 위치로 사용
-	OutCenterOfScreen = ViewportSize.X / 3.0f;
-	// 화면 하단에서 BottomMargin + 카드 높이 1.5배 위에 배치
-	OutBottomPadding  = (ViewportSize.Y - InBottomMargin) - (InCardHeight * 1.5f);
+	TArray<FCardDataRow> Cards;
+
+	if (CS)
+	{
+		for (const FName& Name : CardNames)
+		{
+			const FCardDataRow* Row = CS->GetCard(Name);
+			if (Row) Cards.Add(*Row);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[BattleMainWidget] Hand updated: %d cards"), Cards.Num());
+	for (const FCardDataRow& Card : Cards)
+		UE_LOG(LogTemp, Log, TEXT("[BattleMainWidget]  - %s"), *Card.CardID.ToString());
+
+	OnHandUpdated(Cards);
 }
