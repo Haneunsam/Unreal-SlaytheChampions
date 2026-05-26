@@ -40,7 +40,7 @@ FRelicEffectData URelicSubsystem::MakeRelicEffectData(const FRelicEffectRow& Eff
 	return EffectData;
 }
 
-void URelicSubsystem::FillRelicRuntimeData(const FRelicDataRow& RelicRow, TArray<FRelicEffectData>&& Effects, FRelicRuntimeData& OutRelicData)
+void URelicSubsystem::FillRelicRuntimeData(const FRelicDataRow& RelicRow, TArray<FRelicEffectData>&& Effects, FRelic& OutRelicData)
 {
 	OutRelicData.RelicID = RelicRow.RelicID;
 	OutRelicData.RelicName = RelicRow.RelicName;
@@ -52,9 +52,9 @@ void URelicSubsystem::FillRelicRuntimeData(const FRelicDataRow& RelicRow, TArray
 	OutRelicData.Effects = MoveTemp(Effects);
 }
 
-bool URelicSubsystem::GetCachedRelicData(FName InRelicID, FRelicRuntimeData& OutRelicData) const
+bool URelicSubsystem::GetCachedRelicData(FName InRelicID, FRelic& OutRelicData) const
 {
-	if (const FRelicRuntimeData* FoundRelic = Map_Relics.Find(InRelicID))
+	if (const FRelic* FoundRelic = Map_Relics.Find(InRelicID))
 	{
 		OutRelicData = *FoundRelic;
 		return true;
@@ -63,7 +63,7 @@ bool URelicSubsystem::GetCachedRelicData(FName InRelicID, FRelicRuntimeData& Out
 	return false;
 }
 
-TArray<FRelicRuntimeData> URelicSubsystem::GetCachedRelics() const
+TArray<FRelic> URelicSubsystem::GetCachedRelics() const
 {
 	return Relics;
 }
@@ -103,7 +103,7 @@ void URelicSubsystem::RebuildRelicCache()
 			return A.Order < B.Order;
 		});
 
-		FRelicRuntimeData RuntimeData;
+		FRelic RuntimeData;
 		FillRelicRuntimeData(*RelicRow, MoveTemp(Effects), RuntimeData);
 		Map_Relics.Add(RelicRow->RelicID, RuntimeData);
 		Relics.Add(RuntimeData);

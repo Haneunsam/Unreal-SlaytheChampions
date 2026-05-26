@@ -172,7 +172,7 @@ struct FRelicEffectData
 };
 
 USTRUCT(BlueprintType)
-struct FRelicRuntimeData
+struct FRelic
 {
 	GENERATED_BODY()
 

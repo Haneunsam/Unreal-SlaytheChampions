@@ -16,17 +16,17 @@ public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
     UFUNCTION(BlueprintCallable, Category = "Relic|Query")
-    bool GetCachedRelicData(FName InRelicID, FRelicRuntimeData& OutRelicData) const;
+    bool GetCachedRelicData(FName InRelicID, FRelic& OutRelicData) const;
 
     UFUNCTION(BlueprintCallable, Category = "Relic|Query")
-    TArray<FRelicRuntimeData> GetCachedRelics() const;
+    TArray<FRelic> GetCachedRelics() const;
 
 private:
     void RebuildRelicCache();
 
     static FRelicEffectData MakeRelicEffectData(const FRelicEffectRow& EffectRow);
 
-    static void FillRelicRuntimeData(const FRelicDataRow& RelicRow, TArray<FRelicEffectData>&& Effects, FRelicRuntimeData& OutRelicData);
+    static void FillRelicRuntimeData(const FRelicDataRow& RelicRow, TArray<FRelicEffectData>&& Effects, FRelic& OutRelicData);
 
     UPROPERTY()
     TObjectPtr<UDataTable> RelicInfoTable;
@@ -35,7 +35,7 @@ private:
     TObjectPtr<UDataTable> RelicEffectsTable;
 
     UPROPERTY()
-    TArray<FRelicRuntimeData> Relics;
+    TArray<FRelic> Relics;
 
-    TMap<FName, FRelicRuntimeData> Map_Relics;
+    TMap<FName, FRelic> Map_Relics;
 };
