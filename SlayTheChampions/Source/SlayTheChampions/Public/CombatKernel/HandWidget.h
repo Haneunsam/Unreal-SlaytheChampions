@@ -33,16 +33,6 @@ public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Hand")
 	FOnCardSelected OnCardSelected;
 
-	// ── 화살표 앵커 ──────────────────────────────────────────────────────
-	// 카드 클릭 직전 WBP_HandPanel BP에서 이 값을 설정 → 화살표 시작점 계산에 사용
-	UPROPERTY(BlueprintReadWrite, Category = "Hand")
-	UCardWidget* PendingCardSource = nullptr;
-
-	// PendingCardSource 카드의 스크린 중심 좌표 반환 (화살표 시작점)
-	// PendingCardSource가 nullptr이면 FVector2D::ZeroVector 반환
-	UFUNCTION(BlueprintCallable, Category = "Hand")
-	FVector2D GetPendingCardScreenCenter() const;
-
 	// ── 공개 API ─────────────────────────────────────────────────────────
 	// 손패 갱신: 기존 카드 제거 후 OnShowHand 브로드캐스트
 	UFUNCTION(BlueprintCallable, Category = "Hand")
@@ -52,13 +42,35 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Hand")
 	void ClearHand();
 
+	// ── 대기 카드 관리 ───────────────────────────────────────────────────
+	// CardID와 일치하는 카드 위젯에 대기 상태 진입 — 호버 애니메이션 유지
+	UFUNCTION(BlueprintCallable, Category = "Hand")
+	void SetCardPending(FName CardID);
+
+	// 위젯 포인터를 직접 받아 대기 상태 진입 — 동일 CardID가 여러 장일 때 정확한 위젯 지정
+	UFUNCTION(BlueprintCallable, Category = "Hand")
+	void SetCardPendingDirect(UCardWidget* Card);
+
+	// 현재 대기 카드의 대기 상태 해제
+	UFUNCTION(BlueprintCallable, Category = "Hand")
+	void ClearCardPending();
+
 	// ── BP 구현부 ─────────────────────────────────────────────────────────
 	// WBP_HandPanel에서 카드 위젯(WBP_Card)을 생성하고 CardContainer에 추가
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hand")
 	void OnShowHand(const TArray<FCardDataRow>& Cards);
 
+	// 손패 숨김 역모션 재생 — BP에서 등장 역방향 애니메이션 구현 후 완료 시 ClearHand() + Hidden 처리
+	UFUNCTION(BlueprintImplementableEvent, Category = "Hand")
+	void PlayHideAnimation();
+
 protected:
 	// 카드 목록 가로 박스 — WBP에서 이름 'CardContainer' 일치 필요
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UHorizontalBox* CardContainer;
+
+private:
+	// 현재 대기 상태인 카드 위젯 — ClearCardPending 시 SetPendingState(false) 호출에 사용
+	UPROPERTY()
+	UCardWidget* PendingCard = nullptr;
 };

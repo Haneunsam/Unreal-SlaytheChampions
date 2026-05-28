@@ -48,10 +48,11 @@ void UBattleMainWidget::NativeConstruct()
 		Btn_NextPlayer->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	if (Btn_Cancel)
+	if (Btn_Back)
 	{
-		Btn_Cancel->OnClicked.AddDynamic(this, &UBattleMainWidget::HandleCancelClicked);
-		Btn_Cancel->SetVisibility(ESlateVisibility::Collapsed);
+		Btn_Back->OnClicked.AddDynamic(this, &UBattleMainWidget::HandleBackClicked);
+		// 플레이어 선택 전 메인 화면에서는 숨김
+		Btn_Back->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	// SpawnedEnemies 클릭 이벤트 바인딩
@@ -139,6 +140,10 @@ void UBattleMainWidget::HandlePlayerClicked(AUnit* Unit)
 	if (Btn_NextPlayer && CombatManager && CombatManager->GetSpawnedPlayers().Num() > 1)
 		Btn_NextPlayer->SetVisibility(ESlateVisibility::Visible);
 
+	// 플레이어 선택 시 뒤로가기 버튼 표시
+	if (Btn_Back)
+		Btn_Back->SetVisibility(ESlateVisibility::Visible);
+
 	OnPlayerSelected(Unit);
 
 	// 새 유닛의 CardUserComponent 바인딩 및 현재 손패 즉시 표시
@@ -189,6 +194,15 @@ void UBattleMainWidget::HandleHandChanged(const TArray<FName>& CardNames)
 // WBP_Card가 broadcast하는 CardID 필드값을 Row Name으로 변환 후 코스트 검증 및 큐 등록
 void UBattleMainWidget::HandleCardClicked(FName CardName)
 {
+	// 진단용: 호출 횟수·타이밍 추적 — 문제 해결 후 제거
+	UE_LOG(LogTemp, Error, TEXT("[DIAG] HandleCardClicked: %s | bIsProcessing: %d | PendingCard: %s"),
+		*CardName.ToString(), (int32)bIsProcessingCard, *PendingCardName.ToString());
+
+	// OnHandChanged 콜백 체인 등에서 재진입 시 무시 — 이중 바인딩·이중 호출 방어
+	if (bIsProcessingCard) return;
+	ON_SCOPE_EXIT { bIsProcessingCard = false; };
+	bIsProcessingCard = true;
+
 	if (!SelectedUnit || !CombatManager) return;
 
 	UCardSubsystem* CS = GetGameInstance()
@@ -214,11 +228,12 @@ void UBattleMainWidget::HandleCardClicked(FName CardName)
 	const FCardDataRow* Row = CS->GetCard(RowName);
 	if (!Row) return;
 
-	// 코스트 부족 시 무시
+	// 코스트 부족 시 — SetCardPendingDirect로 걸린 pending 상태 해제 후 무시
 	if (SharedCost < Row->Cost)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] Not enough cost for %s (need %d, have %d)"),
 			*CardName.ToString(), Row->Cost, SharedCost);
+		if (HandPanel) HandPanel->ClearCardPending();
 		return;
 	}
 
@@ -294,8 +309,7 @@ void UBattleMainWidget::QueueCardAction(const FCardDataRow& CardData, AUnit* Tar
 	// RemoveFromHand에 Row Name 우선 사용 (CardID != Row Name인 DataTable 구성 대응)
 	const FName RemoveKey = CardRowName.IsNone() ? CardData.CardID : CardRowName;
 
-	// Hand에서만 카드 제거 + OnHandChanged 브로드캐스트 → 손패 UI 즉시 갱신
-	// DiscardPile 이동은 PlayerExecutionPhase에서 ExecuteNextAction이 처리
+	// Hand에서 카드 제거 + OnHandChanged 브로드캐스트 → 손패 UI 즉시 갱신
 	if (CardComp->RemoveFromHand(RemoveKey))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] Card removed from hand: %s | Hand count: %d"),
@@ -306,15 +320,17 @@ void UBattleMainWidget::QueueCardAction(const FCardDataRow& CardData, AUnit* Tar
 			Text_Cost->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), SharedCost, MaxCost)));
 		OnCostChanged(SharedCost, MaxCost);
 
-		// PlayerActionPhase 큐에 등록 — PlayerExecutionPhase에서 실행됨
+		// 카드 효과 즉시 실행
+		CombatManager->ExecuteCard(CardData, CasterIndex, TargetOverride);
+
+		// 카드를 DiscardPile/ExhaustPile로 이동
+		CardComp->DiscardSpecificCard(RemoveKey);
+
+		// 이번 턴 사용 기록 저장 (순서 추적용)
 		CombatManager->QueuePlayerAction(CardData, CasterIndex, CardRowName, TargetOverride);
 
-		UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] Card queued: %s | Cost left: %d"),
+		UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] Card executed: %s | Cost left: %d"),
 			*CardData.CardID.ToString(), SharedCost);
-
-		// 큐에 카드가 생겼으므로 취소 버튼 표시
-		if (Btn_Cancel)
-			Btn_Cancel->SetVisibility(ESlateVisibility::Visible);
 	}
 
 	// 선택 대기 상태 초기화 및 캔버스 클릭 통과 복귀
@@ -325,8 +341,10 @@ void UBattleMainWidget::QueueCardAction(const FCardDataRow& CardData, AUnit* Tar
 }
 
 // Btn_EndTurn 클릭 → PlayerExecutionPhase 진입 후 큐 실행
+// 대기 중인 카드가 있으면 먼저 취소하여 다음 턴에 OnPendingCleared가 오발되는 것을 방지
 void UBattleMainWidget::HandleEndTurnClicked()
 {
+	CancelPendingCard();
 	if (CombatManager)
 		CombatManager->EndPlayerActionPhase();
 }
@@ -337,38 +355,35 @@ void UBattleMainWidget::HandleNextPlayerClicked()
 	SelectNextPlayer();
 }
 
-// Btn_Cancel 클릭 → 마지막 큐 액션을 취소하고 해당 플레이어 손패로 카드 반환
-void UBattleMainWidget::HandleCancelClicked()
+// Btn_Back 클릭 → 선택 해제 후 메인 플레이 화면으로 복귀
+void UBattleMainWidget::HandleBackClicked()
 {
-	if (!CombatManager) return;
+	// 카드 대기 상태 취소
+	CancelPendingCard();
 
-	FQueuedAction LastAction;
-	if (!CombatManager->PopLastPlayerAction(LastAction)) return;
-
-	// 카드를 사용한 플레이어의 CardUserComponent에 카드 반환
-	const TArray<AUnit*>& Players = CombatManager->GetSpawnedPlayers();
-	if (Players.IsValidIndex(LastAction.CasterIndex) && Players[LastAction.CasterIndex])
+	// 현재 선택 유닛의 OnHandChanged 바인딩 해제
+	if (SelectedUnit)
 	{
-		UCardUserComponent* CardComp = Players[LastAction.CasterIndex]->FindComponentByClass<UCardUserComponent>();
+		UCardUserComponent* CardComp = SelectedUnit->FindComponentByClass<UCardUserComponent>();
 		if (CardComp)
-		{
-			const FName ReturnKey = LastAction.CardRowName.IsNone() ? LastAction.Card.CardID : LastAction.CardRowName;
-			CardComp->AddToHand(ReturnKey);
-		}
+			CardComp->OnHandChanged.RemoveDynamic(this, &UBattleMainWidget::HandleHandChanged);
+		SelectedUnit = nullptr;
 	}
 
-	// 코스트 환불 및 UI 갱신
-	SharedCost += LastAction.Card.Cost;
-	if (Text_Cost)
-		Text_Cost->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), SharedCost, MaxCost)));
-	OnCostChanged(SharedCost, MaxCost);
+	// 손패 역모션 재생 — BP PlayHideAnimation 완료 시 ClearHand() + Hidden 처리
+	if (HandPanel)
+		HandPanel->PlayHideAnimation();
 
-	UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] Cancelled: %s | Cost restored: %d"),
-		*LastAction.Card.CardID.ToString(), SharedCost);
+	// 다음 플레이어 버튼 숨김
+	if (Btn_NextPlayer)
+		Btn_NextPlayer->SetVisibility(ESlateVisibility::Collapsed);
 
-	// 큐가 비었으면 취소 버튼 숨김
-	if (Btn_Cancel && CombatManager->GetActionQueueCount() == 0)
-		Btn_Cancel->SetVisibility(ESlateVisibility::Collapsed);
+	// 뒤로가기 버튼 숨김
+	if (Btn_Back)
+		Btn_Back->SetVisibility(ESlateVisibility::Collapsed);
+
+	// BP에 메인 플레이 화면 복귀 알림 (손패 패널 숨김 등 UI 처리)
+	OnReturnToMainScreen();
 }
 
 // 타겟 대기 중 빈 영역 또는 유효하지 않은 위치 클릭 시 대기 카드 취소
@@ -380,15 +395,35 @@ FReply UBattleMainWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 
 	// 클릭 위치에 살아있는 유닛이 있으면 NotifyActorOnClicked 흐름(HandleEnemyClicked 등)에 위임
+	// ECC_Visibility 우선, 없으면 ECC_Pawn 채널로 재시도 (유닛 콜리전 설정에 따라 다를 수 있음)
 	APlayerController* PC = GetOwningPlayer();
 	if (PC)
 	{
-		FHitResult Hit;
-		if (PC->GetHitResultUnderCursor(ECC_Visibility, false, Hit))
+		auto TryFindUnit = [&](ECollisionChannel Channel) -> AUnit*
 		{
-			AUnit* HitUnit = Cast<AUnit>(Hit.GetActor());
-			if (HitUnit && HitUnit->IsAlive())
-				return FReply::Unhandled();
+			FHitResult Hit;
+			if (PC->GetHitResultUnderCursor(Channel, false, Hit))
+				return Cast<AUnit>(Hit.GetActor());
+			return nullptr;
+		};
+
+		AUnit* HitUnit = TryFindUnit(ECC_Visibility);
+		if (!HitUnit)
+			HitUnit = TryFindUnit(ECC_Pawn);
+
+		UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] MouseDown | PendingCard: %s | HitUnit: %s | Alive: %s"),
+			*PendingCardName.ToString(),
+			HitUnit ? *HitUnit->GetName() : TEXT("none"),
+			(HitUnit && HitUnit->IsAlive()) ? TEXT("true") : TEXT("false"));
+
+		// FReply::Unhandled() 만으로는 3D 액터의 OnUnitClicked까지 전파되지 않으므로 직접 호출
+		if (HitUnit && HitUnit->IsAlive())
+		{
+			if (PendingCardData.TargetType == ETargetType::SingleEnemy)
+				HandleEnemyClicked(HitUnit);
+			else if (PendingCardData.TargetType == ETargetType::SingleAlly)
+				HandlePlayerClicked(HitUnit);
+			return FReply::Handled();
 		}
 	}
 

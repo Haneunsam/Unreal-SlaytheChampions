@@ -6,6 +6,7 @@
 #include "CardWidget.generated.h"
 
 class UCardStyleDataAsset;
+class UHandWidget;
 class UImage;
 class UTextBlock;
 
@@ -67,11 +68,33 @@ public:
     UFUNCTION(BlueprintImplementableEvent, Category = "Card|Hover")
     void OnCardUnhovered();
 
+    // ── 대기 상태 ────────────────────────────────────────────────────────────
+
+    // 타겟 대기 상태 진입/해제
+    // bInPending = true : 마우스 이탈해도 커진 상태 유지
+    // bInPending = false: 즉시 언호버 처리
+    UFUNCTION(BlueprintCallable, Category = "Card|Pending")
+    void SetPendingState(bool bInPending);
+
+    // 현재 대기 상태 여부 반환
+    UFUNCTION(BlueprintPure, Category = "Card|Pending")
+    bool IsPendingState() const { return bIsPendingState; }
+
+    // CardID 반환 — HandWidget에서 일치 카드 검색에 사용
+    UFUNCTION(BlueprintPure, Category = "Card|UI")
+    FName GetCardID() const { return CurrentCardData.CardID; }
+
+    // HandWidget::ClearHand 에서 ClearChildren 직전에 호출
+    // — Slate 디퍼드 MouseLeave 이벤트가 언제 발화되든 BP 이벤트 전파를 차단
+    void MarkForRemoval();
+
 protected:
     // 마우스 진입 — OnCardHovered 호출
     virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-    // 마우스 이탈 — OnCardUnhovered 호출
+    // 마우스 이탈 — OnCardUnhovered 호출 (대기 상태면 억제)
     virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+    // 클릭 이벤트 소비 — BattleMainWidget 캔버스로 전파 방지
+    virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 protected:
     // ── 공통 이미지 (WBP_Card 에서 변수명 일치 배치 필수) ────────────────────
@@ -115,8 +138,19 @@ protected:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     TObjectPtr<UTextBlock> CostText;
 
+    // HandWidget 참조 — OnShowHand에서 카드 생성 직후 설정, 클릭 시 브로드캐스트에 사용
+    UPROPERTY(BlueprintReadWrite, Category = "Card|UI")
+    TObjectPtr<UHandWidget> OwningHandWidget;
+
 private:
     // 현재 세팅된 카드 데이터 (Blueprint 에서 읽기 가능)
     UPROPERTY(BlueprintReadOnly, Category = "Card|UI", meta = (AllowPrivateAccess = "true"))
     FCardDataRow CurrentCardData;
+
+    // 타겟 대기 상태 플래그 — true이면 마우스 이탈 시 언호버 억제
+    bool bIsPendingState = false;
+
+    // HandWidget::ClearHand 에서 설정. true이면 모든 Slate 입력 이벤트를 무시
+    // — ClearChildren 직전에 설정되므로 Slate 디퍼드 MouseLeave 타이밍에 무관하게 동작
+    bool bPendingRemoval = false;
 };

@@ -74,10 +74,8 @@ struct FCombatantInitData
 // ── 델리게이트 ─────────────────────────────────────────────────────────
 // 페이즈 전환 시 브로드캐스트 (UI 갱신, 코스트 초기화 등에 바인딩)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged,      ETurnPhase,    NewPhase);
-// 카드 하나가 실행될 때마다 브로드캐스트 (애니메이션 트리거용)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionExecuted,    FCardDataRow,  Card);
-// PlayerExecutionPhase에서 ActionQueue가 전부 소진됐을 때 브로드캐스트
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnExecutionFinished);
+// 카드 하나가 실행될 때마다 브로드캐스트 (히스토리 위젯·애니메이션 트리거용)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted,   FCardDataRow,  Card, int32, CasterIndex);
 // EnemyPhase에서 특정 인덱스의 적이 행동을 시작할 때 브로드캐스트
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyTurnStart,    int32,         EnemyIndex);
 
@@ -148,10 +146,6 @@ public:
 	UBoxComponent* EnemyBox_2;
 
 	// ── 딜레이 설정 ──────────────────────────────────────────────
-	// 플레이어 카드 한 장 실행 후 다음 카드까지 대기 시간 (초)
-	UPROPERTY(EditAnywhere, Category = "Combat|Timing", meta = (ClampMin = "0.0", ClampMax = "5.0"))
-	float ActionDelay = 0.5f;
-
 	// 적 한 명 행동 후 다음 적까지 대기 시간 (초)
 	UPROPERTY(EditAnywhere, Category = "Combat|Timing", meta = (ClampMin = "0.0", ClampMax = "5.0"))
 	float EnemyActionDelay = 0.8f;
@@ -173,10 +167,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Turn")
 	FOnActionExecuted OnActionExecuted;
 
-	// 플레이어 큐 전부 소진됐을 때
-	UPROPERTY(BlueprintAssignable, Category = "Turn")
-	FOnExecutionFinished OnExecutionFinished;
-
 	// 적 행동 시작 (EnemyIndex번 적 행동할 차례)
 	UPROPERTY(BlueprintAssignable, Category = "Turn")
 	FOnEnemyTurnStart OnEnemyTurnStart;
@@ -197,30 +187,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn")
 	void StartTurn();
 
-	// PlayerActionPhase: 사용한 카드를 ActionQueue에 추가
-	// CardRowName — Hand/DiscardPile 조작용 Row Name (NAME_None이면 Card.CardID 사용)
-	// TargetOverride — SingleEnemy 카드에서 플레이어가 직접 선택한 타겟
+	// 이번 턴 사용 카드를 ActionHistory에 기록 — 효과 실행은 BattleMainWidget::QueueCardAction에서 즉시 처리됨
+	// CardRowName — 기록 식별용 Row Name (NAME_None이면 Card.CardID 사용)
 	UFUNCTION(BlueprintCallable, Category = "Turn")
 	void QueuePlayerAction(const FCardDataRow& Card, int32 CasterIndex, FName CardRowName = NAME_None, AUnit* TargetOverride = nullptr);
 
-	// PlayerActionPhase 종료 → PlayerExecutionPhase 진입 후 큐 실행 시작
+	// PlayerActionPhase 종료 → EnemyPhase로 직접 전환 (카드 효과는 이미 즉시 실행됨)
 	UFUNCTION(BlueprintCallable, Category = "Turn")
 	void EndPlayerActionPhase();
 
-	// ActionQueue에서 카드를 하나 꺼내 실행. 애니메이션 완료 후 Blueprint에서 재호출
-	UFUNCTION(BlueprintCallable, Category = "Turn")
-	void ExecuteNextAction();
-
-	// ActionQueue를 즉시 전부 실행하고 적 턴으로 전환 (애니메이션 스킵)
-	UFUNCTION(BlueprintCallable, Category = "Turn")
-	void SkipToEnd();
-
-	// ActionQueue 마지막 액션을 꺼내 반환. 큐가 비어있으면 false
-	// BattleMainWidget 취소 버튼에서 카드를 손패로 되돌릴 때 사용
-	bool PopLastPlayerAction(FQueuedAction& OutAction);
-
-	// 현재 큐에 쌓인 액션 수 반환 (취소 버튼 가시성 제어용)
-	int32 GetActionQueueCount() const { return ActionQueue.Num(); }
+	// 이번 턴 사용한 카드 기록 반환 (사용 순서대로)
+	UFUNCTION(BlueprintPure, Category = "Turn")
+	const TArray<FQueuedAction>& GetActionHistory() const { return ActionQueue; }
 
 	// 적 행동 완료 후 호출 → 다음 적으로 인덱스 전진
 	UFUNCTION(BlueprintCallable, Category = "Turn")
@@ -261,9 +239,6 @@ private:
 
 	// EnemyPhase에서 현재 행동 중인 적 인덱스
 	int32 CurrentEnemyIndex = 0;
-
-	// 플레이어 카드 실행 딜레이 타이머
-	FTimerHandle ActionTimerHandle;
 
 	// 적 행동 딜레이 타이머
 	FTimerHandle EnemyTimerHandle;

@@ -13,6 +13,7 @@ class UTextBlock;
 class UButton;
 class AUnit;
 class UHandWidget;
+class UActionHistoryWidget;
 
 /**
  * UBattleMainWidget
@@ -53,6 +54,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Selection")
 	void OnPlayerSelected(AUnit* Unit);
 
+	// 뒤로가기 클릭으로 메인 플레이 화면 복귀 시 BP에 알림 — 손패 패널 숨김 등 UI 복귀 처리용
+	UFUNCTION(BlueprintImplementableEvent, Category = "Selection")
+	void OnReturnToMainScreen();
+
 	// 카드 선택 대기 진입 시 BP에 알림 (하이라이트 연출용)
 	UFUNCTION(BlueprintImplementableEvent, Category = "Selection")
 	void OnCardPending(FName CardName);
@@ -78,6 +83,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Hand")
 	UHandWidget* HandPanel;
 
+	// 이번 턴 사용 카드 히스토리 패널 (WBP에서 ActionHistoryPanel 이름으로 추가)
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "History")
+	UActionHistoryWidget* ActionHistoryPanel;
+
 protected:
 	// 유닛 외 영역 클릭 시 대기 카드 취소 처리
 	// MainCanvas가 ESlateVisibility::Visible일 때만 동작
@@ -99,9 +108,9 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UButton* Btn_NextPlayer;
 
-	// 취소 버튼 — 마지막으로 큐에 올린 카드를 손패로 되돌림
+	// 뒤로가기 버튼 — 플레이어 선택 해제 후 메인 플레이 화면으로 복귀
 	UPROPERTY(meta = (BindWidgetOptional))
-	UButton* Btn_Cancel;
+	UButton* Btn_Back;
 
 	virtual void NativeConstruct() override;
 
@@ -144,9 +153,9 @@ private:
 	UFUNCTION()
 	void HandleNextPlayerClicked();
 
-	// Btn_Cancel 클릭 → 마지막 큐 액션을 취소하고 카드를 손패로 되돌림
+	// Btn_Back 클릭 → 선택 해제 후 메인 플레이 화면으로 복귀
 	UFUNCTION()
-	void HandleCancelClicked();
+	void HandleBackClicked();
 
 	// 다음 플레이어 인덱스를 찾아 HandlePlayerClicked 호출
 	void SelectNextPlayer();
@@ -156,4 +165,7 @@ private:
 
 	// PendingCardName에 대응하는 카드 전체 데이터
 	FCardDataRow PendingCardData;
+
+	// HandleCardClicked 재진입 방지 플래그 — OnHandChanged 콜백 체인에서 중복 호출 차단
+	bool bIsProcessingCard = false;
 };

@@ -200,6 +200,9 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AU
 
 		// [임시] EffectTag — StatusEffectComponent 연결 시 구현
 	}
+
+	// 카드 실행 완료 브로드캐스트 (히스토리 위젯·애니메이션 트리거용)
+	OnActionExecuted.Broadcast(Card, CasterIndex);
 }
 
 // 모든 적 또는 플레이어의 생존 여부를 확인하고 결과를 로그로 출력
@@ -269,6 +272,8 @@ void ACombatManager::ApplyTurnStartEffects(const TArray<AUnit*>& Units)
 void ACombatManager::StartTurn()
 {
 	TurnCount++;
+	// 새 턴 시작 시 이전 턴 기록 초기화
+	ActionQueue.Empty();
 	UE_LOG(LogTemp, Warning, TEXT("[CombatManager] Turn %d 시작"), TurnCount);
 
 	SetPhase(ETurnPhase::DrawPhase);
@@ -305,76 +310,10 @@ void ACombatManager::QueuePlayerAction(const FCardDataRow& Card, int32 CasterInd
 		ActionQueue.Num());
 }
 
-// 플레이어 행동 입력을 종료하고 큐 실행 페이즈로 전환
+// 플레이어 행동 입력을 종료하고 적 턴으로 직접 전환 (카드 효과는 이미 즉시 실행됨)
 void ACombatManager::EndPlayerActionPhase()
 {
 	if (CurrentPhase != ETurnPhase::PlayerActionPhase) return;
-	SetPhase(ETurnPhase::PlayerExecutionPhase);
-	ExecuteNextAction();
-}
-
-// ActionQueue에서 카드를 하나 꺼내 실행. 큐가 비면 적 턴으로 전환
-void ACombatManager::ExecuteNextAction()
-{
-	if (CurrentPhase != ETurnPhase::PlayerExecutionPhase) return;
-
-	if (ActionQueue.Num() == 0)
-	{
-		OnExecutionFinished.Broadcast();
-		StartEnemyPhase();
-		return;
-	}
-
-	FQueuedAction Action = ActionQueue[0];
-	ActionQueue.RemoveAt(0);
-
-	// TargetOverride를 함께 전달해 SingleEnemy 카드에서 플레이어 선택 타겟을 적용
-	ExecuteCard(Action.Card, Action.CasterIndex, Action.TargetOverride);
-
-	// 카드 효과 실행 완료 후 DiscardPile(또는 ExhaustPile)로 이동
-	// CardRowName이 유효하면 Row Name 우선 사용 (CardID != Row Name인 DataTable 구성 대응)
-	if (SpawnedPlayers.IsValidIndex(Action.CasterIndex))
-	{
-		UCardUserComponent* CardComp = SpawnedPlayers[Action.CasterIndex]->FindComponentByClass<UCardUserComponent>();
-		if (CardComp)
-		{
-			const FName DiscardKey = Action.CardRowName.IsNone() ? Action.Card.CardID : Action.CardRowName;
-			CardComp->DiscardSpecificCard(DiscardKey);
-		}
-	}
-
-	OnActionExecuted.Broadcast(Action.Card);
-
-	// ActionDelay 후 다음 카드 자동 처리 (에디터 Combat|Timing에서 조정)
-	GetWorldTimerManager().SetTimer(
-		ActionTimerHandle,
-		this, &ACombatManager::ExecuteNextAction,
-		ActionDelay, false);
-}
-
-// ActionQueue 마지막 액션을 꺼내 반환. PlayerActionPhase 에서만 동작
-bool ACombatManager::PopLastPlayerAction(FQueuedAction& OutAction)
-{
-	if (CurrentPhase != ETurnPhase::PlayerActionPhase || ActionQueue.IsEmpty()) return false;
-
-	OutAction = ActionQueue.Last();
-	ActionQueue.RemoveAt(ActionQueue.Num() - 1);
-	return true;
-}
-
-// PlayerExecutionPhase에서 남은 ActionQueue를 즉시 전부 실행하고 적 턴으로 전환 (애니메이션 스킵용)
-void ACombatManager::SkipToEnd()
-{
-	if (CurrentPhase != ETurnPhase::PlayerExecutionPhase) return;
-
-	while (ActionQueue.Num() > 0)
-	{
-		FQueuedAction Action = ActionQueue[0];
-		ActionQueue.RemoveAt(0);
-		ExecuteCard(Action.Card, Action.CasterIndex);
-	}
-
-	OnExecutionFinished.Broadcast();
 	StartEnemyPhase();
 }
 
