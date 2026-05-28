@@ -9,6 +9,9 @@
 class UStatComponent;
 class AUnit;
 class UBoxComponent;
+class UArrowComponent;
+class ACameraActor;
+class UBattleMainWidget;
 
 /**
  * ETurnPhase
@@ -73,11 +76,15 @@ struct FCombatantInitData
 
 // ── 델리게이트 ─────────────────────────────────────────────────────────
 // 페이즈 전환 시 브로드캐스트 (UI 갱신, 코스트 초기화 등에 바인딩)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged,      ETurnPhase,    NewPhase);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged,           ETurnPhase, NewPhase);
 // 카드 하나가 실행될 때마다 브로드캐스트 (히스토리 위젯·애니메이션 트리거용)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted,   FCardDataRow,  Card, int32, CasterIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted,        FCardDataRow, Card, int32, CasterIndex);
 // EnemyPhase에서 특정 인덱스의 적이 행동을 시작할 때 브로드캐스트
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyTurnStart,    int32,         EnemyIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyTurnStart,         int32,      EnemyIndex);
+// 플레이어 유닛 선택 시 브로드캐스트 (BattleCameraActor BP — 플레이어 뒤로 카메라 이동)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattlePlayerSelected,   AUnit*,     SelectedPlayer);
+// 카드 타겟 대기 진입(true)/해제(false) 시 브로드캐스트 (BattleCameraActor BP — 적 앞으로 카메라 이동)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTargetingStateChanged,  bool,       bIsTargeting);
 
 /**
  * ACombatManager
@@ -101,6 +108,14 @@ public:
 	// 스폰할 적 유닛 Blueprint 클래스
 	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
 	TSubclassOf<AUnit> EnemyClass;
+
+	// 전투 화면 메인 위젯 Blueprint 클래스 (InitCombat에서 자동 생성·AddToViewport)
+	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
+	TSubclassOf<UBattleMainWidget> BattleWidgetClass;
+
+	// 전투 카메라 Blueprint 클래스 (nullptr이면 카메라 변경 없음)
+	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
+	TSubclassOf<ACameraActor> BattleCameraClass;
 
 	// ── 스폰 수 ──────────────────────────────────────────────────
 	// 스폰할 플레이어 수 (1~2)
@@ -145,6 +160,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Slots")
 	UBoxComponent* EnemyBox_2;
 
+	// ── 카메라 슬롯 (화살표 방향 = 카메라가 바라보는 방향) ───────
+	// 에디터에서 직접 이동·회전하여 각 상황의 카메라 위치·시선을 조정
+	// Default: 전투 시작 시 초기 위치 (흰색)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|CameraSlots")
+	UArrowComponent* CameraSlot_Default;
+
+	// Player_0: 0번 플레이어 선택 시 이동할 위치 (파란색)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|CameraSlots")
+	UArrowComponent* CameraSlot_Player_0;
+
+	// Player_1: 1번 플레이어 선택 시 이동할 위치 (하늘색)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|CameraSlots")
+	UArrowComponent* CameraSlot_Player_1;
+
+	// Enemy: 타겟 지정 시 이동할 위치 (빨간색)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|CameraSlots")
+	UArrowComponent* CameraSlot_Enemy;
+
 	// ── 딜레이 설정 ──────────────────────────────────────────────
 	// 적 한 명 행동 후 다음 적까지 대기 시간 (초)
 	UPROPERTY(EditAnywhere, Category = "Combat|Timing", meta = (ClampMin = "0.0", ClampMax = "5.0"))
@@ -170,6 +203,14 @@ public:
 	// 적 행동 시작 (EnemyIndex번 적 행동할 차례)
 	UPROPERTY(BlueprintAssignable, Category = "Turn")
 	FOnEnemyTurnStart OnEnemyTurnStart;
+
+	// 플레이어 유닛 선택 시 (BattleCameraActor BP에서 바인딩)
+	UPROPERTY(BlueprintAssignable, Category = "Camera")
+	FOnBattlePlayerSelected OnBattlePlayerSelected;
+
+	// 카드 타겟 대기 진입/해제 시 (BattleCameraActor BP에서 바인딩)
+	UPROPERTY(BlueprintAssignable, Category = "Camera")
+	FOnTargetingStateChanged OnTargetingStateChanged;
 
 	// ── 전투 초기화 ───────────────────────────────────────────────
 	// 유닛을 스폰하고 1턴을 시작. BeginPlay에서 자동 호출
@@ -221,6 +262,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	const TArray<AUnit*>& GetSpawnedEnemies() const { return SpawnedEnemies; }
 
+	// InitCombat에서 생성된 BattleMainWidget 반환 (BattleCameraActor BP 등 외부에서 참조용)
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	UBattleMainWidget* GetBattleWidget() const { return BattleWidget; }
+
+	// InitCombat에서 스폰된 BattleCamera 반환 (BattleCameraActor BP 등 외부에서 참조용)
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	ACameraActor* GetBattleCamera() const { return BattleCamera; }
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -242,6 +291,14 @@ private:
 
 	// 적 행동 딜레이 타이머
 	FTimerHandle EnemyTimerHandle;
+
+	// InitCombat에서 생성한 배틀 메인 위젯 인스턴스
+	UPROPERTY()
+	UBattleMainWidget* BattleWidget = nullptr;
+
+	// InitCombat에서 스폰한 배틀 카메라 액터 인스턴스
+	UPROPERTY()
+	ACameraActor* BattleCamera = nullptr;
 
 	// 페이즈를 전환하고 CheckCombatEnd → OnPhaseChanged 브로드캐스트
 	void SetPhase(ETurnPhase NewPhase);

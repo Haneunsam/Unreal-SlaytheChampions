@@ -124,6 +124,8 @@ void UBattleMainWidget::HandlePlayerClicked(AUnit* Unit)
 		if (MainCanvas)
 			MainCanvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		OnPendingCleared();
+		// 타겟 대기 해제 알림 (카메라 복귀용)
+		if (CombatManager) CombatManager->OnTargetingStateChanged.Broadcast(false);
 	}
 
 	// 이전 선택 유닛의 CardUserComponent 바인딩 해제
@@ -135,6 +137,9 @@ void UBattleMainWidget::HandlePlayerClicked(AUnit* Unit)
 	}
 
 	SelectedUnit = Unit;
+
+	// 카메라에 플레이어 선택 알림 (BattleCameraActor BP가 구독)
+	if (CombatManager) CombatManager->OnBattlePlayerSelected.Broadcast(Unit);
 
 	// 플레이어가 2명 이상이면 다음 플레이어 버튼 표시
 	if (Btn_NextPlayer && CombatManager && CombatManager->GetSpawnedPlayers().Num() > 1)
@@ -222,6 +227,8 @@ void UBattleMainWidget::HandleCardClicked(FName CardName)
 		if (MainCanvas)
 			MainCanvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		OnPendingCleared();
+		// 타겟 대기 해제 알림 (카메라 복귀용)
+		if (CombatManager) CombatManager->OnTargetingStateChanged.Broadcast(false);
 		return;
 	}
 
@@ -254,6 +261,8 @@ void UBattleMainWidget::HandleCardClicked(FName CardName)
 	if (MainCanvas)
 		MainCanvas->SetVisibility(ESlateVisibility::Visible);
 	OnCardPending(CardName); // UI에는 CardID 전달 (표시용)
+	// 타겟 대기 진입 알림 (카메라 적 앞으로 이동용)
+	if (CombatManager) CombatManager->OnTargetingStateChanged.Broadcast(true);
 	UE_LOG(LogTemp, Log, TEXT("[BattleMainWidget] Card pending: %s (RowName: %s) — waiting for target"),
 		*CardName.ToString(), *RowName.ToString());
 }
@@ -338,6 +347,8 @@ void UBattleMainWidget::QueueCardAction(const FCardDataRow& CardData, AUnit* Tar
 	if (MainCanvas)
 		MainCanvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	OnPendingCleared();
+	// 타겟 대기 해제 알림 (카메라 복귀용)
+	if (CombatManager) CombatManager->OnTargetingStateChanged.Broadcast(false);
 }
 
 // Btn_EndTurn 클릭 → PlayerExecutionPhase 진입 후 큐 실행
@@ -441,6 +452,8 @@ void UBattleMainWidget::CancelPendingCard()
 	if (MainCanvas)
 		MainCanvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	OnPendingCleared();
+	// 타겟 대기 해제 알림 (카메라 복귀용)
+	if (CombatManager) CombatManager->OnTargetingStateChanged.Broadcast(false);
 }
 
 // SpawnedPlayers에서 현재 선택 다음 인덱스의 살아있는 플레이어로 전환

@@ -1,6 +1,10 @@
 ﻿#include "CombatKernel/CombatManager.h"
 #include "CombatKernel/EffectManager.h"
 #include "CombatKernel/CombatStatWidget.h"
+#include "CombatKernel/BattleMainWidget.h"
+#include "Camera/CameraActor.h"
+#include "GameFramework/PlayerController.h"
+#include "Blueprint/UserWidget.h"
 #include "Unit/Unit.h"
 #include "Unit/StatComponent.h"
 #include "Unit/StatusEffectComponent.h"
@@ -8,6 +12,7 @@
 #include "Unit/Enemy/NPCBrainComponent.h"
 #include "Unit/Enemy/IntentComponent.h"
 #include "Components/BoxComponent.h"
+#include "Components/ArrowComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
 
@@ -27,6 +32,35 @@ ACombatManager::ACombatManager()
 	EnemyBox_0 = SetupBox(TEXT("EnemyBox_0"), FVector(   0.f, 300.f, 0.f), FColor::Red);
 	EnemyBox_1 = SetupBox(TEXT("EnemyBox_1"), FVector(-150.f, 300.f, 0.f), FColor::Red);
 	EnemyBox_2 = SetupBox(TEXT("EnemyBox_2"), FVector( 150.f, 300.f, 0.f), FColor::Red);
+
+	// 카메라 슬롯 (화살표 = 카메라 방향) - 에디터에서 이동·회전하여 위치·시선 조정
+	// Default: 흰색 — 전투 시작 초기 위치
+	CameraSlot_Default = CreateDefaultSubobject<UArrowComponent>(TEXT("CameraSlot_Default"));
+	CameraSlot_Default->SetupAttachment(GetRootComponent());
+	CameraSlot_Default->SetRelativeLocation(FVector(-500.f, 0.f, 200.f));
+	CameraSlot_Default->ArrowColor = FColor::White;
+	CameraSlot_Default->SetHiddenInGame(true);
+
+	// Player_0: 파란색 — 0번 플레이어 선택 시 이동 위치
+	CameraSlot_Player_0 = CreateDefaultSubobject<UArrowComponent>(TEXT("CameraSlot_Player_0"));
+	CameraSlot_Player_0->SetupAttachment(GetRootComponent());
+	CameraSlot_Player_0->SetRelativeLocation(FVector(-500.f, -200.f, 200.f));
+	CameraSlot_Player_0->ArrowColor = FColor::Blue;
+	CameraSlot_Player_0->SetHiddenInGame(true);
+
+	// Player_1: 하늘색 — 1번 플레이어 선택 시 이동 위치
+	CameraSlot_Player_1 = CreateDefaultSubobject<UArrowComponent>(TEXT("CameraSlot_Player_1"));
+	CameraSlot_Player_1->SetupAttachment(GetRootComponent());
+	CameraSlot_Player_1->SetRelativeLocation(FVector(-500.f, -350.f, 200.f));
+	CameraSlot_Player_1->ArrowColor = FColor::Cyan;
+	CameraSlot_Player_1->SetHiddenInGame(true);
+
+	// Enemy: 빨간색 — 타겟 지정 시 이동 위치 (적 앞)
+	CameraSlot_Enemy = CreateDefaultSubobject<UArrowComponent>(TEXT("CameraSlot_Enemy"));
+	CameraSlot_Enemy->SetupAttachment(GetRootComponent());
+	CameraSlot_Enemy->SetRelativeLocation(FVector(-500.f, 300.f, 200.f));
+	CameraSlot_Enemy->ArrowColor = FColor::Red;
+	CameraSlot_Enemy->SetHiddenInGame(true);
 }
 
 // 스폰 위치 박스 컴포넌트 하나를 생성하고 루트에 부착하는 헬퍼 함수
@@ -56,6 +90,34 @@ void ACombatManager::InitCombat()
 {
 	SpawnedPlayers.Empty();
 	SpawnedEnemies.Empty();
+
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+
+	// ── 1. 배틀 메인 위젯 생성 ────────────────────────────────
+	// NativeConstruct에서 레벨의 CombatManager를 자동 탐색해 바인딩하므로 AddToViewport 전 CombatManager가 존재해야 함
+	if (BattleWidgetClass && PC)
+	{
+		BattleWidget = CreateWidget<UBattleMainWidget>(PC, BattleWidgetClass);
+		if (BattleWidget)
+			BattleWidget->AddToViewport();
+		else
+			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleWidget creation failed"));
+	}
+
+	// ── 2. 배틀 카메라 스폰 ──────────────────────────────────
+	// CameraSlot_Default 화살표 위치·회전으로 스폰 — 에디터에서 화살표를 이동·회전해 초기 위치 조정
+	if (BattleCameraClass)
+	{
+		const FTransform SpawnTransform = CameraSlot_Default
+			? CameraSlot_Default->GetComponentTransform()
+			: GetActorTransform();
+
+		BattleCamera = GetWorld()->SpawnActor<ACameraActor>(BattleCameraClass, SpawnTransform);
+		if (BattleCamera && PC)
+			PC->SetViewTargetWithBlend(BattleCamera);
+		else
+			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleCamera spawn failed"));
+	}
 
 	UBoxComponent* PlayerBoxes[] = { PlayerBox_0, PlayerBox_1 };
 	FCombatantInitData PlayerDataArr[] = { PlayerData_0, PlayerData_1 };
