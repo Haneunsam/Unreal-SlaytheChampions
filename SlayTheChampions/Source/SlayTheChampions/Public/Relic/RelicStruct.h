@@ -4,38 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Card/CardDataTypes.h"
+#include "Unit/StatusEffectComponent.h"
 #include "RelicStruct.generated.h"
 
 UENUM(BlueprintType)
-enum class EEffectType_test : uint8
-{
-	None = 0 UMETA(DisplayName = "None"),
-	Shield = 1 UMETA(DisplayName = "Shield"),
-	Heal = 2 UMETA(DisplayName = "Heal"),
-	MaxHPUp = 3 UMETA(DisplayName = "Max HP Up"),
-	DrawCard = 4 UMETA(DisplayName = "Draw Card"),
-	GainEnergy = 5 UMETA(DisplayName = "Gain Energy"),
-	Summon = 6 UMETA(DisplayName = "Summon"),
-	ChannelLightning = 7 UMETA(DisplayName = "Channel Lightning"),
-	UpgradeAttackCard = 8 UMETA(DisplayName = "Upgrade Attack Card"),
-	Thorns = 9 UMETA(DisplayName = "Thorns"),
-	PoisonBonus = 10 UMETA(DisplayName = "Poison Bonus"),
-	Damage = 11 UMETA(DisplayName = "Damage"),
-	VulnerableDefenseBonus = 12 UMETA(DisplayName = "Vulnerable Defense Bonus"),
-	VulnerableAttackBonus = 13 UMETA(DisplayName = "Vulnerable Attack Bonus"),
-
-	Buff_AttackUp = 100 UMETA(DisplayName = "Attack Up"),
-	Buff_DefenseUp = 101 UMETA(DisplayName = "Defense Up"),
-	Buff_Regen = 102 UMETA(DisplayName = "Regen"),
-
-	Debuff_Weak = 200 UMETA(DisplayName = "Weak"),
-	Debuff_Vulnerable = 201 UMETA(DisplayName = "Vulnerable"),
-	Debuff_Burn = 202 UMETA(DisplayName = "Burn"),
-	Debuff_Frail = 203 UMETA(DisplayName = "Frail")
-};
-
-UENUM(BlueprintType)
-/*유물 적용 타이밍*/
+/* 유물 적용 타이밍 */
 enum class EEffectiveDate : uint8
 {
 	OnAcquire = 0 UMETA(DisplayName = "On Acquire"),
@@ -48,7 +21,7 @@ enum class EEffectiveDate : uint8
 };
 
 UENUM(BlueprintType)
-/*유물 획득 경로*/
+/* 유물 획득 경로 */
 enum class ERelicSourceType : uint8
 {
 	Default = 0 UMETA(DisplayName = "Default"),
@@ -59,7 +32,7 @@ enum class ERelicSourceType : uint8
 };
 
 UENUM(BlueprintType)
-/*유물 희귀도*/
+/* 유물 희귀도 */
 enum class ERelicRarity : uint8
 {
 	Normal = 0 UMETA(DisplayName = "Normal"),
@@ -69,7 +42,7 @@ enum class ERelicRarity : uint8
 };
 
 UENUM(BlueprintType)
-/*유물 발동 조건*/
+/* 유물 발동 조건 */
 enum class ERelicTriggerCondition : uint8
 {
 	None = 0 UMETA(DisplayName = "None"),
@@ -78,7 +51,7 @@ enum class ERelicTriggerCondition : uint8
 };
 
 UENUM(BlueprintType)
-/*유물 발동 방식*/
+/* 유물 발동 방식 */
 enum class ERelicTriggerUsageType : uint8
 {
 	OneShot = 0 UMETA(DisplayName = "One Shot"),
@@ -86,7 +59,7 @@ enum class ERelicTriggerUsageType : uint8
 };
 
 USTRUCT(BlueprintType)
-/*유물 기본 정보 구조체*/
+/* 유물 기본 정보 구조체 */
 struct FRelicDataRow : public FTableRowBase
 {
 	GENERATED_BODY()
@@ -114,7 +87,7 @@ struct FRelicDataRow : public FTableRowBase
 };
 
 USTRUCT(BlueprintType)
-/*유물 효과 정보 구조체*/
+/* 유물 효과 정보 구조체 */
 struct FRelicEffectRow : public FTableRowBase
 {
 	GENERATED_BODY()
@@ -126,7 +99,7 @@ struct FRelicEffectRow : public FTableRowBase
 	int32 Order = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EEffectType_test BuffType = EEffectType_test::None;
+	EEffectType BuffType = EEffectType::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 Value = 0;
@@ -153,7 +126,7 @@ struct FRelicEffectData
 	int32 Order = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EEffectType_test BuffType = EEffectType_test::None;
+	EEffectType BuffType = EEffectType::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 Value = 0;
