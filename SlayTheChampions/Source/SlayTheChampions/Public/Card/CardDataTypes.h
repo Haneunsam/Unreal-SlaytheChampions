@@ -190,6 +190,18 @@ struct FCardDataRow : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect")
     bool bExhaust = false;
 
+    // 업적 전용 여부 ──────────────────────────────────────────────────────────────
+
+    /**
+     * 업적 전용 카드 여부.
+     * true  : 특정 업적 달성 시에만 도감에 등록됨.
+     *         미획득 시 도감에서 완전 검정으로 표시 (이름/정보 숨김).
+     * false : 일반 카드 - 보상/상점으로 획득 가능.
+     *         미획득 시 도감에서 실루엣(어둡게)으로 표시.
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Meta")
+    bool bAchievementOnly = false;
+
     // 밸런스 정보 ──────────────────────────────────────────────────────────────────
 
     // 카드 밸런스 점수 (기획 참고용)
