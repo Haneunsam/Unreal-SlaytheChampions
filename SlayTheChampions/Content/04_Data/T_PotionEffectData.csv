@@ -1,0 +1,11 @@
+,SourceID,Order,EffectType,Value,TargetScope,ApplyTiming,TriggerCondition,TriggerValue,TriggerUsageType
+01,FirePotion,0,Damage,20,SingleEnemy,OnUse,None,0,OneShot
+02,BlockPotion,0,Shield,12,Self,OnUse,None,0,OneShot
+03,EnergyPotion,0,GainEnergy,2,Self,OnUse,None,0,OneShot
+04,DrawPotion,0,DrawCard,3,Self,OnUse,None,0,OneShot
+05,HealPotion,0,Heal,15,SingleAlly,OnUse,None,0,OneShot
+06,StrengthPotion,0,Buff_AttackUp,2,Self,OnUse,None,0,OneShot
+07,WeakPotion,0,Debuff_Weak,2,SingleEnemy,OnUse,None,0,OneShot
+08,VulnerablePotion,0,Debuff_Vulnerable,2,SingleEnemy,OnUse,None,0,OneShot
+09,FairyBottle,0,Heal,30,Self,OnDeath,None,0,OneShot
+10,EntropicBrew,0,CreateRandomPotion,0,Self,OnUse,None,0,OneShot

@@ -3,44 +3,44 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Relic/RelicStruct.h"
 #include "ChampionStruct.generated.h"
 
 class AUnit;
 
 /*Champion Á¤º¸*/
 USTRUCT(BlueprintType)
-struct FSaveChampionsInfo
+struct FSavePartyInfo
 {
 	GENERATED_BODY()
 
-private:
+public:
 	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance", meta = (AllowPrivateAccess = "true"))
-	int32 MaxGold;
+	int32 MaxGold = 9999;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance", meta = (AllowPrivateAccess = "true"))
-	int32 Gold;
+	int32 Gold =0;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance", meta = (AllowPrivateAccess = "true"))
-	TArray<AUnit*> Party;
+	TArray<AUnit*> Champions;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance", meta = (AllowPrivateAccess = "true"))
 	TArray<int32> Deck;
 
+	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance", meta = (AllowPrivateAccess = "true"))
+	TArray<FRelic> Relics;
 public:
 
-	FSaveChampionsInfo()
+	FSavePartyInfo()
 	{
 	}
 
-	const int32 GetMaxGold() const { return MaxGold; }
-	const int32 GetGold() const { return Gold; }
-	const TArray<AUnit*> GetParty() const { return Party; }
-	const TArray<int32> GetDeck() const { return Deck; }
-	void SetMaxGold(int32 _MaxGold) { MaxGold = _MaxGold; }
-	void SetGold(int32 _Gold) {
-		Gold += _Gold; 
-		if (Gold >= MaxGold) Gold = MaxGold;
+	void InitSavePartyInfo()
+	{
+		MaxGold = 9999;
+		Gold = 0;
+		Champions.Empty();
+		Deck.Empty();
+		Relics.Empty();
 	}
-	void SetParty(TArray<AUnit*> _Party) { Party = _Party; }
-	void SetDeck(TArray<int32> _Deck) { Deck = _Deck; }
 };
