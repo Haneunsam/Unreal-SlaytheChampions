@@ -16,10 +16,7 @@ class SLAYTHECHAMPIONS_API UBattleClearWidget : public UUserWidget
 public:
 	virtual void NativeConstruct() override;
 
-	/* 리워드 만들어줄 함수 */
-	UFUNCTION(BlueprintCallable, Category = "AreaClear")
-	TArray<ERewardTypes> GenerateRewards(EAreaType _type);
-
+	/* 리워드 데이터 만들어줄 함수 */
 	UFUNCTION(BlueprintCallable, Category = "AreaClear")
 	TArray<FRewardData> GenerateRewardData(EAreaType _type);
 
@@ -27,35 +24,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AreaClear")
 	void RefreshRewards();
 
-
-	UFUNCTION(BlueprintPure, Category = "AreaClear")
-	const TArray<ERewardTypes>& GetCurrentRewards() const { return CurrentRewards; }
-
 	UFUNCTION(BlueprintPure, Category = "AreaClear")
 	const TArray<FRewardData>& GetCurrentRewardData() const { return CurrentRewardData; }
 
-	/*델리게이트*/
-	UFUNCTION(BlueprintCallable, Category = "AreaClear")
-	void HandleRewardSelected(const FRewardData& RewardData);
-
 	/* 보상 목록이 갱신된 뒤 Blueprint에서 UI를 채우는 이벤트 */
 	UFUNCTION(BlueprintImplementableEvent, Category = "AreaClear")
-	void OnRewardsRefreshed(const TArray<ERewardTypes>& Rewards);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "AreaClear")
 	void OnRewardDataRefreshed(const TArray<FRewardData>& Rewards);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "AreaClear")
-	void OnCardRewardSelected(const FRewardData& RewardData);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "AreaClear")
-	void OnGoldRewardSelected(const FRewardData& RewardData);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "AreaClear")
-	void OnRelicRewardSelected(const FRewardData& RewardData);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "AreaClear")
-	void OnPotionRewardSelected(const FRewardData& RewardData);
 	
 private:
 	UFUNCTION()
@@ -66,9 +40,6 @@ private:
 
 	/*골드 보상 수치*/
 	int32 RollGold(EAreaType _type);
-
-	UPROPERTY(BlueprintReadOnly, Category = "AreaClear", meta = (AllowPrivateAccess = "true"))
-	TArray<ERewardTypes> CurrentRewards;
 
 	UPROPERTY(BlueprintReadOnly, Category = "AreaClear", meta = (AllowPrivateAccess = "true"))
 	TArray<FRewardData> CurrentRewardData;

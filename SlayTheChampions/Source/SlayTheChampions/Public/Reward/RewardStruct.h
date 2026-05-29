@@ -32,9 +32,6 @@ struct FRewardData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName RewardId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FName> CardCandidates;
 };
 
 UENUM(BlueprintType)

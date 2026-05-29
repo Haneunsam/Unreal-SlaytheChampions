@@ -1,5 +1,5 @@
 ﻿#include "Reward/BattleClearWidget.h"
-
+#include "Relic/RelicSubsystem.h"
 #include "Map/RunSystem.h"
 #include "Reward/RewardStruct.h"
 
@@ -8,19 +8,6 @@ void UBattleClearWidget::NativeConstruct()
     Super::NativeConstruct();
 
     OnVisibilityChanged.AddUniqueDynamic(this, &UBattleClearWidget::HandleVisibilityChanged);
-}
-
-TArray<ERewardTypes> UBattleClearWidget::GenerateRewards(EAreaType _type)
-{
-    TArray<ERewardTypes> Rewards;
-    const TArray<FRewardData> RewardDataList = GenerateRewardData(_type);
-
-    for (const FRewardData& RewardData : RewardDataList)
-    {
-        Rewards.Add(RewardData.RewardType);
-    }
-
-    return Rewards;
 }
 
 TArray<FRewardData> UBattleClearWidget::GenerateRewardData(EAreaType _type)
@@ -52,7 +39,14 @@ TArray<FRewardData> UBattleClearWidget::GenerateRewardData(EAreaType _type)
     case EAreaType::Elite:
         AddReward(ERewardTypes::NomalCard, 0, TEXT("NormalCardReward"));
         AddReward(ERewardTypes::Gold, RollGold(_type), TEXT("Gold"));
-        AddReward(ERewardTypes::Relic, 1, TEXT("Relic"));
+        if (UGameInstance* GameInstance = GetGameInstance())
+        {
+            if (URelicSubsystem* RelicSubsystem = GameInstance->GetSubsystem<URelicSubsystem>())
+            {
+                const FName RandomRelicId = RelicSubsystem->GetRandomCommonRelic();
+                AddReward(ERewardTypes::Relic, 1, RandomRelicId);
+            }
+        }
 
         if (RollChance(PotionRewardChances::Elite))
         {
@@ -69,7 +63,7 @@ TArray<FRewardData> UBattleClearWidget::GenerateRewardData(EAreaType _type)
             AddReward(ERewardTypes::Potion, 1, TEXT("Potion"));
         }
         break;
-
+        
     default:
         break;
     }
@@ -90,42 +84,7 @@ void UBattleClearWidget::RefreshRewards()
     }
 
     CurrentRewardData = GenerateRewardData(AreaType);
-    CurrentRewards.Reset();
-
-    for (const FRewardData& RewardData : CurrentRewardData)
-    {
-        CurrentRewards.Add(RewardData.RewardType);
-    }
-
     OnRewardDataRefreshed(CurrentRewardData);
-    OnRewardsRefreshed(CurrentRewards);
-}
-
-void UBattleClearWidget::HandleRewardSelected(const FRewardData& RewardData)
-{
-    switch (RewardData.RewardType)
-    {
-    case ERewardTypes::NomalCard:
-    case ERewardTypes::RareCard:
-    case ERewardTypes::LegendCard:
-        OnCardRewardSelected(RewardData);
-        break;
-
-    case ERewardTypes::Gold:
-        OnGoldRewardSelected(RewardData);
-        break;
-
-    case ERewardTypes::Relic:
-        OnRelicRewardSelected(RewardData);
-        break;
-
-    case ERewardTypes::Potion:
-        OnPotionRewardSelected(RewardData);
-        break;
-
-    default:
-        break;
-    }
 }
 
 void UBattleClearWidget::HandleVisibilityChanged(ESlateVisibility InVisibility)

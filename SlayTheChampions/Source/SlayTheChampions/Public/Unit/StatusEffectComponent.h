@@ -32,6 +32,7 @@ enum class EEffectType : uint8
 	Damage = 11 UMETA(DisplayName = "Damage"),
 	VulnerableDefenseBonus = 12 UMETA(DisplayName = "Vulnerable Defense Bonus"),
 	VulnerableAttackBonus = 13 UMETA(DisplayName = "Vulnerable Attack Bonus"),
+	CreateRandomPotion = 14 UMETA(DisplayName = "Create Random Potion"),
 
 	Buff_AttackUp = 100 UMETA(DisplayName = "Attack Up"),
 	Buff_DefenseUp = 101 UMETA(DisplayName = "Defense Up"),

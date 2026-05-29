@@ -4,83 +4,81 @@
 #include "Engine/DataTable.h"
 #include "Card/CardDataTypes.h"
 #include "Effect/EffectStruct.h"
-#include "RelicStruct.generated.h"
+#include "PotionStruct.generated.h"
 
 UENUM(BlueprintType)
-/* 유물 획득 경로 */
-enum class ERelicSourceType : uint8
+/* 포션 희귀도 */
+enum class EPotionRarity : uint8
 {
-	Default = 0 UMETA(DisplayName = "Default"),
-	Shop = 1 UMETA(DisplayName = "Shop"),
-	Event = 2 UMETA(DisplayName = "Event"),
-	Common = 3 UMETA(DisplayName = "Common"),
+	Common = 0 UMETA(DisplayName = "Common"),
+	Uncommon = 1 UMETA(DisplayName = "Uncommon"),
+	Rare = 2 UMETA(DisplayName = "Rare"),
 	None = 99 UMETA(DisplayName = "None"),
 };
 
 UENUM(BlueprintType)
-/* 유물 희귀도 */
-enum class ERelicRarity : uint8
+/* 포션 획득 경로 */
+enum class EPotionSourceType : uint8
 {
-	Normal = 0 UMETA(DisplayName = "Normal"),
-	Rare = 1 UMETA(DisplayName = "Rare"),
-	Legendary = 2 UMETA(DisplayName = "Legendary"),
+	Common = 0 UMETA(DisplayName = "Common"),
+	Event = 1 UMETA(DisplayName = "Event"),
 	None = 99 UMETA(DisplayName = "None"),
 };
 
 USTRUCT(BlueprintType)
-/* 유물 기본 정보 CSV 행 */
-struct FRelicDataRow : public FTableRowBase
+/* 포션 기본 정보 CSV 행 */
+struct FPotionDataRow : public FTableRowBase
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FName RelicID;
+	FName PotionID;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FText RelicName;
+	FText PotionName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText Description;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	ERelicRarity Rarity = ERelicRarity::Normal;
+	EPotionRarity Rarity = EPotionRarity::Common;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	ERelicSourceType RelicSourceType = ERelicSourceType::Common;
+	EPotionSourceType PotionSourceType = EPotionSourceType::Common;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	EEffectApplyTiming UseTiming = EEffectApplyTiming::OnUse;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	ETargetType TargetScope = ETargetType::Self;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EEffectApplyTiming ApplyTiming = EEffectApplyTiming::None;
 };
 
 USTRUCT(BlueprintType)
-/* 런타임에서 사용하는 유물 데이터 */
-struct FRelic
+/* 런타임에서 사용하는 포션 데이터 */
+struct FPotionData
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FName RelicID;
+	FName PotionID;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FText RelicName;
+	FText PotionName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText Description;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	ERelicRarity Rarity = ERelicRarity::Normal;
+	EPotionRarity Rarity = EPotionRarity::Common;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	ERelicSourceType RelicSourceType = ERelicSourceType::Common;
+	EPotionSourceType PotionSourceType = EPotionSourceType::Common;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	EEffectApplyTiming UseTiming = EEffectApplyTiming::OnUse;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	ETargetType TargetScope = ETargetType::Self;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EEffectApplyTiming ApplyTiming = EEffectApplyTiming::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TArray<FSourceEffectData> Effects;
