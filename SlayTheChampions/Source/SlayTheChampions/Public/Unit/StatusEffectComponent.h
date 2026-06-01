@@ -5,22 +5,10 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Unit/StatusEffect.h"
+#include "CombatKernel/EffectTypes.h"
 #include "StatusEffectComponent.generated.h"
 
 class AUnit;
-
-/**
- * EEffectType
- * 수치형 효과의 종류. TMap 키로 사용.
- * None=0 으로 고정. Shield(보호막)=1.
- * Buff 100~199 / Debuff 200~299 로 확장 예정.
- */
-UENUM(BlueprintType)
-enum class EEffectType : uint8
-{
-	None   = 0  UMETA(DisplayName = "None"),
-	Shield = 1  UMETA(DisplayName = "보호막"),  // 데미지 흡수, 턴 시작 시 리셋
-};
 
 // 오브젝트형 효과 적용/제거 이벤트
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEffectApplied, UStatusEffect*, Effect);
