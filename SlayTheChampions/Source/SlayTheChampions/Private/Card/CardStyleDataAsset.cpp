@@ -1,4 +1,4 @@
-#include "Card/CardStyleDataAsset.h"
+﻿#include "Card/CardStyleDataAsset.h"
 
 UPaperSprite* UCardStyleDataAsset::GetRarityBorder(ECardRarity Rarity) const
 {
@@ -18,4 +18,4 @@ UPaperSprite* UCardStyleDataAsset::GetTypeBackground(ECardRarity Rarity) const
     case ECardRarity::Legendary: return TypeBackground_Legendary.LoadSynchronous();
     default:                     return TypeBackground_Normal.LoadSynchronous();
     }
-}
+}//test

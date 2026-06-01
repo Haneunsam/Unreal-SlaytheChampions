@@ -71,6 +71,11 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Selection")
 	void OnHandUpdated(const TArray<FCardDataRow>& Cards);
 
+	// 손패 숨김 요청 — HandPanel C++ 바인딩 실패 시 BP 폴백
+	// WBP_BattleMainWidget에서 구현: HandPanel 위젯 참조로 PlayHideAnimation 호출
+	UFUNCTION(BlueprintImplementableEvent, Category = "Selection")
+	void OnHideHand();
+
 	// 대기 카드 취소 — BP의 오버레이 버튼, 우클릭 등에서 직접 호출 가능
 	UFUNCTION(BlueprintCallable, Category = "Selection")
 	void CancelPendingCard();
@@ -132,7 +137,7 @@ private:
 
 	// HandPanel::OnCardSelected 수신 → 코스트 검증 후 선택 대기 상태로 전환
 	UFUNCTION()
-	void HandleCardClicked(FName CardName);
+	void HandleCardClicked(FName CardName, UCardWidget* ClickedCard);
 
 	// 적 유닛 클릭 시 호출 — PendingCard가 있으면 타겟으로 큐에 등록
 	UFUNCTION()
@@ -160,6 +165,12 @@ private:
 	// 다음 플레이어 인덱스를 찾아 HandlePlayerClicked 호출
 	void SelectNextPlayer();
 
+	// 남은 코스트를 Text_Cost에 반영하고 OnCostChanged BP 이벤트 호출 — 코스트 표시 일원화
+	void UpdateCostDisplay();
+
+	// 현재 선택 플레이어의 OnHandChanged 바인딩 해제 후 SelectedUnit 초기화 — 선택 해제 일원화
+	void DeselectCurrentPlayer();
+
 	// 적 선택을 기다리는 카드 이름 (IsNone이면 미선택 상태)
 	FName PendingCardName;
 
@@ -168,4 +179,7 @@ private:
 
 	// HandleCardClicked 재진입 방지 플래그 — OnHandChanged 콜백 체인에서 중복 호출 차단
 	bool bIsProcessingCard = false;
+
+	// 손패 초과분 정리 중 플래그 — RemoveFromHand의 OnHandChanged 재방송으로 인한 재귀 차단
+	bool bTrimmingHand = false;
 };

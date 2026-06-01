@@ -85,6 +85,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyTurnStart,         int32,   
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattlePlayerSelected,   AUnit*,     SelectedPlayer);
 // 카드 타겟 대기 진입(true)/해제(false) 시 브로드캐스트 (BattleCameraActor BP — 적 앞으로 카메라 이동)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTargetingStateChanged,  bool,       bIsTargeting);
+// 뒤로가기로 메인 화면 복귀 시 브로드캐스트 (BattleCameraActor BP — Default 위치로 복귀)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCameraReturnToDefault);
 
 /**
  * ACombatManager
@@ -183,6 +185,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat|Timing", meta = (ClampMin = "0.0", ClampMax = "5.0"))
 	float EnemyActionDelay = 0.8f;
 
+	// ── 카메라 상태 ──────────────────────────────────────────────
+	// 카메라 이동 중 여부 — BP_BattleCameraActor가 Timeline 시작/종료 시 SET
+	// HandleBackClicked에서 이동 중 입력 차단에 사용
+	UPROPERTY(BlueprintReadWrite, Category = "Camera")
+	bool bCameraMoving = false;
+
 	// ── 턴 상태 ───────────────────────────────────────────────────
 	// 현재 턴 페이즈 (읽기 전용 — SetPhase()로만 변경)
 	UPROPERTY(BlueprintReadOnly, Category = "Turn")
@@ -211,6 +219,10 @@ public:
 	// 카드 타겟 대기 진입/해제 시 (BattleCameraActor BP에서 바인딩)
 	UPROPERTY(BlueprintAssignable, Category = "Camera")
 	FOnTargetingStateChanged OnTargetingStateChanged;
+
+	// 뒤로가기 버튼으로 메인 화면 복귀 시 (BattleCameraActor BP에서 바인딩)
+	UPROPERTY(BlueprintAssignable, Category = "Camera")
+	FOnCameraReturnToDefault OnCameraReturnToDefault;
 
 	// ── 전투 초기화 ───────────────────────────────────────────────
 	// 유닛을 스폰하고 1턴을 시작. BeginPlay에서 자동 호출

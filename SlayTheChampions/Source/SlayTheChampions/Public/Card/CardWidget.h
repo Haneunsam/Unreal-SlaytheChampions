@@ -80,6 +80,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Card|Pending")
     bool IsPendingState() const { return bIsPendingState; }
 
+    // 대기 상태 변경 시 BP에 알림 — WBP_Card에서 노란색 선택 테두리 표시/숨김 구현
+    UFUNCTION(BlueprintImplementableEvent, Category = "Card|Pending")
+    void OnPendingStateChanged(bool bIsPending);
+
     // CardID 반환 — HandWidget에서 일치 카드 검색에 사용
     UFUNCTION(BlueprintPure, Category = "Card|UI")
     FName GetCardID() const { return CurrentCardData.CardID; }

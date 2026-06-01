@@ -237,7 +237,8 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AU
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[ExecuteCard] Targets=%d Damage=%d"), Targets.Num(), Card.Damage);
-	// 효과 실행
+
+	// ── 1. 기본 효과: Damage / HealAmount / Block — 카드의 TargetType 대상에게 적용 ──
 	for (AUnit* Target : Targets)
 	{
 		if (!Target || !Target->IsAlive()) continue;
@@ -245,22 +246,58 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AU
 		UStatComponent* Stat = Target->GetStat();
 		if (!Stat) continue;
 
-		// 데미지 (UsingCount 횟수만큼 반복)
 		if (Card.Damage > 0)
 		{
 			for (int32 i = 0; i < Card.UsingCount; i++)
 				UEffectManager::ProcessDamage(Target, Card.Damage, Caster);
 		}
 
-		// 회복
 		if (Card.HealAmount > 0)
 			Stat->Heal(Card.HealAmount);
 
-		// 방어도
 		if (Card.Block > 0)
 			UEffectManager::ApplyEffect(Target, EEffectType::Shield, Card.Block);
+	}
 
-		// [임시] EffectTag — StatusEffectComponent 연결 시 구현
+	// ── 2. Effects 배열 — 각 항목의 TargetType으로 독립적으로 대상 결정 ──────────
+	// EEffectTargetType::UseCardDefault이면 카드 기본 Targets 그대로 사용
+	auto ResolveEffectTargets = [&](EEffectTargetType EffTargetType) -> TArray<AUnit*>
+	{
+		switch (EffTargetType)
+		{
+			case EEffectTargetType::UseCardDefault: return Targets;
+			case EEffectTargetType::SingleEnemy:
+				if (TargetOverride) return { TargetOverride };
+				if (SpawnedEnemies.IsValidIndex(0)) return { SpawnedEnemies[0] };
+				return {};
+			case EEffectTargetType::AllEnemies:   return SpawnedEnemies;
+			case EEffectTargetType::Self:          return { Caster };
+			case EEffectTargetType::SingleAlly:
+				if (SpawnedPlayers.IsValidIndex(0)) return { SpawnedPlayers[0] };
+				return {};
+			case EEffectTargetType::AllAllies:     return SpawnedPlayers;
+			default:                               return Targets;
+		}
+	};
+
+	for (const FCardEffect& Effect : Card.Effects)
+	{
+		if (Effect.EffectType == EEffectType::None || Effect.Value <= 0) continue;
+
+		const TArray<AUnit*> EffectTargets = ResolveEffectTargets(Effect.TargetType);
+		const uint8 TypeVal = static_cast<uint8>(Effect.EffectType);
+
+		for (AUnit* Target : EffectTargets)
+		{
+			if (!Target || !Target->IsAlive()) continue;
+
+			if (TypeVal >= 200)
+				UEffectManager::ApplyDebuff(Target, Effect.EffectType, Effect.Value);
+			else if (TypeVal >= 100)
+				UEffectManager::ApplyBuff(Target, Effect.EffectType, Effect.Value);
+			else
+				UEffectManager::ApplyEffect(Target, Effect.EffectType, Effect.Value);
+		}
 	}
 
 	// 카드 실행 완료 브로드캐스트 (히스토리 위젯·애니메이션 트리거용)
@@ -320,11 +357,14 @@ void ACombatManager::ApplyTurnStartEffects(const TArray<AUnit*>& Units)
 		UStatusEffectComponent* SEC = Unit->FindComponentByClass<UStatusEffectComponent>();
 		if (!SEC) continue;
 
-		// Shield 리셋
+		// Shield 리셋 (매 턴 시작 시 0으로 초기화)
 		if (SEC->GetEffectValue(EEffectType::Shield) > 0)
 			SEC->SetEffectValue(EEffectType::Shield, 0);
 
-		// 버프/디버프 tick
+		// 수치형 버프/디버프 틱 (Regen 회복, Burn 데미지, 시간제 스택 감소)
+		UEffectManager::TickEffects(Unit);
+
+		// 오브젝트형 효과 틱 (UStatusEffect 파생 클래스)
 		for (UStatusEffect* Effect : SEC->Active)
 			if (Effect) Effect->OnTurnEnd();
 	}

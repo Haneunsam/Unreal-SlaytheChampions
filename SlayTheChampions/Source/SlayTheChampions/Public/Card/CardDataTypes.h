@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
 #include "PaperSprite.h"
+#include "CombatKernel/EffectTypes.h"
 #include "CardDataTypes.generated.h"
 
 /**
@@ -157,16 +158,11 @@ struct FCardDataRow : public FTableRowBase
         meta = (ClampMin = "0"))
     int32 HealAmount = 0;
 
-    // 특수 효과 ──────────────────────────────────────────────────────────────────
-
-    // 특수 효과 태그 (상태/버프류 ID 등)
+    // 버프/디버프 효과 목록 ────────────────────────────────────────────────────────
+    // 한 카드에 여러 효과 지정 가능 (예: Damage + Debuff_Weak, Buff_Regen + Buff_AttackUp)
+    // EffectType 범위에 따라 ExecuteCard에서 ApplyBuff / ApplyDebuff / ApplyEffect 자동 분기
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect")
-    FName EffectTag;
-
-    // 특수 효과 수치
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect",
-        meta = (ClampMin = "0"))
-    int32 EffectValue = 0;
+    TArray<FCardEffect> Effects;
 
     // 타겟 설정 ──────────────────────────────────────────────────────────────────
 
@@ -189,6 +185,18 @@ struct FCardDataRow : public FTableRowBase
      */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect")
     bool bExhaust = false;
+
+    // 업적 전용 여부 ──────────────────────────────────────────────────────────────
+
+    /**
+     * 업적 전용 카드 여부.
+     * true  : 특정 업적 달성 시에만 도감에 등록됨.
+     *         미획득 시 도감에서 완전 검정으로 표시 (이름/정보 숨김).
+     * false : 일반 카드 - 보상/상점으로 획득 가능.
+     *         미획득 시 도감에서 실루엣(어둡게)으로 표시.
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Meta")
+    bool bAchievementOnly = false;
 
     // 밸런스 정보 ──────────────────────────────────────────────────────────────────
 
