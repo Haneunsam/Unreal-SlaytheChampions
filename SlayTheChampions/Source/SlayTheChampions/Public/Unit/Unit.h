@@ -8,6 +8,7 @@
 #include "Unit.generated.h"
 
 class UStatComponent;
+class UCapsuleComponent;
 
 /**
  * 전투에 참여하는 모든 유닛의 베이스 Pawn.
@@ -15,6 +16,13 @@ class UStatComponent;
  * 서브클래스 또는 외부 코드에서 필요한 컴포넌트를 붙일 능력을 부여한다.
  */
 
+
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitDied, AUnit*, Unit);
+
+
+
+// 유닛 클릭 시 브로드캐스트 — BattleMainWidget이 구독해 선택 처리
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitClicked, AUnit*, Unit);
 
 UCLASS()
 class SLAYTHECHAMPIONS_API AUnit : public APawn
@@ -33,39 +41,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Unit")
 	ETeam Team = ETeam::Enemy;
 
-	// 사망 이벤트
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitDied, AUnit*, Unit);
 	UPROPERTY(BlueprintAssignable, Category = "Unit")
 	FOnUnitDied OnUnitDied;
-		
-	
+
+	// 이 유닛이 클릭될 때 브로드캐스트 (bGenerateClickEvents 활성화 필요)
+	UPROPERTY(BlueprintAssignable, Category = "Unit")
+	FOnUnitClicked OnUnitClicked;
+
+	// 마우스 클릭 감지 전용 캡슐 — Visibility 채널만 Block해 클릭 반경을 넓힘
+	// BP에서 캡슐 크기(HalfHeight, Radius)를 유닛마다 조정 가능
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Unit")
+	UCapsuleComponent* ClickCapsule;
+
+	//
 	UFUNCTION(BlueprintCallable, Category = "Unit")
 	void HandleDeath();
 
-	// 공격 알림 이벤트
-	// bisskill = false -> 일반공격 (Attack)
-	// bisskill = true -> 스킬공격 (Skill 몽타주)
-
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitAttackNotified, bool, bIsSkill);
-	UPROPERTY(BlueprintAssignable, Category = "Unit|Anim")
-	FOnUnitAttackNotified OnUnitAttackNotified;
-
-	//공격 애니메이션 재생 트리거
-	/*
-	* CombatManager::ExecuteCard() 직전에 호출
-	* @param bIsSKill true면 skill, false면 Attack몽타주 재생
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Unit|Anim")
-	void NotifyAttack(bool bIsSkill = false);
-
-	//이동 델리게이트
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitMoveNotified, FVector, Destination);
-	UPROPERTY(BlueprintAssignable, Category = "Unit|Anim")
-	FOnUnitMoveNotified OnUnitMoveNotified;
-
-	UFUNCTION(BlueprintCallable, Category = "Unit|Anim")
-	void NotifyMove(FVector WorldDestination);
-	
 	// StatComponent를 직접 저장하지 않고 Find로 가져옴
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Unit")
 	UStatComponent* GetStat() const;
@@ -74,8 +66,6 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Unit")
 	bool IsAlive() const;
 
-
-	
 	// StatComponent를 직접 저장하면 안 되는 이유: AUnit을 상속한 StatComponent를 가진다고 가정하는데,
 	// 나이나 서브클래스에 HP가 필요없는 유닛도 Unit을 베이스로 쓸 경우
 	// FindComponentByClass<>로 없으면 컴포넌트가 없는 경우 nullptr을 받아서 다르게 처리하면 됨
@@ -85,4 +75,7 @@ protected:
 
 	virtual void BeginPlay() override;
 
-};
+	// 마우스 클릭 시 OnUnitClicked 브로드캐스트
+	virtual void NotifyActorOnClicked(FKey ButtonPressed) override;
+
+};	

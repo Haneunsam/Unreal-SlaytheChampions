@@ -4,35 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Card/CardDataTypes.h"
+#include "CombatKernel/EffectTypes.h"
 #include "RelicStruct.generated.h"
-
-UENUM(BlueprintType)
-enum class EEffectType_test : uint8
-{
-	None = 0 UMETA(DisplayName = "None"),
-	Shield = 1 UMETA(DisplayName = "Shield"),
-	Heal = 2 UMETA(DisplayName = "Heal"),
-	MaxHPUp = 3 UMETA(DisplayName = "Max HP Up"),
-	DrawCard = 4 UMETA(DisplayName = "Draw Card"),
-	GainEnergy = 5 UMETA(DisplayName = "Gain Energy"),
-	Summon = 6 UMETA(DisplayName = "Summon"),
-	ChannelLightning = 7 UMETA(DisplayName = "Channel Lightning"),
-	UpgradeAttackCard = 8 UMETA(DisplayName = "Upgrade Attack Card"),
-	Thorns = 9 UMETA(DisplayName = "Thorns"),
-	PoisonBonus = 10 UMETA(DisplayName = "Poison Bonus"),
-	Damage = 11 UMETA(DisplayName = "Damage"),
-	VulnerableDefenseBonus = 12 UMETA(DisplayName = "Vulnerable Defense Bonus"),
-	VulnerableAttackBonus = 13 UMETA(DisplayName = "Vulnerable Attack Bonus"),
-
-	Buff_AttackUp = 100 UMETA(DisplayName = "Attack Up"),
-	Buff_DefenseUp = 101 UMETA(DisplayName = "Defense Up"),
-	Buff_Regen = 102 UMETA(DisplayName = "Regen"),
-
-	Debuff_Weak = 200 UMETA(DisplayName = "Weak"),
-	Debuff_Vulnerable = 201 UMETA(DisplayName = "Vulnerable"),
-	Debuff_Burn = 202 UMETA(DisplayName = "Burn"),
-	Debuff_Frail = 203 UMETA(DisplayName = "Frail")
-};
 
 UENUM(BlueprintType)
 /*유물 적용 타이밍*/
@@ -126,7 +99,7 @@ struct FRelicEffectRow : public FTableRowBase
 	int32 Order = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EEffectType_test BuffType = EEffectType_test::None;
+	EEffectType BuffType = EEffectType::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 Value = 0;
@@ -153,7 +126,7 @@ struct FRelicEffectData
 	int32 Order = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EEffectType_test BuffType = EEffectType_test::None;
+	EEffectType BuffType = EEffectType::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 Value = 0;
