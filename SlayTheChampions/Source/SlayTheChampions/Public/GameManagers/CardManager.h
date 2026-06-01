@@ -39,7 +39,7 @@ public:
 
     /**
      * Pawn의 DeckComponent를 CardManager에 등록한다.
-     * APartyMemberPawn::BeginPlay 에서 호출할 것.
+     * UCardUserComponent::BeginPlay 에서 호출할 것.
      * @param PawnIndex     파티 내 인덱스 (0 = Pawn1, 1 = Pawn2)
      * @param InDeckComp    등록할 DeckComponent
      */

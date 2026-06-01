@@ -24,7 +24,7 @@ void UCardSaveGame::WriteSave(UCardSaveGame* SaveGame)
 
 UCardSaveGame* UCardSaveGame::LoadOrCreate(UDataTable* StarterDeckWarrior, UDataTable* StarterDeckMage)
 {
-    // ���� SaveGame ������ ������ �ҷ���
+    // 기존 SaveGame 파일이 있으면 로드
     UCardSaveGame* Save = LoadSave();
     if (Save)
     {
@@ -32,16 +32,16 @@ UCardSaveGame* UCardSaveGame::LoadOrCreate(UDataTable* StarterDeckWarrior, UData
         return Save;
     }
 
-    // SaveGame ������ DT���� �ʱ� �� ����
+    // SaveGame 없으면 DT 에서 초기 덱 생성
     UE_LOG(LogTemp, Log, TEXT("[CardSaveGame] No SaveGame found - Creating from DataTable"));
 
     Save = Cast<UCardSaveGame>(
         UGameplayStatics::CreateSaveGameObject(UCardSaveGame::StaticClass()));
 
-    // Pawn1(Warrior), Pawn2(Mage) 2�� �ʱ�ȭ
+    // Pawn1(Warrior), Pawn2(Mage) 2명 슬롯 초기화
     Save->PartyDecks.SetNum(2);
 
-    // Pawn1: Warrior ���� ��
+    // Pawn1: Warrior 스타터 덱
     Save->PartyDecks[0].JobClass = EJobClass::Warrior;
     if (StarterDeckWarrior)
     {
@@ -56,7 +56,7 @@ UCardSaveGame* UCardSaveGame::LoadOrCreate(UDataTable* StarterDeckWarrior, UData
             Save->PartyDecks[0].DeckCards.Num());
     }
 
-    // Pawn2: Mage ���� ��
+    // Pawn2: Mage 스타터 덱
     Save->PartyDecks[1].JobClass = EJobClass::Mage;
     if (StarterDeckMage)
     {
@@ -87,7 +87,7 @@ void UCardSaveGame::SaveDeckAfterBattle(int32 PawnIndex,
         return;
     }
 
-    // A���: DrawPile + Hand + DiscardPile ���ļ� ����
+    // A방식: DrawPile + Hand + DiscardPile 합산 저장 (ExhaustPile 제외)
     TArray<FName> Combined;
     Combined.Append(DrawPile);
     Combined.Append(Hand);
@@ -100,9 +100,9 @@ void UCardSaveGame::SaveDeckAfterBattle(int32 PawnIndex,
         PawnIndex, Combined.Num());
 }
 
-// 카드를 추가할 때 마다 호출 해줘야함
 void UCardSaveGame::AddCard(int32 PawnIndex, FName CardName)
 {
+    // 보상/상점에서 카드를 덱에 추가할 때 호출
     UCardSaveGame* Save = LoadSave();
     if (!Save || !Save->PartyDecks.IsValidIndex(PawnIndex))
     {
@@ -118,9 +118,9 @@ void UCardSaveGame::AddCard(int32 PawnIndex, FName CardName)
         Save->PartyDecks[PawnIndex].DeckCards.Num());
 }
 
-// 카드를 (덱에서 카드 지울때)제거할 때 마다 호출 해줘야함
 void UCardSaveGame::RemoveCard(int32 PawnIndex, FName CardName)
 {
+    // 상점/특수 이벤트에서 덱에서 카드를 영구 제거할 때 호출
     UCardSaveGame* Save = LoadSave();
     if (!Save || !Save->PartyDecks.IsValidIndex(PawnIndex))
     {
@@ -137,6 +137,7 @@ void UCardSaveGame::RemoveCard(int32 PawnIndex, FName CardName)
 
 TArray<FName> UCardSaveGame::GetDeckCards(int32 PawnIndex)
 {
+    // 저장된 덱 카드 목록 반환. 없으면 빈 배열.
     UCardSaveGame* Save = LoadSave();
     if (!Save || !Save->PartyDecks.IsValidIndex(PawnIndex))
         return {};
