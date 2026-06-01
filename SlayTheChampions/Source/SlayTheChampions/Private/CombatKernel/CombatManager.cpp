@@ -1,6 +1,10 @@
 ﻿#include "CombatKernel/CombatManager.h"
 #include "CombatKernel/EffectManager.h"
 #include "CombatKernel/CombatStatWidget.h"
+#include "CombatKernel/BattleMainWidget.h"
+#include "Camera/CameraActor.h"
+#include "GameFramework/PlayerController.h"
+#include "Blueprint/UserWidget.h"
 #include "Unit/Unit.h"
 #include "Unit/StatComponent.h"
 #include "Unit/StatusEffectComponent.h"
@@ -8,6 +12,7 @@
 #include "Unit/Enemy/NPCBrainComponent.h"
 #include "Unit/Enemy/IntentComponent.h"
 #include "Components/BoxComponent.h"
+#include "Components/ArrowComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
 
@@ -27,6 +32,35 @@ ACombatManager::ACombatManager()
 	EnemyBox_0 = SetupBox(TEXT("EnemyBox_0"), FVector(   0.f, 300.f, 0.f), FColor::Red);
 	EnemyBox_1 = SetupBox(TEXT("EnemyBox_1"), FVector(-150.f, 300.f, 0.f), FColor::Red);
 	EnemyBox_2 = SetupBox(TEXT("EnemyBox_2"), FVector( 150.f, 300.f, 0.f), FColor::Red);
+
+	// 카메라 슬롯 (화살표 = 카메라 방향) - 에디터에서 이동·회전하여 위치·시선 조정
+	// Default: 흰색 — 전투 시작 초기 위치
+	CameraSlot_Default = CreateDefaultSubobject<UArrowComponent>(TEXT("CameraSlot_Default"));
+	CameraSlot_Default->SetupAttachment(GetRootComponent());
+	CameraSlot_Default->SetRelativeLocation(FVector(-500.f, 0.f, 200.f));
+	CameraSlot_Default->ArrowColor = FColor::White;
+	CameraSlot_Default->SetHiddenInGame(true);
+
+	// Player_0: 파란색 — 0번 플레이어 선택 시 이동 위치
+	CameraSlot_Player_0 = CreateDefaultSubobject<UArrowComponent>(TEXT("CameraSlot_Player_0"));
+	CameraSlot_Player_0->SetupAttachment(GetRootComponent());
+	CameraSlot_Player_0->SetRelativeLocation(FVector(-500.f, -200.f, 200.f));
+	CameraSlot_Player_0->ArrowColor = FColor::Blue;
+	CameraSlot_Player_0->SetHiddenInGame(true);
+
+	// Player_1: 하늘색 — 1번 플레이어 선택 시 이동 위치
+	CameraSlot_Player_1 = CreateDefaultSubobject<UArrowComponent>(TEXT("CameraSlot_Player_1"));
+	CameraSlot_Player_1->SetupAttachment(GetRootComponent());
+	CameraSlot_Player_1->SetRelativeLocation(FVector(-500.f, -350.f, 200.f));
+	CameraSlot_Player_1->ArrowColor = FColor::Cyan;
+	CameraSlot_Player_1->SetHiddenInGame(true);
+
+	// Enemy: 빨간색 — 타겟 지정 시 이동 위치 (적 앞)
+	CameraSlot_Enemy = CreateDefaultSubobject<UArrowComponent>(TEXT("CameraSlot_Enemy"));
+	CameraSlot_Enemy->SetupAttachment(GetRootComponent());
+	CameraSlot_Enemy->SetRelativeLocation(FVector(-500.f, 300.f, 200.f));
+	CameraSlot_Enemy->ArrowColor = FColor::Red;
+	CameraSlot_Enemy->SetHiddenInGame(true);
 }
 
 // 스폰 위치 박스 컴포넌트 하나를 생성하고 루트에 부착하는 헬퍼 함수
@@ -56,6 +90,34 @@ void ACombatManager::InitCombat()
 {
 	SpawnedPlayers.Empty();
 	SpawnedEnemies.Empty();
+
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+
+	// ── 1. 배틀 메인 위젯 생성 ────────────────────────────────
+	// NativeConstruct에서 레벨의 CombatManager를 자동 탐색해 바인딩하므로 AddToViewport 전 CombatManager가 존재해야 함
+	if (BattleWidgetClass && PC)
+	{
+		BattleWidget = CreateWidget<UBattleMainWidget>(PC, BattleWidgetClass);
+		if (BattleWidget)
+			BattleWidget->AddToViewport();
+		else
+			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleWidget creation failed"));
+	}
+
+	// ── 2. 배틀 카메라 스폰 ──────────────────────────────────
+	// CameraSlot_Default 화살표 위치·회전으로 스폰 — 에디터에서 화살표를 이동·회전해 초기 위치 조정
+	if (BattleCameraClass)
+	{
+		const FTransform SpawnTransform = CameraSlot_Default
+			? CameraSlot_Default->GetComponentTransform()
+			: GetActorTransform();
+
+		BattleCamera = GetWorld()->SpawnActor<ACameraActor>(BattleCameraClass, SpawnTransform);
+		if (BattleCamera && PC)
+			PC->SetViewTargetWithBlend(BattleCamera);
+		else
+			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleCamera spawn failed"));
+	}
 
 	UBoxComponent* PlayerBoxes[] = { PlayerBox_0, PlayerBox_1 };
 	FCombatantInitData PlayerDataArr[] = { PlayerData_0, PlayerData_1 };
@@ -143,7 +205,8 @@ AUnit* ACombatManager::SpawnCombatant(TSubclassOf<AUnit> ActorClass,
 }
 
 // 카드 데이터를 기반으로 타겟을 결정하고 데미지/회복/방어도 효과를 적용
-void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex)
+// TargetOverride가 있으면 SingleEnemy 타입에서 해당 유닛을 타겟으로 우선 사용
+void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AUnit* TargetOverride)
 {
 	if (!SpawnedPlayers.IsValidIndex(CasterIndex)) return;
 	AUnit* Caster = SpawnedPlayers[CasterIndex];
@@ -153,8 +216,9 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex)
 	switch (Card.TargetType)
 	{
 		case ETargetType::SingleEnemy:
-			// [임시] 선택 UI 없으므로 0번 적 고정
-			if (SpawnedEnemies.IsValidIndex(0)) Targets.Add(SpawnedEnemies[0]);
+			// 플레이어가 선택한 타겟 우선, 없으면 0번 적 고정
+			if (TargetOverride) Targets.Add(TargetOverride);
+			else if (SpawnedEnemies.IsValidIndex(0)) Targets.Add(SpawnedEnemies[0]);
 			break;
 		case ETargetType::AllEnemies:
 			Targets = SpawnedEnemies;
@@ -173,7 +237,8 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex)
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[ExecuteCard] Targets=%d Damage=%d"), Targets.Num(), Card.Damage);
-	// 효과 실행
+
+	// ── 1. 기본 효과: Damage / HealAmount / Block — 카드의 TargetType 대상에게 적용 ──
 	for (AUnit* Target : Targets)
 	{
 		if (!Target || !Target->IsAlive()) continue;
@@ -181,23 +246,62 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex)
 		UStatComponent* Stat = Target->GetStat();
 		if (!Stat) continue;
 
-		// 데미지 (UsingCount 횟수만큼 반복)
 		if (Card.Damage > 0)
 		{
 			for (int32 i = 0; i < Card.UsingCount; i++)
 				UEffectManager::ProcessDamage(Target, Card.Damage, Caster);
 		}
 
-		// 회복
 		if (Card.HealAmount > 0)
 			Stat->Heal(Card.HealAmount);
 
-		// 방어도
 		if (Card.Block > 0)
 			UEffectManager::ApplyEffect(Target, EEffectType::Shield, Card.Block);
-
-		// [임시] EffectTag — StatusEffectComponent 연결 시 구현
 	}
+
+	// ── 2. Effects 배열 — 각 항목의 TargetType으로 독립적으로 대상 결정 ──────────
+	// EEffectTargetType::UseCardDefault이면 카드 기본 Targets 그대로 사용
+	auto ResolveEffectTargets = [&](EEffectTargetType EffTargetType) -> TArray<AUnit*>
+	{
+		switch (EffTargetType)
+		{
+			case EEffectTargetType::UseCardDefault: return Targets;
+			case EEffectTargetType::SingleEnemy:
+				if (TargetOverride) return { TargetOverride };
+				if (SpawnedEnemies.IsValidIndex(0)) return { SpawnedEnemies[0] };
+				return {};
+			case EEffectTargetType::AllEnemies:   return SpawnedEnemies;
+			case EEffectTargetType::Self:          return { Caster };
+			case EEffectTargetType::SingleAlly:
+				if (SpawnedPlayers.IsValidIndex(0)) return { SpawnedPlayers[0] };
+				return {};
+			case EEffectTargetType::AllAllies:     return SpawnedPlayers;
+			default:                               return Targets;
+		}
+	};
+
+	for (const FCardEffect& Effect : Card.Effects)
+	{
+		if (Effect.EffectType == EEffectType::None || Effect.Value <= 0) continue;
+
+		const TArray<AUnit*> EffectTargets = ResolveEffectTargets(Effect.TargetType);
+		const uint8 TypeVal = static_cast<uint8>(Effect.EffectType);
+
+		for (AUnit* Target : EffectTargets)
+		{
+			if (!Target || !Target->IsAlive()) continue;
+
+			if (TypeVal >= 200)
+				UEffectManager::ApplyDebuff(Target, Effect.EffectType, Effect.Value);
+			else if (TypeVal >= 100)
+				UEffectManager::ApplyBuff(Target, Effect.EffectType, Effect.Value);
+			else
+				UEffectManager::ApplyEffect(Target, Effect.EffectType, Effect.Value);
+		}
+	}
+
+	// 카드 실행 완료 브로드캐스트 (히스토리 위젯·애니메이션 트리거용)
+	OnActionExecuted.Broadcast(Card, CasterIndex);
 }
 
 // 모든 적 또는 플레이어의 생존 여부를 확인하고 결과를 로그로 출력
@@ -253,11 +357,14 @@ void ACombatManager::ApplyTurnStartEffects(const TArray<AUnit*>& Units)
 		UStatusEffectComponent* SEC = Unit->FindComponentByClass<UStatusEffectComponent>();
 		if (!SEC) continue;
 
-		// Shield 리셋
+		// Shield 리셋 (매 턴 시작 시 0으로 초기화)
 		if (SEC->GetEffectValue(EEffectType::Shield) > 0)
 			SEC->SetEffectValue(EEffectType::Shield, 0);
 
-		// 버프/디버프 tick
+		// 수치형 버프/디버프 틱 (Regen 회복, Burn 데미지, 시간제 스택 감소)
+		UEffectManager::TickEffects(Unit);
+
+		// 오브젝트형 효과 틱 (UStatusEffect 파생 클래스)
 		for (UStatusEffect* Effect : SEC->Active)
 			if (Effect) Effect->OnTurnEnd();
 	}
@@ -267,6 +374,8 @@ void ACombatManager::ApplyTurnStartEffects(const TArray<AUnit*>& Units)
 void ACombatManager::StartTurn()
 {
 	TurnCount++;
+	// 새 턴 시작 시 이전 턴 기록 초기화
+	ActionQueue.Empty();
 	UE_LOG(LogTemp, Warning, TEXT("[CombatManager] Turn %d 시작"), TurnCount);
 
 	SetPhase(ETurnPhase::DrawPhase);
@@ -286,58 +395,27 @@ void ACombatManager::StartTurn()
 }
 
 // PlayerActionPhase에서만 동작. 사용한 카드를 ActionQueue에 추가
-void ACombatManager::QueuePlayerAction(const FCardDataRow& Card, int32 CasterIndex)
+void ACombatManager::QueuePlayerAction(const FCardDataRow& Card, int32 CasterIndex, FName CardRowName, AUnit* TargetOverride)
 {
 	if (CurrentPhase != ETurnPhase::PlayerActionPhase) return;
 
 	FQueuedAction Action;
-	Action.Card        = Card;
-	Action.CasterIndex = CasterIndex;
+	Action.Card           = Card;
+	Action.CasterIndex    = CasterIndex;
+	Action.CardRowName    = CardRowName;
+	Action.TargetOverride = TargetOverride;
 	ActionQueue.Add(Action);
 
-	UE_LOG(LogTemp, Warning, TEXT("[CombatManager] 큐 추가: %s (큐 크기=%d)"), *Card.CardID.ToString(), ActionQueue.Num());
+	UE_LOG(LogTemp, Warning, TEXT("[CombatManager] 큐 추가: %s Target=%s (큐 크기=%d)"),
+		*Card.CardID.ToString(),
+		TargetOverride ? *TargetOverride->GetName() : TEXT("default"),
+		ActionQueue.Num());
 }
 
-// 플레이어 행동 입력을 종료하고 큐 실행 페이즈로 전환
+// 플레이어 행동 입력을 종료하고 적 턴으로 직접 전환 (카드 효과는 이미 즉시 실행됨)
 void ACombatManager::EndPlayerActionPhase()
 {
 	if (CurrentPhase != ETurnPhase::PlayerActionPhase) return;
-	SetPhase(ETurnPhase::PlayerExecutionPhase);
-	ExecuteNextAction();
-}
-
-// ActionQueue에서 카드를 하나 꺼내 실행. 큐가 비면 적 턴으로 전환
-void ACombatManager::ExecuteNextAction()
-{
-	if (CurrentPhase != ETurnPhase::PlayerExecutionPhase) return;
-
-	if (ActionQueue.Num() == 0)
-	{
-		OnExecutionFinished.Broadcast();
-		StartEnemyPhase();
-		return;
-	}
-
-	FQueuedAction Action = ActionQueue[0];
-	ActionQueue.RemoveAt(0);
-
-	ExecuteCard(Action.Card, Action.CasterIndex);
-	OnActionExecuted.Broadcast(Action.Card);
-}
-
-// PlayerExecutionPhase에서 남은 ActionQueue를 즉시 전부 실행하고 적 턴으로 전환 (애니메이션 스킵용)
-void ACombatManager::SkipToEnd()
-{
-	if (CurrentPhase != ETurnPhase::PlayerExecutionPhase) return;
-
-	while (ActionQueue.Num() > 0)
-	{
-		FQueuedAction Action = ActionQueue[0];
-		ActionQueue.RemoveAt(0);
-		ExecuteCard(Action.Card, Action.CasterIndex);
-	}
-
-	OnExecutionFinished.Broadcast();
 	StartEnemyPhase();
 }
 
@@ -376,8 +454,11 @@ void ACombatManager::ExecuteNextEnemyAction()
 	if (Brain)
 		ExecuteEnemyAction(Enemy, Brain->PendingAction);
 
-	// [임시] 애니메이션 시스템 연결 전까지 즉시 자동 진행
-	OnEnemyActionComplete();
+	// EnemyActionDelay 후 다음 적 자동 진행 (에디터 Combat|Timing에서 조정)
+	GetWorldTimerManager().SetTimer(
+		EnemyTimerHandle,
+		this, &ACombatManager::OnEnemyActionComplete,
+		EnemyActionDelay, false);
 }
 
 // 현재 적의 행동이 끝났을 때 호출. 다음 적으로 인덱스를 넘김

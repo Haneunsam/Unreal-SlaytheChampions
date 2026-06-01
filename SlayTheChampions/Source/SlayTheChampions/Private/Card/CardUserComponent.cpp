@@ -5,6 +5,8 @@
 #include "Card/CardDataTypes.h"
 #include "GameManagers/CardManager.h"
 #include "Engine/GameInstance.h"
+#include "CombatKernel/CombatManager.h"
+#include "Kismet/GameplayStatics.h"
 
 UCardUserComponent::UCardUserComponent()
 {
@@ -142,20 +144,48 @@ bool UCardUserComponent::PlayCard(FName CardName)
         return false;
     }
 
+    // CardSubsystem 에서 카드 데이터 조회 (효과 실행에 필요)
+    const FCardDataRow* Row = nullptr;
+    if (UGameInstance* GI = GetWorld()->GetGameInstance())
+    {
+        if (UCardSubsystem* CS = GI->GetSubsystem<UCardSubsystem>())
+            Row = CS->GetCard(CardName);
+    }
+
+    if (!Row)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[CardUserComponent] PlayCard - '%s' card data not found in CardSubsystem."),
+            *CardName.ToString());
+        return false;
+    }
+
     // Hand 에서 제거
     Hand.RemoveAt(Idx);
 
     if (DeckComponent)
     {
         // bExhaust 카드면 ExhaustPile(소멸), 일반 카드면 DiscardPile(버리기)
-        if (IsExhaustCard(CardName))
-        {
+        if (Row->bExhaust)
             DeckComponent->ExhaustCard(CardName);
-        }
         else
-        {
             DeckComponent->DiscardCard(CardName);
-        }
+    }
+
+    // CombatManager 의 ActionQueue 에 카드 등록 → PlayerExecutionPhase 에서 실제 효과 실행
+    ACombatManager* CombatMgr = Cast<ACombatManager>(
+        UGameplayStatics::GetActorOfClass(GetWorld(), ACombatManager::StaticClass()));
+    if (CombatMgr)
+    {
+        CombatMgr->QueuePlayerAction(*Row, PawnIndex);
+        UE_LOG(LogTemp, Warning,
+            TEXT("[CardUserComponent] Pawn%d - '%s' queued to CombatManager."),
+            PawnIndex, *CardName.ToString());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[CardUserComponent] PlayCard - CombatManager not found in world."));
     }
 
     // 카드 사용 이벤트 및 Hand 변경 이벤트 브로드캐스트
@@ -172,6 +202,45 @@ void UCardUserComponent::DiscardHand()
     DeckComponent->DiscardAll(Hand);
 
     BroadcastHandChanged();
+}
+
+bool UCardUserComponent::RemoveFromHand(FName CardName)
+{
+    // Hand 에서 카드 위치 탐색
+    const int32 Idx = Hand.IndexOfByKey(CardName);
+    if (Idx == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[CardUserComponent] RemoveFromHand - '%s' not found in hand."),
+            *CardName.ToString());
+        return false;
+    }
+
+    // DiscardPile 이동 없이 Hand 에서만 제거
+    Hand.RemoveAt(Idx);
+    BroadcastHandChanged();
+    return true;
+}
+
+void UCardUserComponent::AddToHand(FName CardName)
+{
+    // 큐 취소 시 카드를 손패로 되돌림 — DiscardPile/DrawPile 조작 없이 Hand 에만 추가
+    Hand.Add(CardName);
+    BroadcastHandChanged();
+}
+
+void UCardUserComponent::DiscardSpecificCard(FName CardName)
+{
+    if (!DeckComponent) return;
+
+    // bExhaust 카드면 ExhaustPile, 일반 카드면 DiscardPile 로 이동
+    if (IsExhaustCard(CardName))
+        DeckComponent->ExhaustCard(CardName);
+    else
+        DeckComponent->DiscardCard(CardName);
+
+    // 카드 사용 완료 이벤트 브로드캐스트
+    OnCardPlayed.Broadcast(CardName);
 }
 
 // ── 조회 ─────────────────────────────────────────────────────────────────────
