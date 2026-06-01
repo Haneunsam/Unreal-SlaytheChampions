@@ -111,6 +111,22 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Card")
     void DiscardHand();
 
+    // Hand 에서만 카드를 제거한다 (DiscardPile 이동 없음).
+    // 카드 큐 등록 시 손패 UI 즉시 갱신 용도.
+    // @return 제거 성공 여부 (Hand 에 없으면 false)
+    UFUNCTION(BlueprintCallable, Category = "Card")
+    bool RemoveFromHand(FName CardName);
+
+    // Hand 에 카드를 직접 추가하고 OnHandChanged 브로드캐스트.
+    // 큐 취소 시 카드를 손패로 되돌리는 용도.
+    UFUNCTION(BlueprintCallable, Category = "Card")
+    void AddToHand(FName CardName);
+
+    // 카드를 DiscardPile(또는 bExhaust면 ExhaustPile)로 이동한다.
+    // Hand 는 건드리지 않음 — RemoveFromHand 이후 실행 완료 시 호출.
+    UFUNCTION(BlueprintCallable, Category = "Card")
+    void DiscardSpecificCard(FName CardName);
+
     // ── 조회 ─────────────────────────────────────────────────────────────────
 
     UFUNCTION(BlueprintPure, Category = "Card")

@@ -8,6 +8,7 @@
 #include "Unit.generated.h"
 
 class UStatComponent;
+class UCapsuleComponent;
 
 /**
  * 전투에 참여하는 모든 유닛의 베이스 Pawn.
@@ -19,6 +20,9 @@ class UStatComponent;
 //DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitDied, AUnit*, Unit);
 
 
+
+// 유닛 클릭 시 브로드캐스트 — BattleMainWidget이 구독해 선택 처리
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitClicked, AUnit*, Unit);
 
 UCLASS()
 class SLAYTHECHAMPIONS_API AUnit : public APawn
@@ -41,6 +45,15 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Unit")
 	FOnUnitDied OnUnitDied;
 
+	// 이 유닛이 클릭될 때 브로드캐스트 (bGenerateClickEvents 활성화 필요)
+	UPROPERTY(BlueprintAssignable, Category = "Unit")
+	FOnUnitClicked OnUnitClicked;
+
+	// 마우스 클릭 감지 전용 캡슐 — Visibility 채널만 Block해 클릭 반경을 넓힘
+	// BP에서 캡슐 크기(HalfHeight, Radius)를 유닛마다 조정 가능
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Unit")
+	UCapsuleComponent* ClickCapsule;
+
 	//
 	UFUNCTION(BlueprintCallable, Category = "Unit")
 	void HandleDeath();
@@ -62,4 +75,7 @@ protected:
 
 	virtual void BeginPlay() override;
 
-};
+	// 마우스 클릭 시 OnUnitClicked 브로드캐스트
+	virtual void NotifyActorOnClicked(FKey ButtonPressed) override;
+
+};	

@@ -36,10 +36,25 @@ void UCardSubsystem::LoadCardDataTable(UDataTable* InTable)
         return;
     }
 
+    // CardID 필드값 → Row Name 역조회 캐시 구축
+    CardIDToRowName.Empty();
+    for (const FName& RowName : CardDataTable->GetRowNames())
+    {
+        const FCardDataRow* Row = CardDataTable->FindRow<FCardDataRow>(RowName, TEXT("BuildCardIDCache"));
+        if (Row) CardIDToRowName.Add(Row->CardID, RowName);
+    }
+
     UE_LOG(LogTemp, Log,
         TEXT("UCardSubsystem: Loaded DataTable '%s' (%d rows)."),
         *CardDataTable->GetName(),
         CardDataTable->GetRowNames().Num());
+}
+
+// CardID 필드값으로 Row Name을 역조회. 없으면 NAME_None 반환
+FName UCardSubsystem::GetRowNameByCardID(FName CardID) const
+{
+    const FName* Found = CardIDToRowName.Find(CardID);
+    return Found ? *Found : NAME_None;
 }
 
 const FCardDataRow* UCardSubsystem::GetCard(FName RowName) const

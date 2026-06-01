@@ -5,62 +5,10 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Unit/StatusEffect.h"
+#include "CombatKernel/EffectTypes.h"
 #include "StatusEffectComponent.generated.h"
 
 class AUnit;
-
-/**
- * EEffectType
- * 수치형 효과의 종류. TMap 키로 사용.
- * None=0 으로 고정. Shield(보호막)=1.
- * Buff 100~199 / Debuff 200~299 로 확장 예정.
- */
-UENUM(BlueprintType)
-enum class EEffectType : uint8
-{
-	None = 0 UMETA(DisplayName = "None"),
-	Shield = 1 UMETA(DisplayName = "Shield"),
-	Heal = 2 UMETA(DisplayName = "Heal"),
-	MaxHPUp = 3 UMETA(DisplayName = "Max HP Up"),
-	DrawCard = 4 UMETA(DisplayName = "Draw Card"),
-	GainEnergy = 5 UMETA(DisplayName = "Gain Energy"),
-	Summon = 6 UMETA(DisplayName = "Summon"),
-	ChannelLightning = 7 UMETA(DisplayName = "Channel Lightning"),
-	UpgradeAttackCard = 8 UMETA(DisplayName = "Upgrade Attack Card"),
-	Thorns = 9 UMETA(DisplayName = "Thorns"),
-	PoisonBonus = 10 UMETA(DisplayName = "Poison Bonus"),
-	Damage = 11 UMETA(DisplayName = "Damage"),
-	VulnerableDefenseBonus = 12 UMETA(DisplayName = "Vulnerable Defense Bonus"),
-	VulnerableAttackBonus = 13 UMETA(DisplayName = "Vulnerable Attack Bonus"),
-	CreateRandomPotion = 14 UMETA(DisplayName = "Create Random Potion"),
-	ReflectDamage = 15 UMETA(DisplayName = "Reflect Damage"),
-	DefenseCardBlockBonus = 16 UMETA(DisplayName = "Defense Card Block Bonus"),
-	FreeHighCostCard = 17 UMETA(DisplayName = "Free High Cost Card"),
-	ShuffleHand = 18 UMETA(DisplayName = "Shuffle Hand"),
-	ExhaustDamageAll = 19 UMETA(DisplayName = "Exhaust Damage All"),
-	BasicAttackDraw = 20 UMETA(DisplayName = "Basic Attack Draw"),
-	ShopFreePurchase = 21 UMETA(DisplayName = "Shop Free Purchase"),
-	ExtraCardReward = 22 UMETA(DisplayName = "Extra Card Reward"),
-	GoldRewardBonus = 23 UMETA(DisplayName = "Gold Reward Bonus"),
-	FirstAttackDamageBonus = 24 UMETA(DisplayName = "First Attack Damage Bonus"),
-	RandomMagicEffect = 25 UMETA(DisplayName = "Random Magic Effect"),
-	RandomCardUpgrade = 26 UMETA(DisplayName = "Random Card Upgrade"),
-	AutoUseRandomHandCard = 28 UMETA(DisplayName = "Auto Use Random Hand Card"),
-	EliteWinAttackUp = 29 UMETA(DisplayName = "Elite Win Attack Up"),
-	ShopPriceRandomize = 30 UMETA(DisplayName = "Shop Price Randomize"),
-	LegendaryCardReward = 31 UMETA(DisplayName = "Legendary Card Reward"),
-	RandomCardCostChange = 32 UMETA(DisplayName = "Random Card Cost Change"),
-
-	Buff_AttackUp = 100 UMETA(DisplayName = "Attack Up"),
-	Buff_DefenseUp = 101 UMETA(DisplayName = "Defense Up"),
-	Buff_Regen = 102 UMETA(DisplayName = "Regen"),
-
-	Debuff_Weak = 200 UMETA(DisplayName = "Weak"),
-	Debuff_Vulnerable = 201 UMETA(DisplayName = "Vulnerable"),
-	Debuff_Burn = 202 UMETA(DisplayName = "Burn"),
-	Debuff_Frail = 203 UMETA(DisplayName = "Frail"),
-	Debuff_Bleed = 204 UMETA(DisplayName = "Bleed")
-};
 
 // 오브젝트형 효과 적용/제거 이벤트
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEffectApplied, UStatusEffect*, Effect);

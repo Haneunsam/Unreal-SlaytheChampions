@@ -66,12 +66,23 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Card|Query")
     TArray<FName> GetAllCardNames() const;
 
+    /**
+     * CardID 필드값으로 DataTable Row Name을 역조회한다.
+     * Row Name == CardID인 경우 동일 값을 반환하므로 오버헤드 없음.
+     * 없으면 NAME_None 반환.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Card|Query")
+    FName GetRowNameByCardID(FName CardID) const;
+
 private:
     // ── 내부 데이터 ──────────────────────────────────────────────────────────
 
     /** 에디터에서 할당: Content/Data/DT_Cards */
     UPROPERTY()
     TObjectPtr<UDataTable> CardDataTable;
+
+    /** CardID 필드값 → Row Name 역조회 캐시 (LoadCardDataTable 시 구축) */
+    TMap<FName, FName> CardIDToRowName;
 
     /** Rarity 수치화 헬퍼 (보상 풀 필터링용) */
     static int32 RarityToInt(ECardRarity Rarity);

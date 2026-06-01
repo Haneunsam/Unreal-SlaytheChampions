@@ -3,11 +3,24 @@
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
 #include "Card/CardDataTypes.h"
-#include "Effect/EffectStruct.h"
+#include "CombatKernel/EffectTypes.h"
 #include "RelicStruct.generated.h"
 
 UENUM(BlueprintType)
-/* 유물 획득 경로 */
+/*유물 적용 타이밍*/
+enum class EEffectiveDate : uint8
+{
+	OnAcquire = 0 UMETA(DisplayName = "On Acquire"),
+	OnMap = 1 UMETA(DisplayName = "On Map"),
+	InShop = 2 UMETA(DisplayName = "In Shop"),
+	OnBattleStart = 3 UMETA(DisplayName = "On Battle Start"),
+	OnBattleEnd = 4 UMETA(DisplayName = "On Battle End"),
+	DuringBattle = 5 UMETA(DisplayName = "During Battle"),
+	None = 99 UMETA(DisplayName = "None"),
+};
+
+UENUM(BlueprintType)
+/*유물 획득 경로*/
 enum class ERelicSourceType : uint8
 {
 	Default = 0 UMETA(DisplayName = "Default"),

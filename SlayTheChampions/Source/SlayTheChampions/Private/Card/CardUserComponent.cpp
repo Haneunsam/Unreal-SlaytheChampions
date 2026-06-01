@@ -204,6 +204,45 @@ void UCardUserComponent::DiscardHand()
     BroadcastHandChanged();
 }
 
+bool UCardUserComponent::RemoveFromHand(FName CardName)
+{
+    // Hand 에서 카드 위치 탐색
+    const int32 Idx = Hand.IndexOfByKey(CardName);
+    if (Idx == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[CardUserComponent] RemoveFromHand - '%s' not found in hand."),
+            *CardName.ToString());
+        return false;
+    }
+
+    // DiscardPile 이동 없이 Hand 에서만 제거
+    Hand.RemoveAt(Idx);
+    BroadcastHandChanged();
+    return true;
+}
+
+void UCardUserComponent::AddToHand(FName CardName)
+{
+    // 큐 취소 시 카드를 손패로 되돌림 — DiscardPile/DrawPile 조작 없이 Hand 에만 추가
+    Hand.Add(CardName);
+    BroadcastHandChanged();
+}
+
+void UCardUserComponent::DiscardSpecificCard(FName CardName)
+{
+    if (!DeckComponent) return;
+
+    // bExhaust 카드면 ExhaustPile, 일반 카드면 DiscardPile 로 이동
+    if (IsExhaustCard(CardName))
+        DeckComponent->ExhaustCard(CardName);
+    else
+        DeckComponent->DiscardCard(CardName);
+
+    // 카드 사용 완료 이벤트 브로드캐스트
+    OnCardPlayed.Broadcast(CardName);
+}
+
 // ── 조회 ─────────────────────────────────────────────────────────────────────
 
 int32 UCardUserComponent::GetDrawPileCount() const
