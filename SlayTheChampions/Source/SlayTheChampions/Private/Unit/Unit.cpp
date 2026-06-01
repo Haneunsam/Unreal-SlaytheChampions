@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Unit/Unit.h"
@@ -26,13 +26,25 @@ AUnit::AUnit()
 void AUnit::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 }
 
 void AUnit::HandleDeath()
 {
 	OnUnitDied.Broadcast(this);
 }
+
+void AUnit::NotifyAttack(bool bIsSkill)
+{
+	OnUnitAttackNotified.Broadcast(bIsSkill);
+}
+
+void AUnit::NotifyMove(FVector WorldDestination)
+{
+	OnUnitMoveNotified.Broadcast(WorldDestination);
+}
+
+
 
 UStatComponent* AUnit::GetStat() const
 {
@@ -56,5 +68,3 @@ void AUnit::NotifyActorOnClicked(FKey ButtonPressed)
 	Super::NotifyActorOnClicked(ButtonPressed);
 	OnUnitClicked.Broadcast(this);
 }
-
-
