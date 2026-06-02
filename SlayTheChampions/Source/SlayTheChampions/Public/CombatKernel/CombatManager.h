@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Card/CardDataTypes.h"
 #include "Unit/CombatTypes.h"
+#include "CombatKernel/MonsterGroupData.h"
 #include "CombatManager.generated.h"
 
 class UStatComponent;
@@ -55,25 +56,6 @@ struct FQueuedAction
 	FName CardRowName;
 };
 
-/**
- * FCombatantInitData
- * InitCombat에서 유닛 스폰 시 주입하는 초기 스탯.
- * 에디터 Details 패널에서 슬롯별로 설정한다.
- */
-USTRUCT(BlueprintType)
-struct FCombatantInitData
-{
-	GENERATED_BODY()
-
-	// 최대 HP
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	int32 MaxHP = 100;
-
-	// 초기 방어도 ([임시] StatComponent에 방어도 추가 후 실제 주입 예정)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	int32 Defence = 0;
-};
-
 // ── 델리게이트 ─────────────────────────────────────────────────────────
 // 페이즈 전환 시 브로드캐스트 (UI 갱신, 코스트 초기화 등에 바인딩)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged,           ETurnPhase, NewPhase);
@@ -83,8 +65,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted,        FCardData
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyTurnStart,         int32,      EnemyIndex);
 // 플레이어 유닛 선택 시 브로드캐스트 (BattleCameraActor BP — 플레이어 뒤로 카메라 이동)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattlePlayerSelected,   AUnit*,     SelectedPlayer);
-// 카드 타겟 대기 진입(true)/해제(false) 시 브로드캐스트 (BattleCameraActor BP — 적 앞으로 카메라 이동)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTargetingStateChanged,  bool,       bIsTargeting);
+// 적 타겟 대기 진입(true)/해제(false) 시 브로드캐스트 (BattleCameraActor BP — 적 앞으로 카메라 이동)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTargetingStateChanged,     bool, bIsTargeting);
+// 아군 타겟 대기 진입(true)/해제(false) 시 브로드캐스트 (BattleCameraActor BP — 플레이어 전체 바라보는 위치로 이동)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllyTargetingStateChanged, bool, bIsTargeting);
 // 뒤로가기로 메인 화면 복귀 시 브로드캐스트 (BattleCameraActor BP — Default 위치로 복귀)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCameraReturnToDefault);
 
@@ -102,14 +86,24 @@ class SLAYTHECHAMPIONS_API ACombatManager : public AActor
 public:
 	ACombatManager();
 
-	// ── 스폰 클래스 ───────────────────────────────────────────────
-	// 스폰할 플레이어 유닛 Blueprint 클래스
-	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
-	TSubclassOf<AUnit> PlayerClass;
+	// ── 유닛 슬롯 (SetPlayerActor/SetEnemyActor로 설정하거나 에디터에서 직접 지정) ──
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
+	AUnit* PlayerActor_0;
 
-	// 스폰할 적 유닛 Blueprint 클래스
-	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
-	TSubclassOf<AUnit> EnemyClass;
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
+	AUnit* PlayerActor_1;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
+	AUnit* PlayerActor_2;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
+	AUnit* EnemyActor_0;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
+	AUnit* EnemyActor_1;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
+	AUnit* EnemyActor_2;
 
 	// 전투 화면 메인 위젯 Blueprint 클래스 (InitCombat에서 자동 생성·AddToViewport)
 	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
@@ -119,31 +113,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
 	TSubclassOf<ACameraActor> BattleCameraClass;
 
+	// 이 전투에서 등장할 몬스터 그룹 데이터 에셋
+	// 설정 시 EnemyActor 슬롯을 무시하고 데이터 에셋 기준으로 스폰
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
+	UMonsterGroupData* MonsterGroup;
+
 	// ── 스폰 수 ──────────────────────────────────────────────────
-	// 스폰할 플레이어 수 (1~2)
-	UPROPERTY(EditAnywhere, Category = "Combat|Setup", meta = (ClampMin = "1", ClampMax = "2"))
+	// 전투에 참여할 플레이어 수 (1~3)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Setup", meta = (ClampMin = "1", ClampMax = "3"))
 	int32 PlayerCount = 1;
 
-	// 스폰할 적 수 (1~3)
-	UPROPERTY(EditAnywhere, Category = "Combat|Setup", meta = (ClampMin = "1", ClampMax = "3"))
+	// 전투에 참여할 적 수 (1~3)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Setup", meta = (ClampMin = "1", ClampMax = "3"))
 	int32 EnemyCount = 1;
-
-	// ── 플레이어 슬롯 데이터 ──────────────────────────────────────
-	UPROPERTY(EditAnywhere, Category = "Combat|PlayerData")
-	FCombatantInitData PlayerData_0;
-
-	UPROPERTY(EditAnywhere, Category = "Combat|PlayerData")
-	FCombatantInitData PlayerData_1;
-
-	// ── 적 슬롯 데이터 ────────────────────────────────────────────
-	UPROPERTY(EditAnywhere, Category = "Combat|EnemyData")
-	FCombatantInitData EnemyData_0;
-
-	UPROPERTY(EditAnywhere, Category = "Combat|EnemyData")
-	FCombatantInitData EnemyData_1;
-
-	UPROPERTY(EditAnywhere, Category = "Combat|EnemyData")
-	FCombatantInitData EnemyData_2;
 
 	// ── 스폰 위치 박스 ────────────────────────────────────────────
 	// 에디터에서 직접 이동하여 스폰 위치를 조정하는 BoxComponent 슬롯들
@@ -152,6 +134,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Slots")
 	UBoxComponent* PlayerBox_1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Slots")
+	UBoxComponent* PlayerBox_2;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Slots")
 	UBoxComponent* EnemyBox_0;
@@ -176,9 +161,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|CameraSlots")
 	UArrowComponent* CameraSlot_Player_1;
 
-	// Enemy: 타겟 지정 시 이동할 위치 (빨간색)
+	// Player_2: 2번 플레이어 선택 시 이동할 위치 (초록색)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|CameraSlots")
+	UArrowComponent* CameraSlot_Player_2;
+
+	// Enemy: 적 타겟 지정 시 이동할 위치 (빨간색)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|CameraSlots")
 	UArrowComponent* CameraSlot_Enemy;
+
+	// AllPlayers: 아군 타겟 지정 시 이동할 위치 — 플레이어 전체가 보이는 각도 (보라색)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|CameraSlots")
+	UArrowComponent* CameraSlot_AllPlayers;
 
 	// ── 딜레이 설정 ──────────────────────────────────────────────
 	// 적 한 명 행동 후 다음 적까지 대기 시간 (초)
@@ -216,16 +209,32 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Camera")
 	FOnBattlePlayerSelected OnBattlePlayerSelected;
 
-	// 카드 타겟 대기 진입/해제 시 (BattleCameraActor BP에서 바인딩)
+	// 적 타겟 대기 진입/해제 시 (BattleCameraActor BP — CameraSlot_Enemy로 이동)
 	UPROPERTY(BlueprintAssignable, Category = "Camera")
 	FOnTargetingStateChanged OnTargetingStateChanged;
+
+	// 아군 타겟 대기 진입/해제 시 (BattleCameraActor BP — CameraSlot_AllPlayers로 이동)
+	UPROPERTY(BlueprintAssignable, Category = "Camera")
+	FOnAllyTargetingStateChanged OnAllyTargetingStateChanged;
 
 	// 뒤로가기 버튼으로 메인 화면 복귀 시 (BattleCameraActor BP에서 바인딩)
 	UPROPERTY(BlueprintAssignable, Category = "Camera")
 	FOnCameraReturnToDefault OnCameraReturnToDefault;
 
+	// ── 유닛 슬롯 설정 함수 ──────────────────────────────────────
+	// 테스트용: 수동으로 슬롯 지정 시 PartyInstance/MonsterGroupData 자동 로드를 무시
+	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
+	void SetPlayerActor(int32 Index, AUnit* Actor);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
+	void SetEnemyActor(int32 Index, AUnit* Actor);
+
+	// 이번 전투의 몬스터 그룹 데이터 에셋 설정 후 InitCombat 호출
+	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
+	void SetMonsterGroup(UMonsterGroupData* Group) { MonsterGroup = Group; }
+
 	// ── 전투 초기화 ───────────────────────────────────────────────
-	// 유닛을 스폰하고 1턴을 시작. BeginPlay에서 자동 호출
+	// SetPlayerActor/SetEnemyActor로 슬롯 설정 후 수동 호출
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void InitCombat();
 
@@ -283,7 +292,7 @@ public:
 	ACameraActor* GetBattleCamera() const { return BattleCamera; }
 
 protected:
-	virtual void BeginPlay() override;
+	virtual void BeginPlay() override;  // Super::BeginPlay()만 호출 — InitCombat은 수동 호출
 
 private:
 	// 스폰된 플레이어 유닛 목록
@@ -300,6 +309,10 @@ private:
 
 	// EnemyPhase에서 현재 행동 중인 적 인덱스
 	int32 CurrentEnemyIndex = 0;
+
+	// SetPlayerActor/SetEnemyActor 호출 시 true — PartyInstance·MonsterGroupData 자동 로드를 무시
+	bool bPlayerManualSet = false;
+	bool bEnemyManualSet  = false;
 
 	// 적 행동 딜레이 타이머
 	FTimerHandle EnemyTimerHandle;
@@ -330,6 +343,4 @@ private:
 
 	// 스폰 위치 BoxComponent를 생성하고 루트에 부착하는 헬퍼
 	UBoxComponent* SetupBox(const FName& BoxName, const FVector& RelativeLocation, const FColor& Color);
-	// 지정 클래스의 유닛을 Box 위치에 스폰하고 초기 스탯·위젯 연결
-	AUnit* SpawnCombatant(TSubclassOf<AUnit> ActorClass, UBoxComponent* Box, const FCombatantInitData& Data);
 };

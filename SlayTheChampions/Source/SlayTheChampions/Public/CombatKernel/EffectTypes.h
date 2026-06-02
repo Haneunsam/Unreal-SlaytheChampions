@@ -40,7 +40,7 @@ enum class EEffectType : uint8
 	Buff_DefenseUp         = 101 UMETA(DisplayName = "Defense Up"),       // 방어력 증가
 	Buff_Regen             = 102 UMETA(DisplayName = "Regen"),            // 매 턴 HP 회복
 
-	// ── 디버프 (200~299) ─────────────────────────────────────────────────
+	// ── 디버프 (200~299) ─────────────────	────────────────────────────────
 	Debuff_Weak            = 200 UMETA(DisplayName = "Weak"),             // 공격력 감소
 	Debuff_Vulnerable      = 201 UMETA(DisplayName = "Vulnerable"),       // 받는 데미지 증가
 	Debuff_Burn            = 202 UMETA(DisplayName = "Burn"),             // 매 턴 데미지

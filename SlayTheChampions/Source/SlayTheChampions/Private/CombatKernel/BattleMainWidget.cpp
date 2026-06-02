@@ -120,11 +120,14 @@ void UBattleMainWidget::BindPlayerClickEvents()
 void UBattleMainWidget::HandlePlayerClicked(AUnit* Unit)
 {
 	if (!Unit) return;
+	// TODO: 사망한 플레이어는 선택되지 않도록 조치 필요
+	//       IsAlive() 체크 추가 및 클릭 이벤트 바인딩 해제 (HandleDeath 연동) 예정
 	UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] Player clicked: %s"), *Unit->GetName());
 
-	// SingleAlly 카드 대기 중: 클릭한 플레이어 유닛을 타겟으로 큐에 등록
+	// SingleAlly 카드 대기 중: 시전자 본인 제외하고 클릭한 플레이어를 타겟으로 등록
 	if (!PendingCardName.IsNone() && PendingCardData.TargetType == ETargetType::SingleAlly)
 	{
+		if (Unit == SelectedUnit) return; // 시전자 본인은 타겟 불가
 		QueueCardAction(PendingCardData, Unit, PendingCardName);
 		return;
 	}
@@ -299,7 +302,14 @@ void UBattleMainWidget::HandleCardClicked(FName CardName, UCardWidget* ClickedCa
 		MainCanvas->SetVisibility(ESlateVisibility::Visible);
 	if (HandPanel) HandPanel->SetTargetingMode(true);
 	OnCardPending(CardName); // UI에는 CardID 전달 (표시용)
-	if (CombatManager) CombatManager->OnTargetingStateChanged.Broadcast(true);
+	// SingleAlly: 아군 타겟팅 카메라 / SingleEnemy: 적 타겟팅 카메라
+	if (CombatManager)
+	{
+		if (Row->TargetType == ETargetType::SingleAlly)
+			CombatManager->OnAllyTargetingStateChanged.Broadcast(true);
+		else
+			CombatManager->OnTargetingStateChanged.Broadcast(true);
+	}
 	UE_LOG(LogTemp, Log, TEXT("[BattleMainWidget] Card pending: %s (RowName: %s) — waiting for target"),
 		*CardName.ToString(), *RowName.ToString());
 }
@@ -517,12 +527,21 @@ FReply UBattleMainWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 void UBattleMainWidget::CancelPendingCard()
 {
 	if (PendingCardName.IsNone()) return;
+
+	// 타입에 따라 올바른 카메라 복귀 델리게이트 브로드캐스트
+	if (CombatManager)
+	{
+		if (PendingCardData.TargetType == ETargetType::SingleAlly)
+			CombatManager->OnAllyTargetingStateChanged.Broadcast(false);
+		else
+			CombatManager->OnTargetingStateChanged.Broadcast(false);
+	}
+
 	PendingCardName = NAME_None;
 	if (MainCanvas)
 		MainCanvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	if (HandPanel) HandPanel->SetTargetingMode(false);
 	OnPendingCleared();
-	if (CombatManager) CombatManager->OnTargetingStateChanged.Broadcast(false);
 }
 
 // SpawnedPlayers에서 현재 선택 다음 인덱스의 살아있는 플레이어로 전환

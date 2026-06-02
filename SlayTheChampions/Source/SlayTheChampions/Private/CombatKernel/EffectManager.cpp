@@ -41,8 +41,10 @@ void UEffectManager::ApplyEffect(AUnit* Target, EEffectType Type, int32 Value)
 		return;
 	}
 
-	// 그 외 효과는 기존 값에 누적
-	SEC->SetEffectValue(Type, SEC->GetEffectValue(Type) + Value);
+	// 그 외 효과는 기존 값에 누적. 버프/디버프(100~299)는 999 상한
+	const int32 NewVal = SEC->GetEffectValue(Type) + Value;
+	const uint8 TypeVal = static_cast<uint8>(Type);
+	SEC->SetEffectValue(Type, TypeVal >= 100 ? FMath::Min(NewVal, 999) : NewVal);
 }
 
 // 버프(100~199) 스택 누적 부여
