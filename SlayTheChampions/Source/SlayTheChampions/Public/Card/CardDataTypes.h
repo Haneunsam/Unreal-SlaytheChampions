@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
-#include "PaperSprite.h"
+#include "Engine/Texture2D.h"
 #include "CombatKernel/EffectTypes.h"
 #include "CardDataTypes.generated.h"
 
@@ -103,12 +103,12 @@ struct FCardDataRow : public FTableRowBase
     FText Description;
 
     /**
-     * 카드 메인 이미지 (PaperSprite).
-     * 카드 1장마다 다른 스프라이트 참조.
-     * DT_Cards 에서 pixelCardAssest_Sprite_XX 형식.
+     * 카드 메인 이미지 (Texture2D).
+     * 카드 1장마다 다른 텍스처 참조.
+     * DT_Cards 에서 Content/01_Card/CardMainImage/ 경로 지정.
      */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Identity")
-    TSoftObjectPtr<UPaperSprite> MainImage;
+    TSoftObjectPtr<UTexture2D> MainImage;
 
     // 희귀도 및 분류 ──────────────────────────────────────────────────────────────
 
@@ -185,6 +185,18 @@ struct FCardDataRow : public FTableRowBase
      */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Effect")
     bool bExhaust = false;
+
+    // 업적 전용 여부 ──────────────────────────────────────────────────────────────
+
+    /**
+     * 업적 전용 카드 여부.
+     * true  : 특정 업적 달성 시에만 도감에 등록됨.
+     *         미획득 시 도감에서 완전 검정으로 표시 (이름/정보 숨김).
+     * false : 일반 카드 - 보상/상점으로 획득 가능.
+     *         미획득 시 도감에서 실루엣(어둡게)으로 표시.
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card|Meta")
+    bool bAchievementOnly = false;
 
     // 밸런스 정보 ──────────────────────────────────────────────────────────────────
 

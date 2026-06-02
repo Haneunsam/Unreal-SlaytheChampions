@@ -14,6 +14,10 @@ class UCapsuleComponent;
  * 전투에 참여하는 모든 유닛의 베이스 Pawn.
  * 유닛에는 어떤 컴포넌트도 강제 포함하지 않으며,
  * 서브클래스 또는 외부 코드에서 필요한 컴포넌트를 붙일 능력을 부여한다.
+ *-- 애니메이션 연동 -----
+ *  공격·이동 타이밍은 UUnitAnimComponent가 아래 델리게이트를 구독해 처리한다.
+ *  CombatManager / EffectManager 등 외부 시스템은
+ *  NotifyAttack() / NotifyMove()만 호출하면 애니메이션이 자동으로 재생된다.
  */
 
 
@@ -41,9 +45,55 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Unit")
 	ETeam Team = ETeam::Enemy;
 
+	//사망 이벤트
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitDied, AUnit*, Unit);
 	UPROPERTY(BlueprintAssignable, Category = "Unit")
 	FOnUnitDied OnUnitDied;
+
+	UFUNCTION(BlueprintCallable, Category = "Unit")
+	void HandleDeath();
+
+	// ── 공격 알림 델리게이트 ─────────────────────────────────────────────────
+   //
+   //  bIsSkill = false → 일반 공격 (Attack 몽타주)
+   //  bIsSkill = true  → 스킬/광역 카드 (Skill 몽타주)
+   //
+   //  [사용 측 예시 — CombatManager.cpp]
+   //    if (AUnit* Caster = SpawnedPlayers[CasterIndex])
+   //        Caster->NotifyAttack(Card.TargetType == ETargetType::AllEnemies);
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitAttackNotified, bool, bIsSkill);
+	UPROPERTY(BlueprintAssignable, Category = "Unit|Anim")
+	FOnUnitAttackNotified OnUnitAttackNotified;
+
+	/**
+	 * 공격 애니메이션 재생 트리거.
+	 * CombatManager::ExecuteCard() 직전에 호출한다.
+	 * @param bIsSkill true면 Skill 몽타주, false면 Attack 몽타주 재생.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Unit|Anim")
+	void NotifyAttack(bool bIsSkill = false);
+
+	// ── 이동 알림 델리게이트 ─────────────────────────────────────────────────
+	//
+	//  [사용 측 예시 — MapManager.cpp or LevelManager.cpp]
+	//    if (AUnit* Player = GetPlayerUnit())
+	//        Player->NotifyMove(NextAreaWorldLocation);
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitMoveNotified, FVector, Destination);
+	UPROPERTY(BlueprintAssignable, Category = "Unit|Anim")
+	FOnUnitMoveNotified OnUnitMoveNotified;
+
+	/**
+	 * 이동 애니메이션 + 위치 인터폴레이션 트리거.
+	 * MapManager / LevelManager 등에서 유닛이 새 위치로 이동할 때 호출한다.
+	 * @param WorldDestination 이동 목표 월드 좌표.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Unit|Anim")
+	void NotifyMove(FVector WorldDestination);
+
+
+
 
 	// 이 유닛이 클릭될 때 브로드캐스트 (bGenerateClickEvents 활성화 필요)
 	UPROPERTY(BlueprintAssignable, Category = "Unit")
@@ -54,9 +104,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Unit")
 	UCapsuleComponent* ClickCapsule;
 
-	//
-	UFUNCTION(BlueprintCallable, Category = "Unit")
-	void HandleDeath();
+	
 
 	// StatComponent를 직접 저장하지 않고 Find로 가져옴
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Unit")
