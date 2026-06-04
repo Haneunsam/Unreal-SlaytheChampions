@@ -14,6 +14,7 @@
 #include "Components/ArrowComponent.h"
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
 #include "Party/PartyInstance.h"
+#include "EngineUtils.h"
 
 // 생성자: 스폰 위치 박스 컴포넌트들을 미리 배치
 ACombatManager::ACombatManager()
@@ -95,7 +96,7 @@ UBoxComponent* ACombatManager::SetupBox(const FName& BoxName,
 void ACombatManager::BeginPlay()
 {
 	Super::BeginPlay();
-	// InitCombat은 레벨 블루프린트에서 적 슬롯 설정 후 수동 호출
+	InitCombat();
 }
 
 // Index번 플레이어 슬롯에 액터 설정 — PartyInstance 자동 로드를 무시하고 이 값을 사용
@@ -127,6 +128,9 @@ void ACombatManager::SetEnemyActor(int32 Index, AUnit* Actor)
 // 등록된 유닛들로 전투를 초기화하고 1턴을 시작
 void ACombatManager::InitCombat()
 {
+	// 이미 초기화됨 — BP BeginPlay 중복 호출 방지
+	if (BattleWidget) return;
+
 	SpawnedPlayers.Empty();
 	SpawnedEnemies.Empty();
 
@@ -151,15 +155,31 @@ void ACombatManager::InitCombat()
 	// bPlayerManualSet이면 Set 함수로 지정된 값 그대로 사용 (PartyInstance 무시)
 	if (!bPlayerManualSet && !PlayerActor_0)
 	{
+		// 1순위: PartyInstance.Champions
 		UGameInstance* GI = GetWorld()->GetGameInstance();
 		UPartyInstance* Party = GI ? GI->GetSubsystem<UPartyInstance>() : nullptr;
-		if (Party)
+		if (Party && Party->GetPartyInfo().Champions.Num() > 0)
 		{
 			const TArray<AUnit*>& Champions = Party->GetPartyInfo().Champions;
 			PlayerCount = FMath::Clamp(Champions.Num(), 1, 3);
 			for (int32 i = 0; i < PlayerCount; i++)
 				SetPlayerActor(i, Champions[i]);
 			UE_LOG(LogTemp, Log, TEXT("[CombatManager] PartyInstance에서 플레이어 %d명 로드"), PlayerCount);
+		}
+		else
+		{
+			// 2순위: 레벨에 배치된 Team==Player AUnit 자동 탐색
+			int32 Idx = 0;
+			for (TActorIterator<AUnit> It(GetWorld()); It && Idx < 3; ++It)
+			{
+				if (It->Team == ETeam::Ally)
+					SetPlayerActor(Idx++, *It);
+			}
+			if (Idx > 0)
+			{
+				PlayerCount = Idx;
+				UE_LOG(LogTemp, Log, TEXT("[CombatManager] 레벨에서 플레이어 %d명 자동 탐색"), Idx);
+			}
 		}
 	}
 
@@ -213,19 +233,30 @@ void ACombatManager::InitCombat()
 			UE_LOG(LogTemp, Warning, TEXT("[CombatManager] Enemy[%d] 스폰: %s (HP:%d)"), i, *Slot.UnitName.ToString(), Slot.MaxHP);
 		}
 	}
-	else
+	else if (bEnemyManualSet || EnemyActor_0)
 	{
-		// 폴백: EnemyActor 슬롯 직접 사용
+		// EnemyActor 슬롯 직접 사용
 		AUnit* EnemyActorArr[] = { EnemyActor_0, EnemyActor_1, EnemyActor_2 };
 		const int32 ClampedEnemyCount = FMath::Clamp(EnemyCount, 1, 3);
 		for (int32 i = 0; i < ClampedEnemyCount; i++)
 		{
 			AUnit* Actor = EnemyActorArr[i];
-			if (!Actor) { UE_LOG(LogTemp, Error, TEXT("[CombatManager] EnemyActor_%d 미설정"), i); continue; }
-
+			if (!Actor) continue;
 			SpawnedEnemies.Add(Actor);
 			UE_LOG(LogTemp, Warning, TEXT("[CombatManager] Enemy[%d] 등록: %s"), i, *Actor->GetName());
 		}
+	}
+	else
+	{
+		// 최후 수단: 레벨에 배치된 Team==Enemy AUnit 자동 탐색
+		for (TActorIterator<AUnit> It(GetWorld()); It && SpawnedEnemies.Num() < 3; ++It)
+		{
+			if (It->Team == ETeam::Enemy)
+				SpawnedEnemies.Add(*It);
+		}
+		EnemyCount = SpawnedEnemies.Num();
+		if (EnemyCount > 0)
+			UE_LOG(LogTemp, Log, TEXT("[CombatManager] 레벨에서 적 %d명 자동 탐색"), EnemyCount);
 	}
 
 	// ── 5. 배틀 메인 위젯 생성 ──────────────────────────────────
@@ -248,7 +279,9 @@ void ACombatManager::InitCombat()
 		GEngine->AddOnScreenDebugMessage(999, 99999.f, FColor::Yellow, Msg);
 	}
 
-	StartTurn();
+	// 모든 액터의 BeginPlay가 완료된 후 드로우가 실행되도록 한 프레임 지연
+	// (CardUserComponent.DeckComponent는 BeginPlay에서 생성되므로 동일 틱 호출 시 null일 수 있음)
+	GetWorldTimerManager().SetTimerForNextTick(this, &ACombatManager::StartTurn);
 }
 
 
@@ -275,8 +308,8 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AU
 			Targets.Add(Caster);
 			break;
 		case ETargetType::SingleAlly:
-			// [임시] 0번 플레이어 고정
-			if (SpawnedPlayers.IsValidIndex(0)) Targets.Add(SpawnedPlayers[0]);
+			if (TargetOverride) Targets.Add(TargetOverride);
+			else if (SpawnedPlayers.IsValidIndex(0)) Targets.Add(SpawnedPlayers[0]);
 			break;
 		case ETargetType::AllAllies:
 		case ETargetType::Single_Team:
@@ -321,6 +354,7 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AU
 			case EEffectTargetType::AllEnemies:   return SpawnedEnemies;
 			case EEffectTargetType::Self:          return { Caster };
 			case EEffectTargetType::SingleAlly:
+				if (TargetOverride) return { TargetOverride };
 				if (SpawnedPlayers.IsValidIndex(0)) return { SpawnedPlayers[0] };
 				return {};
 			case EEffectTargetType::AllAllies:     return SpawnedPlayers;
@@ -468,6 +502,9 @@ void ACombatManager::QueuePlayerAction(const FCardDataRow& Card, int32 CasterInd
 	Action.CasterIndex    = CasterIndex;
 	Action.CardRowName    = CardRowName;
 	Action.TargetOverride = TargetOverride;
+	if (ActionQueue.Num() >= 10)
+		ActionQueue.RemoveAt(0);
+
 	ActionQueue.Add(Action);
 
 	UE_LOG(LogTemp, Warning, TEXT("[CombatManager] 큐 추가: %s Target=%s (큐 크기=%d)"),

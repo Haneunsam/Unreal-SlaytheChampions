@@ -16,7 +16,7 @@ class UBattleMainWidget;
 
 /**
  * ETurnPhase
- * 한 턴의 진행 순서. DrawPhase → PlayerActionPhase → PlayerExecutionPhase → EnemyPhase.
+ * 한 턴의 진행 순서. DrawPhase -> PlayerActionPhase -> PlayerExecutionPhase -> EnemyPhase.
  * SetPhase()로 전환되며, 각 페이즈 진입 시 CheckCombatEnd()가 먼저 실행된다.
  */
 UENUM(BlueprintType)
@@ -63,13 +63,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged,           ETurnPhas
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted,        FCardDataRow, Card, int32, CasterIndex);
 // EnemyPhase에서 특정 인덱스의 적이 행동을 시작할 때 브로드캐스트
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyTurnStart,         int32,      EnemyIndex);
-// 플레이어 유닛 선택 시 브로드캐스트 (BattleCameraActor BP — 플레이어 뒤로 카메라 이동)
+// 플레이어 유닛 선택 시 브로드캐스트 (BattleCameraActor BP)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattlePlayerSelected,   AUnit*,     SelectedPlayer);
-// 적 타겟 대기 진입(true)/해제(false) 시 브로드캐스트 (BattleCameraActor BP — 적 앞으로 카메라 이동)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTargetingStateChanged,     bool, bIsTargeting);
-// 아군 타겟 대기 진입(true)/해제(false) 시 브로드캐스트 (BattleCameraActor BP — 플레이어 전체 바라보는 위치로 이동)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllyTargetingStateChanged, bool, bIsTargeting);
-// 뒤로가기로 메인 화면 복귀 시 브로드캐스트 (BattleCameraActor BP — Default 위치로 복귀)
+// 타겟 대기 진입(true)/해제(false) 시 브로드캐스트
+// bIsAlly=false -> CameraSlot_Enemy, bIsAlly=true -> CameraSlot_AllPlayers
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTargetingStateChanged, bool, bIsTargeting, bool, bIsAlly);
+// 뒤로가기로 메인 화면 복귀 시 브로드캐스트 (BattleCameraActor BP)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCameraReturnToDefault);
 
 /**
@@ -169,7 +168,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|CameraSlots")
 	UArrowComponent* CameraSlot_Enemy;
 
-	// AllPlayers: 아군 타겟 지정 시 이동할 위치 — 플레이어 전체가 보이는 각도 (보라색)
+	// AllPlayers: 아군 타겟 지정 시 이동할 위치 (보라색)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|CameraSlots")
 	UArrowComponent* CameraSlot_AllPlayers;
 
@@ -209,13 +208,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Camera")
 	FOnBattlePlayerSelected OnBattlePlayerSelected;
 
-	// 적 타겟 대기 진입/해제 시 (BattleCameraActor BP — CameraSlot_Enemy로 이동)
+	// 타겟 대기 진입/해제 시 (BattleCameraActor BP에서 바인딩)
+	// bIsAlly=false -> CameraSlot_Enemy, bIsAlly=true -> CameraSlot_AllPlayers
 	UPROPERTY(BlueprintAssignable, Category = "Camera")
 	FOnTargetingStateChanged OnTargetingStateChanged;
-
-	// 아군 타겟 대기 진입/해제 시 (BattleCameraActor BP — CameraSlot_AllPlayers로 이동)
-	UPROPERTY(BlueprintAssignable, Category = "Camera")
-	FOnAllyTargetingStateChanged OnAllyTargetingStateChanged;
 
 	// 뒤로가기 버튼으로 메인 화면 복귀 시 (BattleCameraActor BP에서 바인딩)
 	UPROPERTY(BlueprintAssignable, Category = "Camera")
@@ -245,7 +241,7 @@ public:
 	void ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AUnit* TargetOverride = nullptr);
 
 	// ── 턴 함수 ───────────────────────────────────────────────────
-	// DrawPhase 시작: Shield 리셋 → 버프/디버프 tick → PlayerActionPhase
+	// DrawPhase 시작: Shield 리셋 -> 버프/디버프 tick -> PlayerActionPhase
 	UFUNCTION(BlueprintCallable, Category = "Turn")
 	void StartTurn();
 
@@ -254,7 +250,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn")
 	void QueuePlayerAction(const FCardDataRow& Card, int32 CasterIndex, FName CardRowName = NAME_None, AUnit* TargetOverride = nullptr);
 
-	// PlayerActionPhase 종료 → EnemyPhase로 직접 전환 (카드 효과는 이미 즉시 실행됨)
+	// PlayerActionPhase 종료 -> EnemyPhase로 직접 전환 (카드 효과는 이미 즉시 실행됨)
 	UFUNCTION(BlueprintCallable, Category = "Turn")
 	void EndPlayerActionPhase();
 
@@ -262,7 +258,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Turn")
 	const TArray<FQueuedAction>& GetActionHistory() const { return ActionQueue; }
 
-	// 적 행동 완료 후 호출 → 다음 적으로 인덱스 전진
+	// 적 행동 완료 후 호출 -> 다음 적으로 인덱스 전진
 	UFUNCTION(BlueprintCallable, Category = "Turn")
 	void OnEnemyActionComplete();
 
@@ -292,7 +288,7 @@ public:
 	ACameraActor* GetBattleCamera() const { return BattleCamera; }
 
 protected:
-	virtual void BeginPlay() override;  // Super::BeginPlay()만 호출 — InitCombat은 수동 호출
+	virtual void BeginPlay() override;
 
 private:
 	// 스폰된 플레이어 유닛 목록
@@ -325,7 +321,7 @@ private:
 	UPROPERTY()
 	ACameraActor* BattleCamera = nullptr;
 
-	// 페이즈를 전환하고 CheckCombatEnd → OnPhaseChanged 브로드캐스트
+	// 페이즈를 전환하고 CheckCombatEnd -> OnPhaseChanged 브로드캐스트
 	void SetPhase(ETurnPhase NewPhase);
 	// 전투 종료 조건(전멸) 확인 후 로그 출력 (TODO: 화면 전환 연결)
 	void CheckCombatEnd();
@@ -338,7 +334,7 @@ private:
 
 	// DrawPhase에 살아있는 모든 적의 NPCBrainComponent::PlanNextAction을 호출
 	void PlanAllEnemyActions();
-	// 적 한 명의 FEnemyAction을 실행 (Attack → ProcessDamage, Defend → Shield 부여)
+	// 적 한 명의 FEnemyAction을 실행 (Attack -> ProcessDamage, Defend -> Shield 부여)
 	void ExecuteEnemyAction(AUnit* Caster, const FEnemyAction& Action);
 
 	// 스폰 위치 BoxComponent를 생성하고 루트에 부착하는 헬퍼

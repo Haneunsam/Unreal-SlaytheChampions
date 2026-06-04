@@ -3,6 +3,7 @@
 #include "Unit/Unit.h"
 #include "Unit/StatusEffectComponent.h"
 #include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 
 // 유닛의 StatusEffectComponent에 바인딩
 // 이전 바인딩이 있으면 먼저 해제하고 새로 연결
@@ -90,7 +91,9 @@ UBuffIconWidget* UBuffPanelWidget::CreateIcon(EEffectType Type, int32 Value)
 	}
 
 	// 계층구조에 먼저 추가한 뒤 SetBuff 호출 — 나이아가라가 위젯 트리 안에서 초기화돼야 렌더링됨
-	BuffContainer->AddChild(Icon);
+	UHorizontalBoxSlot* HBoxSlot = Cast<UHorizontalBoxSlot>(BuffContainer->AddChild(Icon));
+	if (HBoxSlot)
+		HBoxSlot->SetPadding(FMargin(0.f, 0.f, IconSpacing, 0.f));
 	ActiveIcons.Add(Type, Icon);
 	Icon->SetBuff(Type, Value);
 

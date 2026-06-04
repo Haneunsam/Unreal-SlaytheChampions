@@ -141,7 +141,7 @@ void UBattleMainWidget::HandlePlayerClicked(AUnit* Unit)
 			MainCanvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		OnPendingCleared();
 		// 타겟 대기 해제 알림 (카메라 복귀용)
-		if (CombatManager) CombatManager->OnTargetingStateChanged.Broadcast(false);
+		if (CombatManager) CombatManager->OnTargetingStateChanged.Broadcast(false, false);
 	}
 
 	// 이전 선택 유닛의 CardUserComponent 바인딩 해제 후 새 유닛 선택
@@ -305,10 +305,7 @@ void UBattleMainWidget::HandleCardClicked(FName CardName, UCardWidget* ClickedCa
 	// SingleAlly: 아군 타겟팅 카메라 / SingleEnemy: 적 타겟팅 카메라
 	if (CombatManager)
 	{
-		if (Row->TargetType == ETargetType::SingleAlly)
-			CombatManager->OnAllyTargetingStateChanged.Broadcast(true);
-		else
-			CombatManager->OnTargetingStateChanged.Broadcast(true);
+		CombatManager->OnTargetingStateChanged.Broadcast(true, Row->TargetType == ETargetType::SingleAlly);
 	}
 	UE_LOG(LogTemp, Log, TEXT("[BattleMainWidget] Card pending: %s (RowName: %s) — waiting for target"),
 		*CardName.ToString(), *RowName.ToString());
@@ -530,12 +527,7 @@ void UBattleMainWidget::CancelPendingCard()
 
 	// 타입에 따라 올바른 카메라 복귀 델리게이트 브로드캐스트
 	if (CombatManager)
-	{
-		if (PendingCardData.TargetType == ETargetType::SingleAlly)
-			CombatManager->OnAllyTargetingStateChanged.Broadcast(false);
-		else
-			CombatManager->OnTargetingStateChanged.Broadcast(false);
-	}
+		CombatManager->OnTargetingStateChanged.Broadcast(false, PendingCardData.TargetType == ETargetType::SingleAlly);
 
 	PendingCardName = NAME_None;
 	if (MainCanvas)

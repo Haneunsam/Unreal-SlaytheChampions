@@ -31,6 +31,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Buff")
 	TSubclassOf<UBuffIconWidget> BuffIconClass;
 
+	// 아이콘 사이 오른쪽 간격 (에디터에서 조절)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Buff", meta = (ClampMin = "0"))
+	float IconSpacing = 4.f;
+
 	// ── 공개 API ─────────────────────────────────────────────────────────────
 	// 유닛의 StatusEffectComponent에 바인딩 — 이후 자동으로 버프 UI 갱신
 	UFUNCTION(BlueprintCallable, Category = "Buff")
