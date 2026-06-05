@@ -17,13 +17,12 @@ class SLAYTHECHAMPIONS_API UEnemyInitializerComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:	
-	// Sets default values for this component's properties
 	UEnemyInitializerComponent();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
 	TObjectPtr<UEnemyDefinitionData> Definition;
 
-	// 스폰 직후 1회 호출 유닛 구성
+	// 스폰 직후 한번 실행
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
 	void InitializeFromDefinition(UEnemyDefinitionData* Def);
 	
