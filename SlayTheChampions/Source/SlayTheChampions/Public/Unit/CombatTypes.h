@@ -17,6 +17,16 @@ enum class ETeam : uint8
     Neutral UMETA(DisplayName = "Neutral")
 };
 
+// 적 등급
+UENUM(BlueprintType)
+enum class EEnemyTier : uint8
+{
+    Normal  UMETA(DisplayName = "Normal"),
+    Elite   UMETA(DisplayName = "Elite"),
+    Boss    UMETA(DisplayName = "Boss"),
+    Unkown  UMETA(DisplayName = "Unknown")
+};
+
 /**
  * EIntentKind
  * 적 행동 의도 종류. IntentComponent UI 표시 및 ExecuteEnemyAction 분기에 사용.
