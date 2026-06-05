@@ -402,6 +402,9 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AU
 
 	// 카드 실행 완료 브로드캐스트 (히스토리 위젯·애니메이션 트리거용)
 	OnActionExecuted.Broadcast(Card, CasterIndex);
+
+	// 카드 사용 후 즉시 사망 여부 확인 (적 전멸 시 전투 종료 조건 체크)
+	CheckCombatEnd();
 }
 
 // 모든 적 또는 플레이어의 생존 여부를 확인하고 결과를 로그로 출력
@@ -442,14 +445,12 @@ void ACombatManager::SetPhase(ETurnPhase NewPhase)
 	{
 		case ETurnPhase::DrawPhase:            UE_LOG(LogTemp, Warning, TEXT("[Turn %d] 드로우턴"), TurnCount);      break;
 		case ETurnPhase::PlayerActionPhase:    UE_LOG(LogTemp, Warning, TEXT("[Turn %d] 플레이어 행동턴"), TurnCount); break;
-		case ETurnPhase::PlayerExecutionPhase: UE_LOG(LogTemp, Warning, TEXT("[Turn %d] 행동 큐 실행턴"), TurnCount); break;
 		case ETurnPhase::EnemyPhase:           UE_LOG(LogTemp, Warning, TEXT("[Turn %d] 몬스터턴"), TurnCount);      break;
 	}
 }
 
-// 지정 유닛 배열의 Shield를 리셋하고 버프/디버프 지속 시간을 차감.
-// 플레이어는 DrawPhase에, 적은 EnemyPhase 시작 시 각각 호출한다
-void ACombatManager::ApplyTurnStartEffects(const TArray<AUnit*>& Units)
+// 지정 유닛 배열의 Shield만 0으로 리셋
+void ACombatManager::ApplyShieldReset(const TArray<AUnit*>& Units)
 {
 	for (AUnit* Unit : Units)
 	{
@@ -457,11 +458,21 @@ void ACombatManager::ApplyTurnStartEffects(const TArray<AUnit*>& Units)
 		UStatusEffectComponent* SEC = Unit->FindComponentByClass<UStatusEffectComponent>();
 		if (!SEC) continue;
 
-		// Shield 리셋 (매 턴 시작 시 0으로 초기화)
 		if (SEC->GetEffectValue(EEffectType::Shield) > 0)
 			SEC->SetEffectValue(EEffectType::Shield, 0);
+	}
+}
 
-		// 수치형 버프/디버프 틱 (Regen 회복, Burn 데미지, 시간제 스택 감소)
+// Shield 제외 버프/디버프 tick (Regen 회복, Burn 데미지, 시간제 스택 감소)
+void ACombatManager::TickBuffsAndDebuffs(const TArray<AUnit*>& Units)
+{
+	for (AUnit* Unit : Units)
+	{
+		if (!Unit) continue;
+		UStatusEffectComponent* SEC = Unit->FindComponentByClass<UStatusEffectComponent>();
+		if (!SEC) continue;
+
+		// 수치형 버프/디버프 틱
 		UEffectManager::TickEffects(Unit);
 
 		// 오브젝트형 효과 틱 (UStatusEffect 파생 클래스)
@@ -477,7 +488,14 @@ void ACombatManager::StartTurn()
 	UE_LOG(LogTemp, Warning, TEXT("[CombatManager] Turn %d 시작"), TurnCount);
 
 	SetPhase(ETurnPhase::DrawPhase);
-	ApplyTurnStartEffects(SpawnedPlayers); // DrawPhase: 플레이어 Shield 리셋 + 상태효과 tick
+
+	// 플레이어: Shield 리셋 + 버프/디버프 tick
+	ApplyShieldReset(SpawnedPlayers);
+	TickBuffsAndDebuffs(SpawnedPlayers);
+
+	// 몬스터: 버프/디버프 tick만 (Shield는 EnemyPhase 시작 시 따로 리셋)
+	TickBuffsAndDebuffs(SpawnedEnemies);
+
 	PlanAllEnemyActions(); // DrawPhase: 모든 적의 이번 턴 행동을 미리 결정
 
 	// 살아있는 플레이어 유닛에게만 턴 시작 드로우 요청
@@ -524,7 +542,13 @@ void ACombatManager::StartEnemyPhase()
 {
 	CurrentEnemyIndex = 0;
 	SetPhase(ETurnPhase::EnemyPhase);
-	ApplyTurnStartEffects(SpawnedEnemies); // EnemyPhase: 적 Shield 리셋 + 상태효과 tick
+
+	// 몬스터 페이즈 시작 트리거 — 방어도 사라지기 전 (연출·UI용)
+	OnEnemyPhaseStarted.Broadcast();
+
+	// 몬스터 Shield만 리셋 (버프/디버프는 DrawPhase에서 이미 처리됨)
+	ApplyShieldReset(SpawnedEnemies);
+
 	ExecuteNextEnemyAction();
 }
 
@@ -564,6 +588,9 @@ void ACombatManager::ExecuteNextEnemyAction()
 // 현재 적의 행동이 끝났을 때 호출. 다음 적으로 인덱스를 넘김
 void ACombatManager::OnEnemyActionComplete()
 {
+	// 몬스터 행동 완료 트리거 (연출·UI용)
+	OnEnemyActionFinished.Broadcast(CurrentEnemyIndex);
+
 	CurrentEnemyIndex++;
 	ExecuteNextEnemyAction();
 }

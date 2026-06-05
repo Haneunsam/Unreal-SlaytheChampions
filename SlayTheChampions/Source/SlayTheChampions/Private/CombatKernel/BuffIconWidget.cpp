@@ -11,9 +11,19 @@ void UBuffIconWidget::SetBuff(EEffectType Type, int32 Value)
 	CurrentEffectType = Type;
 	CurrentValue      = Value;
 
-	// 스택 수 텍스트 갱신
+	// 스택 수 텍스트 갱신 (0 이하면 숨김)
 	if (Text_Value)
-		Text_Value->SetText(FText::AsNumber(Value));
+	{
+		if (Value > 0)
+		{
+			Text_Value->SetText(FText::AsNumber(Value));
+			Text_Value->SetVisibility(ESlateVisibility::Visible);
+		}
+		else
+		{
+			Text_Value->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
 
 	// 매핑된 나이아가라 시스템 조회 — 없으면 nullptr 전달 (BP에서 기본 처리)
 	UNiagaraSystem* NewSystem = nullptr;

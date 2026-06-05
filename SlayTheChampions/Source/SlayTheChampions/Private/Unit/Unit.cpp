@@ -58,7 +58,7 @@ bool AUnit::IsAlive() const
 		return Stat->CurrentHP > 0;
 	}
 
-	// StatComponent가 없으면 살아있다고 간주
+	// StatComponent가 없으면 죽은 것으로 간주 (전투 대상에서 제외)
 	return false;
 }
 

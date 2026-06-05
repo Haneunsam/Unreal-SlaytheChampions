@@ -90,17 +90,6 @@ void UBattleMainWidget::OnPhaseChanged(ETurnPhase NewPhase)
 		SharedCost = MaxCost;
 		UpdateCostDisplay();
 	}
-	else if (NewPhase == ETurnPhase::PlayerExecutionPhase)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] PlayerExecutionPhase | HandPanel=%s"),
-			HandPanel ? TEXT("valid") : TEXT("NULL"));
-		// 턴 종료 → 손패 숨김 및 플레이어 선택 해제
-		DeselectCurrentPlayer();
-		if (Btn_NextPlayer) Btn_NextPlayer->SetVisibility(ESlateVisibility::Collapsed);
-		if (Btn_Back) Btn_Back->SetVisibility(ESlateVisibility::Collapsed);
-		if (CombatManager) CombatManager->OnCameraReturnToDefault.Broadcast();
-		OnReturnToMainScreen();
-	}
 }
 
 // SpawnedPlayers 각각의 OnUnitClicked에 바인딩
@@ -315,7 +304,7 @@ void UBattleMainWidget::HandleCardClicked(FName CardName, UCardWidget* ClickedCa
 // 클릭 수신 여부를 항상 로그로 출력, PendingCard가 있으면 타겟으로 큐에 등록
 void UBattleMainWidget::HandleEnemyClicked(AUnit* Enemy)
 {
-	if (!Enemy) return;
+	if (!Enemy || !Enemy->IsAlive()) return;
 
 	// 적 클릭 수신 확인 로그 (PendingCard 여부와 무관하게 항상 출력)
 	UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] Enemy clicked: %s | PendingCard: %s"),
@@ -397,11 +386,12 @@ void UBattleMainWidget::QueueCardAction(const FCardDataRow& CardData, AUnit* Tar
 	CancelPendingCard();
 }
 
-// Btn_EndTurn 클릭 → PlayerExecutionPhase 진입 후 큐 실행
+// Btn_EndTurn 클릭 → 손패 정리·선택 해제·카메라 복귀 후 EndPlayerActionPhase 호출
 // 대기 중인 카드가 있으면 먼저 취소하여 다음 턴에 OnPendingCleared가 오발되는 것을 방지
 void UBattleMainWidget::HandleEndTurnClicked()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] HandleEndTurnClicked called"));
+	OnPlayerTurnEnd();
 	CancelPendingCard();
 
 	// 턴 종료 시 모든 플레이어의 손패를 버림 파일로 이동
@@ -415,6 +405,9 @@ void UBattleMainWidget::HandleEndTurnClicked()
 		}
 	}
 
+	// 플레이어 선택 해제 (OnHandChanged 바인딩 해제 + SelectedUnit 초기화)
+	DeselectCurrentPlayer();
+
 	// 버튼 즉시 숨김
 	if (Btn_NextPlayer) Btn_NextPlayer->SetVisibility(ESlateVisibility::Collapsed);
 	if (Btn_Back) Btn_Back->SetVisibility(ESlateVisibility::Collapsed);
@@ -424,6 +417,11 @@ void UBattleMainWidget::HandleEndTurnClicked()
 		HandPanel->PlayHideAnimation();
 	else
 		OnHideHand();
+
+	// 카메라 Default 위치 복귀 + 메인 화면 복귀 알림
+	if (CombatManager)
+		CombatManager->OnCameraReturnToDefault.Broadcast();
+	OnReturnToMainScreen();
 
 	if (CombatManager)
 		CombatManager->EndPlayerActionPhase();

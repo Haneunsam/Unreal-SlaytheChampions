@@ -16,7 +16,7 @@ class UBattleMainWidget;
 
 /**
  * ETurnPhase
- * 한 턴의 진행 순서. DrawPhase -> PlayerActionPhase -> PlayerExecutionPhase -> EnemyPhase.
+ * 한 턴의 진행 순서. DrawPhase -> PlayerActionPhase -> EnemyPhase.
  * SetPhase()로 전환되며, 각 페이즈 진입 시 CheckCombatEnd()가 먼저 실행된다.
  */
 UENUM(BlueprintType)
@@ -24,7 +24,6 @@ enum class ETurnPhase : uint8
 {
 	DrawPhase             UMETA(DisplayName = "Draw Phase"),
 	PlayerActionPhase     UMETA(DisplayName = "Player Action Phase"),
-	PlayerExecutionPhase  UMETA(DisplayName = "Player Execution Phase"),
 	EnemyPhase            UMETA(DisplayName = "Enemy Phase"),
 };
 
@@ -70,6 +69,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattlePlayerSelected,   AUnit*,  
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTargetingStateChanged, bool, bIsTargeting, bool, bIsAlly);
 // 뒤로가기로 메인 화면 복귀 시 브로드캐스트 (BattleCameraActor BP)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCameraReturnToDefault);
+// 몬스터 페이즈 시작 시 브로드캐스트 (방어도 사라지기 전 — 연출 트리거용)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEnemyPhaseStarted);
+// 몬스터 1명 행동 완료 후 브로드캐스트 (다음 행동 전 — 연출 트리거용)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyActionFinished, int32, EnemyIndex);
 
 /**
  * ACombatManager
@@ -217,6 +220,14 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Camera")
 	FOnCameraReturnToDefault OnCameraReturnToDefault;
 
+	// 몬스터 페이즈 시작 시 — 방어도 리셋 전 (연출·UI 트리거용)
+	UPROPERTY(BlueprintAssignable, Category = "Turn")
+	FOnEnemyPhaseStarted OnEnemyPhaseStarted;
+
+	// 몬스터 1명 행동 완료 후 — 다음 행동 전 (연출·UI 트리거용)
+	UPROPERTY(BlueprintAssignable, Category = "Turn")
+	FOnEnemyActionFinished OnEnemyActionFinished;
+
 	// ── 유닛 슬롯 설정 함수 ──────────────────────────────────────
 	// 테스트용: 수동으로 슬롯 지정 시 PartyInstance/MonsterGroupData 자동 로드를 무시
 	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
@@ -326,8 +337,10 @@ private:
 	void SetPhase(ETurnPhase NewPhase);
 	// 전투 종료 조건(전멸) 확인 후 로그 출력 (TODO: 화면 전환 연결)
 	void CheckCombatEnd();
-	// 지정 유닛의 Shield를 리셋하고 상태효과 tick. 플레이어·적을 분리 호출한다
-	void ApplyTurnStartEffects(const TArray<AUnit*>& Units);
+	// 지정 유닛의 Shield만 0으로 리셋
+	void ApplyShieldReset(const TArray<AUnit*>& Units);
+	// Shield 제외 버프/디버프 tick (Regen 회복, Burn 데미지, 시간제 스택 감소)
+	void TickBuffsAndDebuffs(const TArray<AUnit*>& Units);
 	// EnemyPhase를 시작하고 첫 번째 살아있는 적부터 행동을 진행
 	void StartEnemyPhase();
 	// 죽은 적을 건너뛰며 CurrentEnemyIndex 적이 행동하도록 처리

@@ -76,6 +76,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Selection")
 	void OnHideHand();
 
+	// 플레이어 턴 종료 버튼 클릭 시 BP 트리거 (연출·사운드용)
+	UFUNCTION(BlueprintImplementableEvent, Category = "Turn")
+	void OnPlayerTurnEnd();
+
 	// 대기 카드 취소 — BP의 오버레이 버튼, 우클릭 등에서 직접 호출 가능
 	UFUNCTION(BlueprintCallable, Category = "Selection")
 	void CancelPendingCard();
@@ -105,7 +109,7 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* Text_Cost;
 
-	// 턴 종료 버튼 — 클릭 시 PlayerExecutionPhase로 전환
+	// 턴 종료 버튼 — 클릭 시 손패 정리 후 EndPlayerActionPhase 호출
 	UPROPERTY(meta = (BindWidgetOptional))
 	UButton* Btn_EndTurn;
 
