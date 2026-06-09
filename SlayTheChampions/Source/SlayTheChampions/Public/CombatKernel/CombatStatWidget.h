@@ -10,6 +10,8 @@ class UImage;
 class AUnit;
 class UStatComponent;
 class UStatusEffectComponent;
+class UNiagaraSystemWidget;
+class UBuffPanelWidget;
 
 /**
  * UCombatStatWidget
@@ -35,9 +37,21 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* Text_Defence;
 
+	// 유닛 이름 텍스트 — WBP에서 'Text_Name' 이름으로 배치
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* Text_Name;
+
 	// 방패 아이콘 — Shield=0이면 숨김 (BindWidgetOptional: 없어도 크래시 없음)
 	UPROPERTY(meta = (BindWidgetOptional))
 	UImage* Image_Block;
+
+	// 방어도 나이아가라 위젯 — Shield=0이면 숨김, WBP에서 'NiagaraShield' 이름으로 배치
+	UPROPERTY(meta = (BindWidgetOptional))
+	UNiagaraSystemWidget* NiagaraShield;
+
+	// 버프/디버프 패널 — WBP에서 'BuffPanel' 이름으로 배치
+	UPROPERTY(meta = (BindWidgetOptional))
+	UBuffPanelWidget* BuffPanel;
 
 private:
 	// 연결된 유닛의 StatComponent 캐시

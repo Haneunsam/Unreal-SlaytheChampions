@@ -31,7 +31,8 @@ enum class EIntentKind : uint8
     Buff         UMETA(DisplayName = "Buff"),
     Debuff       UMETA(DisplayName = "Debuff"),
     Shield       UMETA(DisplayName = "Shield"),    // 기믹 전용 쉴드 (GimmickComponent 사용)
-    Unknown      UMETA(DisplayName = "Unknown")
+    Unknown      UMETA(DisplayName = "Unknown"),
+    Question     UMETA(DisplayName = "Question")   // 랜덤/미확정 행동 표시용
 };
 
 /**

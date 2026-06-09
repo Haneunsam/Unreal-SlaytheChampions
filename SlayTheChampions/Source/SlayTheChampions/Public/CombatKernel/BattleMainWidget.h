@@ -13,7 +13,6 @@ class UTextBlock;
 class UButton;
 class AUnit;
 class UHandWidget;
-class UActionHistoryWidget;
 
 /**
  * UBattleMainWidget
@@ -76,6 +75,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Selection")
 	void OnHideHand();
 
+	// 플레이어 턴 종료 버튼 클릭 시 BP 트리거 (연출·사운드용)
+	UFUNCTION(BlueprintImplementableEvent, Category = "Turn")
+	void OnPlayerTurnEnd();
+
 	// 대기 카드 취소 — BP의 오버레이 버튼, 우클릭 등에서 직접 호출 가능
 	UFUNCTION(BlueprintCallable, Category = "Selection")
 	void CancelPendingCard();
@@ -87,10 +90,6 @@ public:
 	// 손패 패널 참조 (WBP에서 BindWidget 또는 BP에서 직접 할당)
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Hand")
 	UHandWidget* HandPanel;
-
-	// 이번 턴 사용 카드 히스토리 패널 (WBP에서 ActionHistoryPanel 이름으로 추가)
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "History")
-	UActionHistoryWidget* ActionHistoryPanel;
 
 protected:
 	// 유닛 외 영역 클릭 시 대기 카드 취소 처리
@@ -105,7 +104,7 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* Text_Cost;
 
-	// 턴 종료 버튼 — 클릭 시 PlayerExecutionPhase로 전환
+	// 턴 종료 버튼 — 클릭 시 손패 정리 후 EndPlayerActionPhase 호출
 	UPROPERTY(meta = (BindWidgetOptional))
 	UButton* Btn_EndTurn;
 
@@ -134,6 +133,10 @@ private:
 	// HandComponent::OnHandChanged 수신 → 카드 데이터 조회 후 OnHandUpdated 호출
 	UFUNCTION()
 	void HandleHandChanged(const TArray<FName>& CardNames);
+
+	// 선택 플레이어의 버프/디버프 수치 변경 수신 → 데미지/방어 영향 효과면 손패 재표시
+	UFUNCTION()
+	void HandleCasterEffectChanged(EEffectType Type, int32 OldValue, int32 NewValue);
 
 	// HandPanel::OnCardSelected 수신 → 코스트 검증 후 선택 대기 상태로 전환
 	UFUNCTION()

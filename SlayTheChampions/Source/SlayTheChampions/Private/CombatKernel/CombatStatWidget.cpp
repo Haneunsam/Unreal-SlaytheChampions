@@ -4,6 +4,8 @@
 #include "Unit/StatusEffectComponent.h"
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
+#include "NiagaraSystemWidget.h"
+#include "CombatKernel/BuffPanelWidget.h"
 
 // 유닛의 StatComponent와 StatusEffectComponent를 연결해 HP·Shield 변경 이벤트를 구독
 void UCombatStatWidget::InitFromUnit(AUnit* InUnit)
@@ -26,8 +28,16 @@ void UCombatStatWidget::InitFromUnit(AUnit* InUnit)
 		SEC->OnEffectValueChanged.AddDynamic(this, &UCombatStatWidget::OnShieldValueChanged);
 	}
 
+	// 유닛 이름 표시
+	if (Text_Name)
+		Text_Name->SetText(FText::FromName(InUnit->UnitID));
+
 	// Shield 초기값 (0 → 숨김)
 	UpdateShieldVisibility(0);
+
+	// 버프/디버프 패널 연결
+	if (BuffPanel)
+		BuffPanel->InitFromUnit(InUnit);
 }
 
 // HP가 변경될 때 호출. "현재HP / 최대HP" 형식으로 텍스트 갱신
@@ -56,6 +66,7 @@ void UCombatStatWidget::UpdateShieldVisibility(int32 ShieldValue)
 		? ESlateVisibility::HitTestInvisible
 		: ESlateVisibility::Collapsed;
 
-	if (Text_Defence) Text_Defence->SetVisibility(ShieldVisibility);
-	if (Image_Block)  Image_Block->SetVisibility(ShieldVisibility);
+	if (Text_Defence)   Text_Defence->SetVisibility(ShieldVisibility);
+	if (Image_Block)    Image_Block->SetVisibility(ShieldVisibility);
+	if (NiagaraShield)  NiagaraShield->SetVisibility(ShieldVisibility);
 }
