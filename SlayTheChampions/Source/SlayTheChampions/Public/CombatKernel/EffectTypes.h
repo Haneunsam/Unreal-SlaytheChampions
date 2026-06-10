@@ -42,6 +42,20 @@ enum class EEffectType : uint8
 	Intent_NoAction = 55 UMETA(DisplayName = "Intent: NoAction"),
 
 
+	ReflectDamage          = 40  UMETA(DisplayName = "Reflect Damage"),
+	DefenseCardBlockBonus  = 41  UMETA(DisplayName = "Defense Card Block Bonus"),
+	FreeHighCostCard       = 42  UMETA(DisplayName = "Free High Cost Card"),
+	AutoUseRandomHandCard  = 43  UMETA(DisplayName = "Auto Use Random Hand Card"),
+	ExhaustDamageAll       = 44  UMETA(DisplayName = "Exhaust Damage All"),
+	EliteWinAttackUp       = 45  UMETA(DisplayName = "Elite Win Attack Up"),
+	ShopPriceRandomize     = 46  UMETA(DisplayName = "Shop Price Randomize"),
+	LegendaryCardReward    = 47  UMETA(DisplayName = "Legendary Card Reward"),
+	GoldRewardBonus        = 48  UMETA(DisplayName = "Gold Reward Bonus"),
+	FirstAttackDamageBonus = 49  UMETA(DisplayName = "First Attack Damage Bonus"),
+	ShopFreePurchase       = 50  UMETA(DisplayName = "Shop Free Purchase"),
+	RandomMagicEffect      = 51  UMETA(DisplayName = "Random Magic Effect"),
+	RandomCardCostChange   = 52  UMETA(DisplayName = "Random Card Cost Change"),
+
 	// ── 버프 (100~199) ───────────────────────────────────────────────────
 	Buff_AttackUp          = 100 UMETA(DisplayName = "Attack Up"),        // 공격력 증가
 	Buff_DefenseUp         = 101 UMETA(DisplayName = "Defense Up"),       // 방어력 증가
