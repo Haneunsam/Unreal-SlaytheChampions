@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Engine/TimerHandle.h"
 #include "Card/CardDataTypes.h"
 #include "Components/CanvasPanel.h"
 #include "CombatKernel/CombatManager.h"
@@ -13,6 +14,7 @@ class UTextBlock;
 class UButton;
 class AUnit;
 class UHandWidget;
+class UEffectTooltipWidget;
 
 /**
  * UBattleMainWidget
@@ -91,6 +93,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Hand")
 	UHandWidget* HandPanel;
 
+	// 적 의도 툴팁 클래스 — 지연 생성해 커서를 따라다님
+	UPROPERTY(EditAnywhere, Category = "Tooltip")
+	TSubclassOf<UEffectTooltipWidget> IntentTooltipClass;
+
+	// 적 의도 툴팁이 뜨기까지의 호버 유지 시간 (초)
+	UPROPERTY(EditAnywhere, Category = "Tooltip", meta = (ClampMin = "0"))
+	float IntentHoverDelay = 1.f;
+
 protected:
 	// 유닛 외 영역 클릭 시 대기 카드 취소 처리
 	// MainCanvas가 ESlateVisibility::Visible일 때만 동작
@@ -149,7 +159,15 @@ private:
 	UFUNCTION()
 	void HandleEnemyClicked(AUnit* Enemy);
 
-	// SpawnedEnemies 각각의 OnUnitClicked에 바인딩
+	// 적 유닛 호버 시작/종료 — 시작 시 IntentHoverDelay 타이머, 종료 시 취소 + 숨김
+	UFUNCTION()
+	void HandleEnemyHovered(AUnit* Enemy, bool bHovered);
+
+	// 호버 타이머 만료 → 호버 중인 적의 IntentComponent를 읽어 의도 툴팁 표시
+	UFUNCTION()
+	void ShowIntentTooltip();
+
+	// SpawnedEnemies 각각의 OnUnitClicked / OnUnitHovered에 바인딩
 	void BindEnemyClickEvents();
 
 	// 카드+타겟 확정 후 큐 등록 + Hand 제거 + 코스트 차감을 처리하는 헬퍼
@@ -192,4 +210,15 @@ private:
 	// 타겟팅 중 외곽선 강조 중인 유닛 (커서 이동 시 갱신, 대기 해제 시 초기화)
 	UPROPERTY()
 	AUnit* TargetHoverUnit = nullptr;
+
+	// 현재 의도 툴팁을 위해 호버 중인 적 (타이머 만료 시 이 적의 의도를 표시)
+	UPROPERTY()
+	AUnit* IntentHoverEnemy = nullptr;
+
+	// 폴백(커서 방식)으로 지연 생성한 의도 툴팁 인스턴스
+	UPROPERTY()
+	UEffectTooltipWidget* IntentTooltipInstance = nullptr;
+
+	// 적 의도 호버 지연 타이머
+	FTimerHandle IntentTimerHandle;
 };

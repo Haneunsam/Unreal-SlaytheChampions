@@ -2,15 +2,99 @@
 #include "CombatKernel/CombatManager.h"
 #include "CombatKernel/HandWidget.h"
 #include "CombatKernel/EffectManager.h"
+#include "CombatKernel/EffectTooltipWidget.h"
+#include "CombatKernel/EffectDescriptionLibrary.h"
+#include "CombatKernel/MonsterActionWidget.h"
 #include "Unit/Unit.h"
 #include "Unit/StatusEffectComponent.h"
+#include "Unit/Enemy/IntentComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Card/CardUserComponent.h"
 #include "Card/CardSubsystem.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/Widget.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/ScopeExit.h"
+#include "TimerManager.h"
+
+// ── 적 의도 → 한글 텍스트 (의도 툴팁 전용. 파일 고유 이름으로 유니티 빌드 충돌 방지) ──
+namespace
+{
+	FText BMW_KoIntentKind(EIntentKind Kind)
+	{
+		switch (Kind)
+		{
+			case EIntentKind::Attack:   return FText::FromString(TEXT("공격"));
+			case EIntentKind::Defend:   return FText::FromString(TEXT("방어"));
+			case EIntentKind::Shield:   return FText::FromString(TEXT("보호막"));
+			case EIntentKind::Buff:     return FText::FromString(TEXT("강화"));
+			case EIntentKind::Debuff:   return FText::FromString(TEXT("디버프"));
+			case EIntentKind::NoAttack: return FText::FromString(TEXT("대기"));
+			case EIntentKind::Question: return FText::FromString(TEXT("？"));
+			default:                    return FText::FromString(TEXT("알 수 없음"));
+		}
+	}
+
+	// 의도 1개 → 툴팁 엔트리들. 주 행동 1줄 + (있으면) 부가 상태효과 1줄로 분해
+	void BMW_AppendIntentEntries(const FIntent& In, TArray<FEffectInfo>& Out)
+	{
+		// ── 주 행동 ──────────────────────────────────────────────────────
+		FEffectInfo Action;
+		Action.DisplayName = BMW_KoIntentKind(In.Kind);
+		switch (In.Kind)
+		{
+			case EIntentKind::Attack:
+			{
+				FString D = FString::Printf(TEXT("데미지 %d"), In.Value);
+				if (In.Hits > 1) D += FString::Printf(TEXT(" x%d회"), In.Hits);
+				Action.Description = FText::FromString(D);
+				break;
+			}
+			case EIntentKind::Defend:
+			case EIntentKind::Shield:
+				Action.Description = FText::FromString(FString::Printf(TEXT("보호막 %d 획득"), In.Value));
+				break;
+			case EIntentKind::NoAttack:
+				Action.Description = FText::FromString(TEXT("이번 턴 행동하지 않음"));
+				break;
+			default:
+				// 강화/디버프 등 — DisplayText 있으면 사용, 없으면 비움(부가 효과 줄로 설명됨)
+				Action.Description = In.DisplayText;
+				break;
+		}
+		Out.Add(Action);
+
+		// ── 부가 상태효과 (별도 줄 + 전체 설명) ──────────────────────────
+		if (In.EffectType != 0)
+		{
+			const EEffectType ET = static_cast<EEffectType>(In.EffectType);
+			FEffectInfo Eff;
+			Eff.DisplayName = FText::FromString(FString::Printf(TEXT("%s %d 부여"),
+				*UEffectDescriptionLibrary::GetEffectName(ET).ToString(), In.EffectValue));
+			Eff.Description = UEffectDescriptionLibrary::GetEffectDescription(ET);
+			Out.Add(Eff);
+		}
+	}
+
+	// 적 액터에 붙은 머리 위 MonsterActionWidget 탐색 (WidgetComponent 경유)
+	UMonsterActionWidget* BMW_FindActionWidget(AActor* Enemy)
+	{
+		if (!Enemy) return nullptr;
+		TArray<UWidgetComponent*> Comps;
+		Enemy->GetComponents<UWidgetComponent>(Comps);
+		for (UWidgetComponent* WC : Comps)
+		{
+			if (WC)
+			{
+				if (UMonsterActionWidget* MAW = Cast<UMonsterActionWidget>(WC->GetWidget()))
+					return MAW;
+			}
+		}
+		return nullptr;
+	}
+}
 
 // 위젯 초기화: CombatManager 탐색 및 바인딩, 플레이어 클릭 이벤트 바인딩, 마우스 활성화
 void UBattleMainWidget::NativeConstruct()
@@ -373,11 +457,63 @@ void UBattleMainWidget::BindEnemyClickEvents()
 		if (Unit)
 		{
 			Unit->OnUnitClicked.AddDynamic(this, &UBattleMainWidget::HandleEnemyClicked);
+			Unit->OnUnitHovered.AddDynamic(this, &UBattleMainWidget::HandleEnemyHovered);
 			BoundCount++;
 		}
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[BattleMainWidget] Enemy click events bound: %d enemies"), BoundCount);
+}
+
+// 적 호버 시작/종료 — 시작 시 지연 타이머, 종료 시 취소 + 숨김
+void UBattleMainWidget::HandleEnemyHovered(AUnit* Enemy, bool bHovered)
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	if (bHovered)
+	{
+		IntentHoverEnemy = Enemy;
+		World->GetTimerManager().SetTimer(IntentTimerHandle, this, &UBattleMainWidget::ShowIntentTooltip, IntentHoverDelay, false);
+	}
+	else if (Enemy == IntentHoverEnemy)
+	{
+		World->GetTimerManager().ClearTimer(IntentTimerHandle);
+		if (IntentTooltipInstance) IntentTooltipInstance->HideTooltip();
+		IntentHoverEnemy = nullptr;
+	}
+}
+
+// 타이머 만료 — 호버 중인 적의 의도를 읽어 툴팁에 표시 (적의 "행동"만)
+void UBattleMainWidget::ShowIntentTooltip()
+{
+	if (!IntentHoverEnemy) return;
+
+	// 다중 행동 소스: 머리 위 위젯이 보관한 의도 배열 우선, 없으면 IntentComponent.Current 1개
+	TArray<FIntent> Intents;
+	if (UMonsterActionWidget* MAW = BMW_FindActionWidget(IntentHoverEnemy))
+		Intents = MAW->DisplayedIntents;
+	if (Intents.Num() == 0)
+	{
+		if (UIntentComponent* IC = IntentHoverEnemy->FindComponentByClass<UIntentComponent>())
+			Intents.Add(IC->Current);
+	}
+
+	// 각 행동을 주 행동 + 부가 효과 줄로 분해해 누적
+	TArray<FEffectInfo> Entries;
+	for (const FIntent& In : Intents)
+		BMW_AppendIntentEntries(In, Entries);
+
+	if (Entries.Num() == 0) return;
+
+	// IntentTooltipClass로 지연 생성해 커서 근처에 표시
+	if (!IntentTooltipClass) return;
+	if (!IntentTooltipInstance)
+		IntentTooltipInstance = CreateWidget<UEffectTooltipWidget>(GetOwningPlayer(), IntentTooltipClass);
+	if (!IntentTooltipInstance) return;
+
+	const FVector2D MousePos = UWidgetLayoutLibrary::GetMousePositionOnViewport(GetWorld());
+	IntentTooltipInstance->ShowAt(Entries, MousePos);
 }
 
 // 카드+타겟이 확정됐을 때 호출
