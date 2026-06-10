@@ -44,6 +44,8 @@ void UGimmickComponent::OnTurnStart()
 	OnGimmickTurnStart();
 }
 
+
+
 void UGimmickComponent::OnTurnEnd()
 {
 	OnGimmickTurnEnd();

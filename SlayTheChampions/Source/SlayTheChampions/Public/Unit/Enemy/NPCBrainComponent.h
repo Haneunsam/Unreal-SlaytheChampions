@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Unit/CombatTypes.h"
-#include "Unit/PartyComponent.h" //PickTarget에서 GetRandomAliveMember등 사용
 #include "NPCBrainComponent.generated.h"
 
 class UEnemyPatternData;
@@ -23,28 +22,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionEmitted, const FEnemyAction
 *				IntentComponent::SetIntent() 갱신
 * EnemyPhase -> EmitActionEvent()
 *				OnActionEmitted 브로드캐스트 → CombatManager ActionQueue 에 등록
-* 
-* [PartyComponent 와의 관계]
-*	PlanNextAction 은 TArray<AUnit*> 대신 UPartyComponent* 를 받는다.
-*	이유: PartyComponent 의 GetRandomAliveMember / GetLowestHPMember 등
-*	타겟 선정 프리미티브를 재사용하기 위함.
-*	alive 필터 람다를 내부에서 중복 구현하지 않는다.
-* 
-* 매개변수 명명 (적의 시점 기준):
-*	TargetParty   = 공격·디버프 대상 파티 (플레이어 파티, CombatManager 의 AllyParty)
-*	FriendlyParty = 자신의 파티 (적 그룹, CombatManager 의 EnemyParty)
-* 
-* [CombatManager 호출 예시 — 기존 PlanAllEnemyActions 교체]
-*	for (AUnit* Enemy : EnemyParty->GetAliveMembers())
-*	{
-*       if (auto* Brain = Enemy->FindComponentByClass<UNPCBrainComponent>())
-*           Brain->PlanNextAction(AllyParty, EnemyParty);
-*   }
-* 
-* 
-* [타겟 선정 고도화 확장 지점]
-*	현재 SingleEnemy = 무작위 생존자. FEnemyAction 에 ETargetPreference 필드 추가 시
-*	PickTarget 내부에서 GetLowestHPMember() 등으로 전환할 수 있다.
 */
 
 UCLASS( ClassGroup=(Unit), meta=(BlueprintSpawnableComponent) )
@@ -69,9 +46,7 @@ public:
 
 	/**
 	* 턴 시작 시 CombatManager 가 호출 → 행동 결정 + IntentComponent 갱신.
-	*
-	* @param TargetParty   공격·디버프 대상 파티 (플레이어 측 = AllyParty)
-	* @param FriendlyParty 자신의 파티      (적 측    = EnemyParty)
+	
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Brain")
 	void PlanNextAction(const TArray<AUnit*>& Allies, const TArray<AUnit*>& Enemies);
@@ -101,5 +76,3 @@ private:
 		
 };
 
-
-//파티컴포넌트를 적용시킨다면 바꿔야 하고, 다른것을 사용한다면 그대로 변경없이 사용해도 무관
