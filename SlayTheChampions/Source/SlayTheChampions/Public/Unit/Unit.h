@@ -87,6 +87,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Unit|Anim")
 	FOnUnitMoveNotified OnUnitMoveNotified;
 
+	// AnimNotify_SpawnVfx -> VfxComponent 연결용 델리게이트
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnVfxNotified, FName, VfxTag);
+	UPROPERTY(BlueprintAssignable, Category = "Unit|VFX");
+	FOnVfxNotified OnVfxNotified;
+
 	/**
 	 * 이동 애니메이션 + 위치 인터폴레이션 트리거.
 	 * MapManager / LevelManager 등에서 유닛이 새 위치로 이동할 때 호출한다.
@@ -95,7 +100,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Unit|Anim")
 	void NotifyMove(FVector WorldDestination);
 
-
+	
 
 
 	// 이 유닛이 클릭될 때 브로드캐스트 (bGenerateClickEvents 활성화 필요)
