@@ -2,9 +2,12 @@
 #include "CombatKernel/EffectManager.h"
 #include "CombatKernel/BattleMainWidget.h"
 #include "CombatKernel/CardComboEvaluator.h"
+#include "CombatKernel/MonsterActionWidget.h"
+#include "Components/WidgetComponent.h"
 #include "Camera/CameraActor.h"
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"  // 중복 BattleMainWidget 탐지(GetAllWidgetsOfClass)
 #include "Unit/Unit.h"
 #include "Unit/StatComponent.h"
 #include "Unit/StatusEffectComponent.h"
@@ -193,11 +196,10 @@ void ACombatManager::InitCombat()
 
 	AUnit* PlayerActorArr[] = { PlayerActor_0, PlayerActor_1, PlayerActor_2 };
 
-	const int32 ClampedPlayerCount = FMath::Clamp(PlayerCount, 1, 3);
-	for (int32 i = 0; i < ClampedPlayerCount; i++)
+	for (int32 i = 0; i < 3; i++)
 	{
 		AUnit* Actor = PlayerActorArr[i];
-		if (!Actor) { UE_LOG(LogTemp, Error, TEXT("[CombatManager] PlayerActor_%d 미설정"), i); continue; }
+		if (!Actor) continue;
 
 		SpawnedPlayers.Add(Actor);
 
@@ -209,6 +211,7 @@ void ACombatManager::InitCombat()
 		}
 		UE_LOG(LogTemp, Log, TEXT("[CombatManager] Player[%d] 등록: %s"), i, *Actor->GetName());
 	}
+	PlayerCount = SpawnedPlayers.Num();
 
 	// ── 4. 적 유닛 등록 ──────────────────────────────────────────
 	// bEnemyManualSet이면 MonsterGroupData 무시하고 EnemyActor 슬롯 그대로 사용
@@ -243,16 +246,16 @@ void ACombatManager::InitCombat()
 	}
 	else if (bEnemyManualSet || EnemyActor_0)
 	{
-		// EnemyActor 슬롯 직접 사용
+		// EnemyActor 슬롯 직접 사용 — 비어있지 않은 슬롯만 자동 인식
 		AUnit* EnemyActorArr[] = { EnemyActor_0, EnemyActor_1, EnemyActor_2 };
-		const int32 ClampedEnemyCount = FMath::Clamp(EnemyCount, 1, 3);
-		for (int32 i = 0; i < ClampedEnemyCount; i++)
+		for (int32 i = 0; i < 3; i++)
 		{
 			AUnit* Actor = EnemyActorArr[i];
 			if (!Actor) continue;
 			SpawnedEnemies.Add(Actor);
 			UE_LOG(LogTemp, Log, TEXT("[CombatManager] Enemy[%d] 등록: %s"), i, *Actor->GetName());
 		}
+		EnemyCount = SpawnedEnemies.Num();
 	}
 	else
 	{
@@ -271,6 +274,21 @@ void ACombatManager::InitCombat()
 	// 유닛 등록 완료 후 생성 — Event Construct에서 GetSpawnedPlayers/Enemies가 유효한 값을 반환하도록
 	if (BattleWidgetClass && PC)
 	{
+		// 기존에 떠 있는 BattleMainWidget을 모두 제거한 뒤 새로 생성한다.
+		// (레벨·HUD BP가 InitCombat보다 먼저 위젯을 만들면 유닛 스폰 전이라 클릭 바인딩이
+		//  빈 배열에 걸려 버튼/클릭이 동작하지 않음 — 스폰 완료된 지금 새로 만들어 바인딩을 보장)
+		TArray<UUserWidget*> Existing;
+		UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, Existing, UBattleMainWidget::StaticClass(), false);
+		for (UUserWidget* W : Existing)
+		{
+			if (W)
+			{
+				W->RemoveFromParent();
+				UE_LOG(LogTemp, Warning, TEXT("[CombatManager] 기존 BattleMainWidget 제거 — 스폰 후 재생성으로 바인딩 보장. "
+					"BP가 위젯을 따로 생성하는지 확인하세요."));
+			}
+		}
+
 		BattleWidget = CreateWidget<UBattleMainWidget>(PC, BattleWidgetClass);
 		if (BattleWidget)
 			BattleWidget->AddToViewport();
@@ -625,16 +643,34 @@ UStatComponent* ACombatManager::GetEnemyStat(int32 Index) const
 	return SpawnedEnemies[Index]->GetStat();
 }
 
-// DrawPhase에 살아있는 모든 적의 행동을 미리 결정
+// DrawPhase에 살아있는 모든 적의 행동을 미리 결정 후 MonsterActionWidget 즉시 갱신
 // 적 시점: Allies=SpawnedEnemies(아군), Enemies=SpawnedPlayers(적)
 void ACombatManager::PlanAllEnemyActions()
 {
 	for (AUnit* Enemy : SpawnedEnemies)
 	{
 		if (!Enemy || !Enemy->IsAlive()) continue;
+
 		UNPCBrainComponent* Brain = Enemy->FindComponentByClass<UNPCBrainComponent>();
-		if (Brain)
-			Brain->PlanNextAction(SpawnedEnemies, SpawnedPlayers);
+		if (!Brain) continue;
+
+		Brain->PlanNextAction(SpawnedEnemies, SpawnedPlayers);
+
+		// 행동 결정 후 머리 위 MonsterActionWidget에 즉시 반영
+		UIntentComponent* IC = Enemy->FindComponentByClass<UIntentComponent>();
+		if (!IC) continue;
+
+		TArray<UWidgetComponent*> WComps;
+		Enemy->GetComponents<UWidgetComponent>(WComps);
+		for (UWidgetComponent* WC : WComps)
+		{
+			if (UMonsterActionWidget* MAW = Cast<UMonsterActionWidget>(WC->GetWidget()))
+			{
+				MAW->SetMonsterName(FText::FromName(Enemy->UnitID));
+				MAW->UpdateActions(TArray<FIntent>{ IC->Current });
+				break;
+			}
+		}
 	}
 }
 

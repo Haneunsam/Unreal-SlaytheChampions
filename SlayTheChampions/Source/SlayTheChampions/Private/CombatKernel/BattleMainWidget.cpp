@@ -15,6 +15,7 @@
 #include "Components/Button.h"
 #include "Components/Widget.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/ScopeExit.h"
 #include "TimerManager.h"
@@ -99,6 +100,19 @@ namespace
 // 위젯 초기화: CombatManager 탐색 및 바인딩, 플레이어 클릭 이벤트 바인딩, 마우스 활성화
 void UBattleMainWidget::NativeConstruct()
 {
+	// 이미 뷰포트에 BattleMainWidget이 있으면 자신을 제거 (BP에서 중복 생성되는 경우 방지)
+	TArray<UUserWidget*> Existing;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, Existing, UBattleMainWidget::StaticClass(), false);
+	for (UUserWidget* W : Existing)
+	{
+		if (W != this && W->IsInViewport())
+		{
+			RemoveFromParent();
+			UE_LOG(LogTemp, Warning, TEXT("[BattleMainWidget] 중복 인스턴스 자기 제거 — WBP나 레벨 BP에서 BattleMainWidget을 따로 생성하는 노드를 찾아 제거하세요."));
+			return;
+		}
+	}
+
 	Super::NativeConstruct();
 
 	// CombatManager 자동 탐색

@@ -59,13 +59,13 @@ struct FQueuedAction
 
 // ── 델리게이트 ─────────────────────────────────────────────────────────
 // 페이즈 전환 시 브로드캐스트 (UI 갱신, 코스트 초기화 등에 바인딩)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged,           ETurnPhase, NewPhase);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ETurnPhase, NewPhase);
 // 카드 하나가 실행될 때마다 브로드캐스트 (히스토리 위젯·애니메이션 트리거용)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted,        FCardDataRow, Card, int32, CasterIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted, FCardDataRow, Card, int32, CasterIndex);
 // EnemyPhase에서 특정 인덱스의 적이 행동을 시작할 때 브로드캐스트
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyTurnStart,         int32,      EnemyIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyTurnStart, int32, EnemyIndex);
 // 플레이어 유닛 선택 시 브로드캐스트 (BattleCameraActor BP)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattlePlayerSelected,   AUnit*,     SelectedPlayer);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattlePlayerSelected, AUnit*, SelectedPlayer);
 // 타겟 대기 진입(true)/해제(false) 시 브로드캐스트
 // bIsAlly=false -> CameraSlot_Enemy, bIsAlly=true -> CameraSlot_AllPlayers
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTargetingStateChanged, bool, bIsTargeting, bool, bIsAlly);
@@ -339,7 +339,7 @@ private:
 
 	// SetPlayerActor/SetEnemyActor 호출 시 true — PartyInstance·MonsterGroupData 자동 로드를 무시
 	bool bPlayerManualSet = false;
-	bool bEnemyManualSet  = false;
+	bool bEnemyManualSet = false;
 
 	// 적 행동 딜레이 타이머
 	FTimerHandle EnemyTimerHandle;
