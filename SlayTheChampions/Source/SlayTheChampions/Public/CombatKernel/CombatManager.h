@@ -4,7 +4,6 @@
 #include "GameFramework/Actor.h"
 #include "Card/CardDataTypes.h"
 #include "Unit/CombatTypes.h"
-#include "CombatKernel/MonsterGroupData.h"
 #include "CombatManager.generated.h"
 
 class UStatComponent;
@@ -122,11 +121,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
 	TSubclassOf<ACameraActor> BattleCameraClass;
 
-	// 이 전투에서 등장할 몬스터 그룹 데이터 에셋
-	// 설정 시 EnemyActor 슬롯을 무시하고 데이터 에셋 기준으로 스폰
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
-	UMonsterGroupData* MonsterGroup;
-
 	// 적 도감(여러 적 정의를 담은 데이터 에셋) — EncounterEnemyIDs로 이번 전투 등장 적을 선택
 	// 설정 시 최우선으로 사용: EnemyActorClass를 스폰 후 EnemyID로 데이터를 주입
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
@@ -145,6 +139,11 @@ public:
 	// EnemyTable 경로로 스폰할 제네릭 적 액터 클래스 (EnemyInitializerComponent를 가진 BP_Enemy)
 	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
 	TSubclassOf<AUnit> EnemyActorClass;
+
+	// PartyInstance.ChampionJobs 경로로 스폰할 단일 플레이어 액터 클래스 (BP_Player)
+	// 스폰 후 직업(JobComponent·CardUserComponent의 JobClass)만 챔피언별로 주입
+	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
+	TSubclassOf<AUnit> PlayerActorClass;
 
 	// ── 스폰 수 ──────────────────────────────────────────────────
 	// 전투에 참여할 플레이어 수 (1~3)
@@ -259,16 +258,12 @@ public:
 	FOnComboTriggered OnComboTriggered;
 
 	// ── 유닛 슬롯 설정 함수 ──────────────────────────────────────
-	// 테스트용: 수동으로 슬롯 지정 시 PartyInstance/MonsterGroupData 자동 로드를 무시
+	// 테스트용: 수동으로 슬롯 지정 시 PartyInstance/EnemyTable 자동 로드를 무시
 	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
 	void SetPlayerActor(int32 Index, AUnit* Actor);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
 	void SetEnemyActor(int32 Index, AUnit* Actor);
-
-	// 이번 전투의 몬스터 그룹 데이터 에셋 설정 후 InitCombat 호출
-	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
-	void SetMonsterGroup(UMonsterGroupData* Group) { MonsterGroup = Group; }
 
 	// ── 전투 초기화 ───────────────────────────────────────────────
 	// SetPlayerActor/SetEnemyActor로 슬롯 설정 후 수동 호출
@@ -362,7 +357,7 @@ private:
 	// EnemyPhase에서 현재 행동 중인 적 인덱스
 	int32 CurrentEnemyIndex = 0;
 
-	// SetPlayerActor/SetEnemyActor 호출 시 true — PartyInstance·MonsterGroupData 자동 로드를 무시
+	// SetPlayerActor/SetEnemyActor 호출 시 true — PartyInstance·EnemyTable 자동 로드를 무시
 	bool bPlayerManualSet = false;
 	bool bEnemyManualSet = false;
 

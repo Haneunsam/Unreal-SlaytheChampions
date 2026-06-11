@@ -21,6 +21,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
+#include "Unit/Job/JobComponent.h"   // 스폰된 플레이어에 직업(SetJobClass) 주입용
 #include "Party/PartyInstance.h"
 #include "EngineUtils.h"
 
@@ -147,7 +148,7 @@ void ACombatManager::SetPlayerActor(int32 Index, AUnit* Actor)
 	}
 }
 
-// Index번 적 슬롯에 액터 설정 — MonsterGroupData 자동 로드를 무시하고 이 값을 사용
+// Index번 적 슬롯에 액터 설정 — EnemyTable 자동 스폰을 무시하고 이 값을 사용
 void ACombatManager::SetEnemyActor(int32 Index, AUnit* Actor)
 {
 	bEnemyManualSet = true;
@@ -178,10 +179,41 @@ void ACombatManager::InitCombat()
 	// bPlayerManualSet이면 Set 함수로 지정된 값 그대로 사용 (PartyInstance 무시)
 	if (!bPlayerManualSet && !PlayerActor_0)
 	{
-		// 1순위: PartyInstance.Champions
 		UGameInstance* GI = GetWorld()->GetGameInstance();
 		UPartyInstance* Party = GI ? GI->GetSubsystem<UPartyInstance>() : nullptr;
-		if (Party && Party->GetPartyInfo().Champions.Num() > 0)
+
+		// 1순위: PartyInstance.ChampionJobs로 단일 BP_Player를 PlayerBox 위치에 직업별로 스폰
+		// (레벨 배치 불필요 — 몬스터처럼 데이터 스폰. 직업만 챔피언별로 주입)
+		if (Party && PlayerActorClass && Party->GetChampionJobs().Num() > 0)
+		{
+			UBoxComponent* PlayerBoxes[] = { PlayerBox_0, PlayerBox_1, PlayerBox_2 };
+			AUnit** PlayerSlots[] = { &PlayerActor_0, &PlayerActor_1, &PlayerActor_2 };
+			const TArray<EJobClass>& Jobs = Party->GetChampionJobs();
+			const int32 Count = FMath::Min(Jobs.Num(), 3);
+
+			FActorSpawnParameters PlayerParams;
+			PlayerParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			for (int32 i = 0; i < Count; i++)
+			{
+				if (!PlayerBoxes[i]) continue;
+				AUnit* Spawned = GetWorld()->SpawnActor<AUnit>(
+					PlayerActorClass, PlayerBoxes[i]->GetComponentTransform(), PlayerParams);
+				*PlayerSlots[i] = Spawned;
+				if (!Spawned) continue;
+
+				const EJobClass Job = Jobs[i];
+				// 덱 로드용 직업 — InitializeDeck(등록 루프)보다 먼저 세팅돼야 올바른 덱 로드
+				if (UCardUserComponent* CC = Spawned->FindComponentByClass<UCardUserComponent>())
+					CC->JobClass = Job;
+				// 직업 로직(Detail) 재생성 — JobComponent.BeginPlay 이후이므로 SetJobClass로 다시 만든다
+				if (UJobComponent* JC = Spawned->FindComponentByClass<UJobComponent>())
+					JC->SetJobClass(Job);
+			}
+			UE_LOG(LogTemp, Log, TEXT("[CombatManager] PartyInstance ChampionJobs에서 플레이어 %d명 스폰"), Count);
+		}
+		// 2순위: PartyInstance.Champions (레벨에 배치된 기존 액터 참조)
+		else if (Party && Party->GetPartyInfo().Champions.Num() > 0)
 		{
 			const TArray<AUnit*>& Champions = Party->GetPartyInfo().Champions;
 			PlayerCount = FMath::Clamp(Champions.Num(), 1, 3);
@@ -192,7 +224,7 @@ void ACombatManager::InitCombat()
 		}
 		else
 		{
-			// 2순위: 레벨에 배치된 Team==Ally AUnit 자동 탐색
+			// 3순위: 레벨에 배치된 Team==Ally AUnit 자동 탐색
 			AUnit** PlayerSlots[] = { &PlayerActor_0, &PlayerActor_1, &PlayerActor_2 };
 			int32 Idx = 0;
 			for (TActorIterator<AUnit> It(GetWorld()); It && Idx < 3; ++It)
@@ -228,7 +260,7 @@ void ACombatManager::InitCombat()
 	PlayerCount = SpawnedPlayers.Num();
 
 	// ── 4. 적 유닛 등록 ──────────────────────────────────────────
-	// 우선순위: EnemyTable(도감)+인카운터 ID목록 > MonsterGroup > EnemyActor 슬롯 > 레벨 스캔
+	// 우선순위: EnemyTable(도감)+인카운터 ID목록 > EnemyActor 슬롯 > 레벨 스캔
 	// 인카운터 ID 출처: Encounter 에셋 우선, 없으면 인라인 EncounterEnemyIDs
 	const TArray<FName>& EncounterIDs = (Encounter && Encounter->EnemyIDs.Num() > 0)
 		? Encounter->EnemyIDs : EncounterEnemyIDs;
@@ -269,36 +301,7 @@ void ACombatManager::InitCombat()
 		}
 		EnemyCount = SpawnedEnemies.Num();
 	}
-	// bEnemyManualSet이면 MonsterGroupData 무시하고 EnemyActor 슬롯 그대로 사용
-	else if (!bEnemyManualSet && MonsterGroup && MonsterGroup->Monsters.Num() > 0)
-	{
-		// 데이터 에셋 기준으로 스폰
-		UBoxComponent* EnemyBoxes[] = { EnemyBox_0, EnemyBox_1, EnemyBox_2 };
-		const int32 Count = FMath::Min(MonsterGroup->Monsters.Num(), 3);
-
-		FActorSpawnParameters Params;
-		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		for (int32 i = 0; i < Count; i++)
-		{
-			const FMonsterSlotData& Slot = MonsterGroup->Monsters[i];
-			if (!Slot.MonsterClass || !EnemyBoxes[i]) continue;
-
-			AUnit* Actor = GetWorld()->SpawnActor<AUnit>(Slot.MonsterClass, EnemyBoxes[i]->GetComponentTransform(), Params);
-			if (!Actor) continue;
-
-			Actor->UnitID = Slot.UnitName;
-
-			if (UStatComponent* Stat = Actor->GetStat())
-			{
-				Stat->MaxHP     = Slot.MaxHP;
-				Stat->CurrentHP = Slot.MaxHP;
-			}
-
-			SpawnedEnemies.Add(Actor);
-			UE_LOG(LogTemp, Log, TEXT("[CombatManager] Enemy[%d] 스폰: %s (HP:%d)"), i, *Slot.UnitName.ToString(), Slot.MaxHP);
-		}
-	}
+	// bEnemyManualSet이면 EnemyActor 슬롯 그대로 사용
 	else if (bEnemyManualSet || EnemyActor_0)
 	{
 		// EnemyActor 슬롯 직접 사용 — 비어있지 않은 슬롯만 자동 인식
