@@ -26,6 +26,10 @@ void UEnemyInitializerComponent::BeginPlay()
 
 void UEnemyInitializerComponent::InitializeFromTable()
 {
+	// Table 미지정(예: CombatManager가 스폰 후 InitializeFromDefinition으로 직접 주입하는 경우)이면
+	// 여기서 역참조하지 않고 종료 — null Table->FindByID 접근 위반 방지
+	if (!Table) return;
+
 	const FEnemyDefinition* Def = Table->FindByID(EnemyID);
 	if (!Def) return;
 

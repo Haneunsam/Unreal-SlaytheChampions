@@ -15,6 +15,9 @@ class ACameraActor;
 class UBattleMainWidget;
 class UCardComboEvaluator;
 class UDataTable;
+class UWidgetComponent;
+class UEnemyDataTable;
+class UEncounterData;
 
 /**
  * ETurnPhase
@@ -123,6 +126,25 @@ public:
 	// 설정 시 EnemyActor 슬롯을 무시하고 데이터 에셋 기준으로 스폰
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
 	UMonsterGroupData* MonsterGroup;
+
+	// 적 도감(여러 적 정의를 담은 데이터 에셋) — EncounterEnemyIDs로 이번 전투 등장 적을 선택
+	// 설정 시 최우선으로 사용: EnemyActorClass를 스폰 후 EnemyID로 데이터를 주입
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
+	UEnemyDataTable* EnemyTable = nullptr;
+
+	// 이번 전투의 적 구성 에셋 (EnemyTable에서 뽑아올 EnemyID 목록)
+	// 설정 시 아래 EncounterEnemyIDs(인라인 목록)보다 우선
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
+	UEncounterData* Encounter = nullptr;
+
+	// 인카운터 에셋 없이 빠르게 테스트할 때 쓰는 인라인 EnemyID 목록 (최대 3)
+	// Encounter 에셋이 지정돼 있으면 무시됨
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Setup")
+	TArray<FName> EncounterEnemyIDs;
+
+	// EnemyTable 경로로 스폰할 제네릭 적 액터 클래스 (EnemyInitializerComponent를 가진 BP_Enemy)
+	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
+	TSubclassOf<AUnit> EnemyActorClass;
 
 	// ── 스폰 수 ──────────────────────────────────────────────────
 	// 전투에 참여할 플레이어 수 (1~3)
@@ -313,6 +335,9 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	// 매 프레임 적 행동 위젯(머리 위 WidgetComponent)을 카메라를 향해 회전(빌보드)
+	virtual void Tick(float DeltaSeconds) override;
+
 private:
 	// 스폰된 플레이어 유닛 목록
 	UPROPERTY()
@@ -341,6 +366,10 @@ private:
 	bool bPlayerManualSet = false;
 	bool bEnemyManualSet = false;
 
+	// InitCombat 재진입 차단 — 스폰된 적(BP_Enemy)의 BeginPlay가 InitCombat을 재호출해
+	// 무한 재귀로 적을 계속 스폰하는 문제를 막는다 (가드는 스폰 전에 세움)
+	bool bCombatInitialized = false;
+
 	// 적 행동 딜레이 타이머
 	FTimerHandle EnemyTimerHandle;
 
@@ -351,6 +380,10 @@ private:
 	// InitCombat에서 스폰한 배틀 카메라 액터 인스턴스
 	UPROPERTY()
 	ACameraActor* BattleCamera = nullptr;
+
+	// 카메라를 향해 빌보드할 적 행동 위젯 컴포넌트 캐시 (InitCombat에서 수집, Tick에서 회전)
+	UPROPERTY()
+	TArray<UWidgetComponent*> EnemyActionWidgetComps;
 
 	// 페이즈를 전환하고 CheckCombatEnd -> OnPhaseChanged 브로드캐스트
 	void SetPhase(ETurnPhase NewPhase);

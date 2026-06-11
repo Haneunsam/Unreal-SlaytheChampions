@@ -5,6 +5,7 @@
 #include "CombatKernel/MonsterActionWidget.h"
 #include "Components/WidgetComponent.h"
 #include "Camera/CameraActor.h"
+#include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"  // 중복 BattleMainWidget 탐지(GetAllWidgetsOfClass)
@@ -14,6 +15,9 @@
 #include "Unit/StatusEffect.h"
 #include "Unit/Enemy/NPCBrainComponent.h"
 #include "Unit/Enemy/IntentComponent.h"
+#include "Unit/Enemy/EnemyDataTable.h"               // EnemyTable 스폰 경로 (FEnemyDefinition·FindByID)
+#include "Unit/Enemy/EnemyInitializerComponent.h"    // 스폰된 적에 Table+EnemyID 주입
+#include "CombatKernel/EncounterData.h"              // 이번 전투 적 ID 목록 에셋
 #include "Components/BoxComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
@@ -23,7 +27,8 @@
 // 생성자: 스폰 위치 박스 컴포넌트들을 미리 배치
 ACombatManager::ACombatManager()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// 적 행동 위젯 빌보드 갱신을 위해 Tick 사용
+	PrimaryActorTick.bCanEverTick = true;
 
 	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
@@ -108,6 +113,27 @@ void ACombatManager::BeginPlay()
 	InitCombat();
 }
 
+// 매 프레임 적 행동 위젯을 카메라를 향해 회전 — 머리 위 3D 배치를 유지한 채 빌보드 처리
+void ACombatManager::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (EnemyActionWidgetComps.Num() == 0) return;
+
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (!PC || !PC->PlayerCameraManager) return;
+
+	const FVector CamLoc = PC->PlayerCameraManager->GetCameraLocation();
+
+	for (UWidgetComponent* WC : EnemyActionWidgetComps)
+	{
+		if (!WC) continue;
+		// 위젯 평면의 정면(+X)이 카메라를 향하도록 회전
+		const FRotator Look = (CamLoc - WC->GetComponentLocation()).Rotation();
+		WC->SetWorldRotation(Look);
+	}
+}
+
 // Index번 플레이어 슬롯에 액터 설정 — PartyInstance 자동 로드를 무시하고 이 값을 사용
 void ACombatManager::SetPlayerActor(int32 Index, AUnit* Actor)
 {
@@ -137,28 +163,16 @@ void ACombatManager::SetEnemyActor(int32 Index, AUnit* Actor)
 // 등록된 유닛들로 전투를 초기화하고 1턴을 시작
 void ACombatManager::InitCombat()
 {
-	// 이미 초기화됨 — BP BeginPlay 중복 호출 방지
-	if (BattleWidget) return;
+	// 이미 초기화됐거나 초기화 진행 중이면 즉시 반환 — 재진입/중복 호출 방지
+	// (BattleWidget 가드만으로는 부족: 적 스폰(4번)이 위젯 생성(5번)보다 앞이라,
+	//  스폰된 BP_Enemy의 BeginPlay가 InitCombat을 재호출하면 무한 재귀가 됨)
+	if (bCombatInitialized) return;
+	bCombatInitialized = true;
 
 	SpawnedPlayers.Empty();
 	SpawnedEnemies.Empty();
 
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
-
-	// ── 1. 배틀 카메라 스폰 ──────────────────────────────────
-	// CameraSlot_Default 화살표 위치·회전으로 스폰 — 에디터에서 화살표를 이동·회전해 초기 위치 조정
-	if (BattleCameraClass)
-	{
-		const FTransform SpawnTransform = CameraSlot_Default
-			? CameraSlot_Default->GetComponentTransform()
-			: GetActorTransform();
-
-		BattleCamera = GetWorld()->SpawnActor<ACameraActor>(BattleCameraClass, SpawnTransform);
-		if (BattleCamera && PC)
-			PC->SetViewTargetWithBlend(BattleCamera);
-		else
-			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleCamera spawn failed"));
-	}
 
 	// ── 3. 플레이어 슬롯 로드 ────────────────────────────────────
 	// bPlayerManualSet이면 Set 함수로 지정된 값 그대로 사용 (PartyInstance 무시)
@@ -214,8 +228,49 @@ void ACombatManager::InitCombat()
 	PlayerCount = SpawnedPlayers.Num();
 
 	// ── 4. 적 유닛 등록 ──────────────────────────────────────────
+	// 우선순위: EnemyTable(도감)+인카운터 ID목록 > MonsterGroup > EnemyActor 슬롯 > 레벨 스캔
+	// 인카운터 ID 출처: Encounter 에셋 우선, 없으면 인라인 EncounterEnemyIDs
+	const TArray<FName>& EncounterIDs = (Encounter && Encounter->EnemyIDs.Num() > 0)
+		? Encounter->EnemyIDs : EncounterEnemyIDs;
+
+	// (bEnemyManualSet이면 SetEnemyActor로 지정한 값을 그대로 사용)
+	if (!bEnemyManualSet && EnemyTable && EnemyActorClass && EncounterIDs.Num() > 0)
+	{
+		// EnemyTable 도감에서 인카운터 ID 목록으로 골라 스폰
+		UBoxComponent* EnemyBoxes[] = { EnemyBox_0, EnemyBox_1, EnemyBox_2 };
+		const int32 Count = FMath::Min(EncounterIDs.Num(), 3);
+
+		for (int32 i = 0; i < Count; i++)
+		{
+			const FName ID = EncounterIDs[i];
+			const FEnemyDefinition* Def = EnemyTable->FindByID(ID);
+			if (!Def || !EnemyBoxes[i])
+			{
+				if (!Def) UE_LOG(LogTemp, Warning, TEXT("[CombatManager] EnemyTable에 EnemyID '%s' 없음 — 건너뜀"), *ID.ToString());
+				continue;
+			}
+
+			// 일반 스폰 — BP_Enemy의 EnemyInitializerComponent.BeginPlay는 Table 미지정 시
+			// (InitializeFromTable의 null 가드로) 그냥 넘어가고, 여기서 도감 데이터를 직접 주입한다.
+			// (SpawnActorDeferred는 BP 컴포넌트(SCS)를 FinishSpawning에야 만들어 주입이 불가능했음)
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			AUnit* Actor = GetWorld()->SpawnActor<AUnit>(
+				EnemyActorClass, EnemyBoxes[i]->GetComponentTransform(), SpawnParams);
+			if (!Actor) continue;
+
+			Actor->UnitID = ID;
+			if (UEnemyInitializerComponent* Init = Actor->FindComponentByClass<UEnemyInitializerComponent>())
+				Init->InitializeFromDefinition(*Def);   // 도감 데이터(HP·패턴·기믹·메시·애님) 직접 주입
+
+			SpawnedEnemies.Add(Actor);
+			UE_LOG(LogTemp, Log, TEXT("[CombatManager] Enemy[%d] 스폰(Table): %s"), i, *ID.ToString());
+		}
+		EnemyCount = SpawnedEnemies.Num();
+	}
 	// bEnemyManualSet이면 MonsterGroupData 무시하고 EnemyActor 슬롯 그대로 사용
-	if (!bEnemyManualSet && MonsterGroup && MonsterGroup->Monsters.Num() > 0)
+	else if (!bEnemyManualSet && MonsterGroup && MonsterGroup->Monsters.Num() > 0)
 	{
 		// 데이터 에셋 기준으로 스폰
 		UBoxComponent* EnemyBoxes[] = { EnemyBox_0, EnemyBox_1, EnemyBox_2 };
@@ -268,6 +323,42 @@ void ACombatManager::InitCombat()
 		EnemyCount = SpawnedEnemies.Num();
 		if (EnemyCount > 0)
 			UE_LOG(LogTemp, Log, TEXT("[CombatManager] 레벨에서 적 %d명 자동 탐색"), EnemyCount);
+	}
+
+	// ── 4-1. 적 행동 위젯 컴포넌트 캐시 ──────────────────────────
+	// 각 적의 MonsterActionWidget을 호스팅하는 WidgetComponent를 모아 Tick에서 카메라를 향해 회전시킨다.
+	// WidgetClass 기준으로 식별 — 내부 UMG 인스턴스가 아직 생성되기 전이어도 동작
+	EnemyActionWidgetComps.Reset();
+	for (AUnit* Enemy : SpawnedEnemies)
+	{
+		if (!Enemy) continue;
+		TArray<UWidgetComponent*> WComps;
+		Enemy->GetComponents<UWidgetComponent>(WComps);
+		for (UWidgetComponent* WC : WComps)
+		{
+			if (WC && WC->GetWidgetClass() &&
+				WC->GetWidgetClass()->IsChildOf(UMonsterActionWidget::StaticClass()))
+			{
+				EnemyActionWidgetComps.Add(WC);
+			}
+		}
+	}
+
+	// ── 4-2. 배틀 카메라 스폰 ──────────────────────────────────
+	// 플레이어·적 등록이 모두 끝난 뒤 스폰 — 카메라 BP가 BeginPlay에서 유닛/슬롯을 참조하더라도
+	// 이미 SpawnedPlayers/Enemies가 채워져 있어 타겟이 유효함
+	// CameraSlot_Default 화살표 위치·회전으로 스폰 — 에디터에서 화살표를 이동·회전해 초기 위치 조정
+	if (BattleCameraClass)
+	{
+		const FTransform SpawnTransform = CameraSlot_Default
+			? CameraSlot_Default->GetComponentTransform()
+			: GetActorTransform();
+
+		BattleCamera = GetWorld()->SpawnActor<ACameraActor>(BattleCameraClass, SpawnTransform);
+		if (BattleCamera && PC)
+			PC->SetViewTargetWithBlend(BattleCamera);
+		else
+			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleCamera spawn failed"));
 	}
 
 	// ── 5. 배틀 메인 위젯 생성 ──────────────────────────────────
