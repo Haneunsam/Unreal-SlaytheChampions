@@ -24,6 +24,7 @@
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
 #include "Unit/Job/JobComponent.h"   // 스폰된 플레이어에 직업(SetJobClass) 주입용
 #include "Party/PartyInstance.h"
+#include "VFX/VFXComponent.h"
 #include "EngineUtils.h"
 
 // 생성자: 스폰 위치 박스 컴포넌트들을 미리 배치
@@ -519,6 +520,19 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AU
 			Targets = SpawnedPlayers;
 			break;
 	}
+
+	if (UVFXComponent* Vfx = Caster->FindComponentByClass <UVFXComponent>())
+	{
+		Vfx->SetCurrentCardID(Card.CardID);
+		Vfx->SetCurrentTargets(Targets);
+	}
+
+	if (Caster)
+	{
+		const bool bIsSkill = (Card.CardType == ECardType::Skill);
+		Caster->NotifyAttack(bIsSkill);
+	}
+
 
 	UE_LOG(LogTemp, Log, TEXT("[ExecuteCard] Targets=%d Damage=%d"), Targets.Num(), Card.Damage);
 
