@@ -156,6 +156,42 @@ bool URelicSubsystem::TriggerOwnedRelicEffectsByTiming(EEffectApplyTiming ApplyT
 	return bAnyApplied;
 }
 
+bool URelicSubsystem::TriggerOwnedRelicEffectsForCombat(
+	EEffectApplyTiming ApplyTiming,
+	const TArray<AUnit*>& Players,
+	const TArray<AUnit*>& Enemies,
+	EEffectTriggerCondition TriggerCondition,
+	int32 TriggerContextValue)
+{
+	const UPartyInstance* PartyInstance = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartyInstance>() : nullptr;
+	if (!PartyInstance)
+	{
+		return false;
+	}
+
+	bool bAnyApplied = false;
+	for (const FRelic& RelicData : PartyInstance->GetPartyInfo().Relics)
+	{
+		const TArray<FSourceEffectData> SelectedEffects = ResolveEffectSelection(RelicData.Effects);
+		for (const FSourceEffectData& EffectData : SelectedEffects)
+		{
+			if (EffectData.ApplyTiming != ApplyTiming)
+			{
+				continue;
+			}
+
+			if (!ShouldTriggerEffect(EffectData, TriggerCondition, TriggerContextValue))
+			{
+				continue;
+			}
+
+			bAnyApplied |= ApplyRelicEffect(RelicData, EffectData, ResolveCombatTargets(EffectData, Players, Enemies));
+		}
+	}
+
+	return bAnyApplied;
+}
+
 TArray<FRelic> URelicSubsystem::GetCachedRelicsBySource(ERelicSourceType InSourceType) const
 {
 	switch (InSourceType)
@@ -338,5 +374,88 @@ TArray<FSourceEffectData> URelicSubsystem::ResolveEffectSelection(const TArray<F
 	});
 
 	return ResolvedEffects;
+}
+
+bool URelicSubsystem::ShouldTriggerEffect(const FSourceEffectData& EffectData, EEffectTriggerCondition TriggerCondition, int32 TriggerContextValue)
+{
+	if (EffectData.TriggerCondition == EEffectTriggerCondition::None)
+	{
+		return TriggerCondition == EEffectTriggerCondition::None;
+	}
+
+	if (EffectData.TriggerCondition != TriggerCondition)
+	{
+		return false;
+	}
+
+	switch (EffectData.TriggerCondition)
+	{
+	case EEffectTriggerCondition::TurnCountReached:
+		if (EffectData.TriggerValue <= 0)
+		{
+			return true;
+		}
+		return TriggerContextValue > 0 && (TriggerContextValue % EffectData.TriggerValue) == 0;
+	case EEffectTriggerCondition::StackCountReached:
+		if (EffectData.TriggerValue <= 0)
+		{
+			return true;
+		}
+		return TriggerContextValue >= EffectData.TriggerValue;
+	default:
+		return false;
+	}
+}
+
+TArray<AUnit*> URelicSubsystem::ResolveCombatTargets(const FSourceEffectData& EffectData, const TArray<AUnit*>& Players, const TArray<AUnit*>& Enemies)
+{
+	TArray<AUnit*> Targets;
+	switch (EffectData.TargetScope)
+	{
+	case ETargetType::AllEnemies:
+		Targets = Enemies;
+		break;
+	case ETargetType::SingleEnemy:
+	{
+		TArray<AUnit*> AliveEnemies;
+		for (AUnit* Enemy : Enemies)
+		{
+			if (IsValid(Enemy) && Enemy->IsAlive())
+			{
+				AliveEnemies.Add(Enemy);
+			}
+		}
+
+		if (!AliveEnemies.IsEmpty())
+		{
+			Targets.Add(AliveEnemies[FMath::RandRange(0, AliveEnemies.Num() - 1)]);
+		}
+		break;
+	}
+	case ETargetType::SingleAlly:
+	{
+		TArray<AUnit*> AlivePlayers;
+		for (AUnit* Player : Players)
+		{
+			if (IsValid(Player) && Player->IsAlive())
+			{
+				AlivePlayers.Add(Player);
+			}
+		}
+
+		if (!AlivePlayers.IsEmpty())
+		{
+			Targets.Add(AlivePlayers[FMath::RandRange(0, AlivePlayers.Num() - 1)]);
+		}
+		break;
+	}
+	case ETargetType::AllAllies:
+	case ETargetType::Self:
+	default:
+		Targets = Players;
+		break;
+	}
+
+	return Targets;
 }
 

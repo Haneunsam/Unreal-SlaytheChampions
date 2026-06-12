@@ -89,6 +89,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Relic|Effect")
     bool TriggerOwnedRelicEffectsByTiming(EEffectApplyTiming ApplyTiming, const TArray<AUnit*>& Targets);
 
+    bool TriggerOwnedRelicEffectsForCombat(
+        EEffectApplyTiming ApplyTiming,
+        const TArray<AUnit*>& Players,
+        const TArray<AUnit*>& Enemies,
+        EEffectTriggerCondition TriggerCondition = EEffectTriggerCondition::None,
+        int32 TriggerContextValue = 0);
+
 private:
     void RebuildRelicCache();
 
@@ -102,5 +109,8 @@ private:
 
     TArray<FSourceEffectData> ResolveEffectSelection(const TArray<FSourceEffectData>& Effects) const;
 
+    static bool ShouldTriggerEffect(const FSourceEffectData& EffectData, EEffectTriggerCondition TriggerCondition, int32 TriggerContextValue);
+
+    static TArray<AUnit*> ResolveCombatTargets(const FSourceEffectData& EffectData, const TArray<AUnit*>& Players, const TArray<AUnit*>& Enemies);
 
 };

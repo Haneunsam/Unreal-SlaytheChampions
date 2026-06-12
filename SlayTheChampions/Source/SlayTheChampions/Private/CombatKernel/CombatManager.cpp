@@ -25,6 +25,7 @@
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
 #include "Unit/Job/JobComponent.h"   // 스폰된 플레이어에 직업(SetJobClass) 주입용
 #include "Party/PartyInstance.h"
+#include "Relic/RelicSubsystem.h"
 #include "EngineUtils.h"
 
 // 생성자: 스폰 위치 박스 컴포넌트들을 미리 배치
@@ -142,6 +143,14 @@ void ACombatManager::EndCombat(bool bWon)
 {
 	if (bCombatEnded) return;   // 1회만
 	bCombatEnded = true;
+
+	if (URelicSubsystem* RelicSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URelicSubsystem>() : nullptr)
+	{
+		RelicSubsystem->TriggerOwnedRelicEffectsForCombat(
+			EEffectApplyTiming::OnBattleEnd,
+			SpawnedPlayers,
+			SpawnedEnemies);
+	}
 
 	// 적 행동 딜레이 타이머 정지
 	GetWorldTimerManager().ClearTimer(EnemyTimerHandle);
@@ -497,6 +506,14 @@ void ACombatManager::InitCombat()
 
 	// 모든 액터의 BeginPlay가 완료된 후 드로우가 실행되도록 한 프레임 지연
 	// (CardUserComponent.DeckComponent는 BeginPlay에서 생성되므로 동일 틱 호출 시 null일 수 있음)
+	if (URelicSubsystem* RelicSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URelicSubsystem>() : nullptr)
+	{
+		RelicSubsystem->TriggerOwnedRelicEffectsForCombat(
+			EEffectApplyTiming::OnBattleStart,
+			SpawnedPlayers,
+			SpawnedEnemies);
+	}
+
 	GetWorldTimerManager().SetTimerForNextTick(this, &ACombatManager::StartTurn);
 }
 
@@ -704,6 +721,16 @@ void ACombatManager::StartTurn()
 
 	TurnCount++;
 	UE_LOG(LogTemp, Log, TEXT("[CombatManager] Turn %d 시작"), TurnCount);
+
+	if (URelicSubsystem* RelicSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URelicSubsystem>() : nullptr)
+	{
+		RelicSubsystem->TriggerOwnedRelicEffectsForCombat(
+			EEffectApplyTiming::DuringBattle,
+			SpawnedPlayers,
+			SpawnedEnemies,
+			EEffectTriggerCondition::TurnCountReached,
+			TurnCount);
+	}
 
 	SetPhase(ETurnPhase::DrawPhase);
 
