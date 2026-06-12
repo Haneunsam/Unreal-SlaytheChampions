@@ -5,8 +5,10 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Unit/CombatTypes.h"
+#include "Unit/Enemy/GimmickComponent.h"
 #include "NPCBrainComponent.generated.h"
 
+class UGimmickComponent;
 class UEnemyPatternData;
 class AUnit;
 

@@ -2,6 +2,7 @@
 
 #include "Relic/RelicSubsystem.h"
 #include "Unit/Unit.h"
+#include "Unit/StatComponent.h"
 
 void UPartyInstance::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -116,6 +117,31 @@ void UPartyInstance::LostPotion(FName _PotionName)
 	{
 		return Item.PotionID == _PotionName;
 	});
+}
+
+void UPartyInstance::SaveChampionHPs(const TArray<AUnit*>& Units)
+{
+	PartyInfo.ChampionCurrentHPs.SetNum(Units.Num());
+	PartyInfo.ChampionMaxHPs.SetNum(Units.Num());
+	for (int32 i = 0; i < Units.Num(); i++)
+	{
+		if (UStatComponent* Stat = Units[i] ? Units[i]->FindComponentByClass<UStatComponent>() : nullptr)
+		{
+			PartyInfo.ChampionCurrentHPs[i] = Stat->CurrentHP;
+			PartyInfo.ChampionMaxHPs[i]     = Stat->MaxHP;
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("[PartyInstance] SaveChampionHPs: %d명 HP 저장"), Units.Num());
+}
+
+int32 UPartyInstance::GetSavedCurrentHP(int32 Index) const
+{
+	return PartyInfo.ChampionCurrentHPs.IsValidIndex(Index) ? PartyInfo.ChampionCurrentHPs[Index] : 0;
+}
+
+int32 UPartyInstance::GetSavedMaxHP(int32 Index) const
+{
+	return PartyInfo.ChampionMaxHPs.IsValidIndex(Index) ? PartyInfo.ChampionMaxHPs[Index] : 0;
 }
 
 

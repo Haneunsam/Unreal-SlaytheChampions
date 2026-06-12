@@ -22,9 +22,13 @@
 #include "Components/BoxComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Map/RunSystem.h"
+#include "Relic/RelicSubsystem.h"
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
 #include "Unit/Job/JobComponent.h"   // 스폰된 플레이어에 직업(SetJobClass) 주입용
 #include "Party/PartyInstance.h"
+#include "VFX/VFXComponent.h"
+#include "Unit/Enemy/GimmickComponent.h"
+#include "Unit/Enemy/Gimmick/Gimmick_Summoner.h" //소환 처리
 #include "Relic/RelicSubsystem.h"
 #include "EngineUtils.h"
 
@@ -106,6 +110,28 @@ UBoxComponent* ACombatManager::SetupBox(const FName& BoxName,
 	return Box;
 }
 
+void ACombatManager::BindGimmickDelegates(AUnit* Enemy)
+{
+	UGimmickComponent* G = Enemy->FindComponentByClass<UGimmickComponent>();
+	if (!G) return;
+
+	G->OnGimmickDamageRequest.AddDynamic(this, &ACombatManager::HandleGimmickDamage);
+	G->OnGimmickAnnounce.AddDynamic(this, &ACombatManager::HandleGimmickAnnounce);
+}
+
+void ACombatManager::HandleGimmickDamage(ETargetType TargetType, int32 Damage)
+{
+	if (TargetType == ETargetType::AllEnemies)
+		for (AUnit* P : SpawnedPlayers)
+			if (P && P->IsAlive())
+				UEffectManager::ProcessDamage(P, Damage, nullptr);
+}
+
+void ACombatManager::HandleGimmickAnnounce(const FText& Text)
+{
+	UE_LOG(LogTemp, Log, TEXT("[Gimmick] %s"), *Text.ToString());
+}
+
 void ACombatManager::BeginPlay()
 {
 	Super::BeginPlay();
@@ -161,6 +187,17 @@ void ACombatManager::EndCombat(bool bWon)
 		BattleWidget->RemoveFromParent();
 		BattleWidget = nullptr;
 	}
+
+	// 전투 종료 유물 효과 — 유닛 파괴 전에 적용
+	if (UGameInstance* GI = GetGameInstance())
+		if (URelicSubsystem* RS = GI->GetSubsystem<URelicSubsystem>())
+			RS->TriggerOwnedRelicEffectsByTiming(EEffectApplyTiming::OnBattleEnd, SpawnedPlayers);
+
+	// 유닛 파괴 전 HP 저장 — 다음 전투 스폰 시 복원 (데이터 스폰 모드에서만)
+	if (!bPlayerManualSet)
+		if (UGameInstance* GI = GetGameInstance())
+			if (UPartyInstance* Party = GI->GetSubsystem<UPartyInstance>())
+				Party->SaveChampionHPs(SpawnedPlayers);
 
 	// 이 매니저가 스폰한 유닛만 정리 (레벨 직접 배치 유닛은 건드리지 않음)
 	for (AUnit* U : ManagerSpawnedUnits)
@@ -338,6 +375,18 @@ void ACombatManager::InitCombat()
 				// 직업 로직(Detail) 재생성 — JobComponent.BeginPlay 이후이므로 SetJobClass로 다시 만든다
 				if (UJobComponent* JC = Spawned->FindComponentByClass<UJobComponent>())
 					JC->SetJobClass(Job);
+
+				// 이전 전투에서 저장한 HP/MaxHP 복원 (저장값이 있을 때만)
+				const int32 SavedCurrentHP = Party->GetSavedCurrentHP(i);
+				const int32 SavedMaxHP     = Party->GetSavedMaxHP(i);
+				if ((SavedMaxHP > 0 || SavedCurrentHP > 0))
+				{
+					if (UStatComponent* Stat = Spawned->FindComponentByClass<UStatComponent>())
+					{
+						if (SavedMaxHP > 0)     Stat->MaxHP     = SavedMaxHP;
+						if (SavedCurrentHP > 0) Stat->CurrentHP = FMath::Min(SavedCurrentHP, Stat->MaxHP);
+					}
+				}
 			}
 			UE_LOG(LogTemp, Log, TEXT("[CombatManager] PartyInstance ChampionJobs에서 플레이어 %d명 스폰"), Count);
 		}
@@ -457,6 +506,10 @@ void ACombatManager::InitCombat()
 		if (EnemyCount > 0)
 			UE_LOG(LogTemp, Log, TEXT("[CombatManager] 레벨에서 적 %d명 자동 탐색"), EnemyCount);
 	}
+	// 4.0.1 기믹 델리게이트 바인딩
+	//스폰 경로와 무관하게 SpawnEnemies가 확정된 이후 1곳에서만 처리
+	for (AUnit* Enemy : SpawnedEnemies)
+		if (Enemy) BindGimmickDelegates(Enemy);
 
 	// ── 4-1. 적 행동 위젯 컴포넌트 캐시 ──────────────────────────
 	// 각 적의 MonsterActionWidget을 호스팅하는 WidgetComponent를 모아 Tick에서 카메라를 향해 회전시킨다.
@@ -525,6 +578,11 @@ void ACombatManager::InitCombat()
 			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleWidget creation failed"));
 	}
 
+	// 전투 시작 유물 효과 — 유닛 등록 완료 후, 첫 턴 시작 전에 적용
+	if (UGameInstance* GI = GetGameInstance())
+		if (URelicSubsystem* RS = GI->GetSubsystem<URelicSubsystem>())
+			RS->TriggerOwnedRelicEffectsByTiming(EEffectApplyTiming::OnBattleStart, SpawnedPlayers);
+
 	// 모든 액터의 BeginPlay가 완료된 후 드로우가 실행되도록 한 프레임 지연
 	// (CardUserComponent.DeckComponent는 BeginPlay에서 생성되므로 동일 틱 호출 시 null일 수 있음)
 	if (URelicSubsystem* RelicSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URelicSubsystem>() : nullptr)
@@ -570,6 +628,19 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AU
 			Targets = SpawnedPlayers;
 			break;
 	}
+
+	if (UVFXComponent* Vfx = Caster->FindComponentByClass <UVFXComponent>())
+	{
+		Vfx->SetCurrentCardID(Card.CardID);
+		Vfx->SetCurrentTargets(Targets);
+	}
+
+	if (Caster)
+	{
+		const bool bIsSkill = (Card.CardType == ECardType::Skill);
+		Caster->NotifyAttack(bIsSkill);
+	}
+
 
 	UE_LOG(LogTemp, Log, TEXT("[ExecuteCard] Targets=%d Damage=%d"), Targets.Num(), Card.Damage);
 
@@ -762,6 +833,11 @@ void ACombatManager::StartTurn()
 	// 몬스터: 버프/디버프 tick만 (Shield는 EnemyPhase 시작 시 따로 리셋)
 	TickBuffsAndDebuffs(SpawnedEnemies);
 
+	// 전투 중 유물 효과 (턴 시작마다 발동) — TriggerCondition으로 특정 턴·조건에만 발동 가능
+	if (UGameInstance* GI = GetGameInstance())
+		if (URelicSubsystem* RS = GI->GetSubsystem<URelicSubsystem>())
+			RS->TriggerOwnedRelicEffectsByTiming(EEffectApplyTiming::DuringBattle, SpawnedPlayers);
+
 	PlanAllEnemyActions(); // DrawPhase: 모든 적의 이번 턴 행동을 미리 결정
 
 	// 살아있는 플레이어 유닛에게만 턴 시작 드로우 요청
@@ -857,6 +933,18 @@ void ACombatManager::ExecuteNextEnemyAction()
 	UNPCBrainComponent* Brain = Enemy->FindComponentByClass<UNPCBrainComponent>();
 	if (Brain)
 		ExecuteEnemyAction(Enemy, Brain->PendingAction);
+	//[기믹] 패턴 실행 직후 - 소환 회복 분노등 "행동형"기믹
+	//기믹을 먼저 사용하고 싶으면 ExecuteEnemyAction위로 올리기
+	if (UGimmickComponent* Gimmick = Enemy->FindComponentByClass<UGimmickComponent>())
+	{
+		Gimmick->OnTurnEnd();
+
+		//소환은 "어느적이 소환했는지 처리 컨텍스트 필요" ->이자리에서 직접 처리
+		if (UGimmick_Summoner* Sum = Cast<UGimmick_Summoner>(Gimmick))
+		{
+			//소환처리
+		}
+	}
 
 	// EnemyActionDelay 후 다음 적 자동 진행 (에디터 Combat|Timing에서 조정)
 	GetWorldTimerManager().SetTimer(
@@ -897,6 +985,12 @@ void ACombatManager::PlanAllEnemyActions()
 	{
 		if (!Enemy || !Enemy->IsAlive()) continue;
 
+		//[기믹] 계획 직전 - 의도에 영향을 주는 처리
+		//반드시PlanNextAction보다 먼저 처리
+		if (UGimmickComponent* Gimmick = Enemy->FindComponentByClass<UGimmickComponent>())
+		{
+			Gimmick->OnTurnStart();
+		}
 		UNPCBrainComponent* Brain = Enemy->FindComponentByClass<UNPCBrainComponent>();
 		if (!Brain) continue;
 

@@ -143,6 +143,11 @@ private:
 	UFUNCTION()
 	void OnPhaseChanged(ETurnPhase NewPhase);
 
+	// MouseDown 타이밍에 유닛을 찾지 못했을 때 다음 틱에 호출 — OnUnitClicked가 먼저 카드를
+	// 처리했으면 PendingCardName이 이미 None이라 취소하지 않는다.
+	UFUNCTION()
+	void DeferredCancelIfStillPending();
+
 	// SpawnedPlayers의 OnUnitClicked에 일괄 바인딩
 	void BindPlayerClickEvents();
 

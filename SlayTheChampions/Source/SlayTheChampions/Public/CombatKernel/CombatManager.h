@@ -364,6 +364,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	ACameraActor* GetBattleCamera() const { return BattleCamera; }
 
+	//행동 델리게이트 바인딩
+	void BindGimmickDelegates(AUnit* Enemy);
+
+	UFUNCTION()
+	void HandleGimmickDamage(ETargetType TargetType, int32 Damage);
+
+	UFUNCTION()
+	void HandleGimmickAnnounce(const FText& Text);
+
 protected:
 	virtual void BeginPlay() override;
 

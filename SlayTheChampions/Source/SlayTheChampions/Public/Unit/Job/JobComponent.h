@@ -10,6 +10,9 @@
 #include "JobComponent.generated.h"
 
 class UJobDetail;
+class UJobVisualDataAsset;
+class USkeletalMeshComponent;
+
 /*
 * 유닛 액터에 붙이는 '직업'컴포넌트
 * 에디터 디테일 패널에서  JobClass 드롭다운 선택하면
@@ -19,6 +22,11 @@ class UJobDetail;
 * BP_Player 에서 Add Component-> JobComponent 선택
 * 디테일 패널에서 Job 카테고리 JobClass 드롭다운 에서 Warrior,Mage,Healer선택
 * 플레이시 Beginplay에서 선택된 직업 로직 자동생성
+* 
+* [비주얼 자동 적용]
+* JobVisual 맵에 EJobClass ->UJobVisualDataAsset 을연결해두면
+* BeginPlay에 선택된 JobClass에 맞는 메시/AnimBp/몽타주세트를
+* Owner의 SkeletalMeshComponent/ UUnitAnimComponent에 자동 주입한다.
 * 
 * [확장법]
 * 새직업추가 EJobClass에 값을 추가하고 UJobDetail 서브클래스 작성
@@ -54,6 +62,25 @@ public:
 	EJobClass JobClass = EJobClass::Warrior;
 
 	/*
+	* 직업별 비주얼 매핑
+	* EJobClass(드롭다운 값)->UJobVisualDataAsset(메시+AnimBP+몽타주)
+	* 자동적용
+	* 비어있거나 항목이 없으면 비주얼 주입건너뜀
+	* 
+	* [팁]파티원 BP들이 공유할 수 있도록 같은 DA 에셋들을 각 BP의 맵에 연결
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,Category = "Job|Visual")
+	TMap<EJobClass, TObjectPtr<UJobVisualDataAsset>> JobVisuals;
+
+	/*
+	* AnimData/AnimBP/메시를 주입할 SkeletalMeshComponent
+	* null이면 Beginplay에서 Owner의 첫 번째 SkeletalMeshComponent를 자동으로 찾기
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Job|Visual")
+	TObjectPtr<USkeletalMeshComponent> TargetMesh = nullptr;
+
+
+	/*
 	* 런타임에 직업을 바꾼다 — JobClass를 설정하고 Detail을 다시 생성.
 	* CombatManager가 단일 BP_Player를 스폰한 뒤 챔피언별 직업을 주입할 때 사용.
 	*/
@@ -84,6 +111,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Job")
 	void OnTurnEnd();
 
+	/*
+	* 현재 JobClass에 맞는 비주얼을 즉시 (재)적용
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Job|Visual")
+	void ApplyJobVisual();
+
 	//직업 디테일
 
 	/*
@@ -96,6 +129,9 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Job")
 	UJobDetail* GetDetail() const { return Detail; }
+
+
+
 
 private:
 	/** BeginPlay에서 JobClass에 맞는 UJobDetail 서브클래스를 생성한다. */

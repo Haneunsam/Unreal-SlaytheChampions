@@ -56,6 +56,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Gimmick")
 	FOnGimmickAnnounce OnGimmickAnnounce;
 
+	virtual bool WantsToSkipPatternAction() const { return false; }
 protected:
 	virtual void BeginPlay() override;
 
