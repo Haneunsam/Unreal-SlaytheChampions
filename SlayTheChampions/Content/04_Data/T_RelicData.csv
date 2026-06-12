@@ -1,18 +1,18 @@
 ﻿,RelicID,RelicName,Description,Rarity,RelicSourceType,TargetScope,ApplyTiming
-01,1001,화염 용의 비늘,"공격을 받아 방어도가 깨질 때마다, 공격한 적에게 가시 피해를 3 줍니다.",Normal,Common,Self,DuringBattle
-02,1002,화강암 용의 알,"매 전투 시작 시, 내 덱에 있는 모든 수비 카드에 기민함 1을 인챈트합니다.",Rare,Common,Self,DuringBattle
-03,1003,수정 용의 머리,"매 전투에서 내가 처음으로 사용하는 '비용이 2 이상인 카드'는 비용이 0이 되며, 사용 후 내 손패로 다시 되돌아옵니다.",Legendary,Event,Self,OnBattleStart
-04,1004,이상한 체스판,"매 전투 시작 시, 내 손에 있는 카드중 한장을 사용합니다.",Normal,Event,Self,OnBattleStart
-05,1005,종이 비행기,"카드를 소멸시킬시 적 전체 2 피해를 줍니다.",Normal,Event,Self,DuringBattle
-06,1006,전쟁 여신의 조각상,"엘리트 전투를 2회 승리시마다 힘 1이 증가합니다.",Rare,Common,Self,OnBattleStart
-07,1007,어둠의 썬구리,"상점에 있는 판매목록들이 랜덤하게 가격이 증가하거나 감소합니다.",Rare,Shop,Self,InShop
-08,1008,도살자의 녹슨 톱날,"매 턴마다 처음 피해를 입힐시 대상에게 출혈 2를 부여합니다.",Legendary,Event,AllEnemies,DuringBattle
-09,1009,에란겔에 붉은 신호,"획득시 전설 카드 보상을 1회 획득합니다.",Rare,Event,Self,OnAcquire
-10,1010,황금 글라디우스,"전투 종료시 받는 골드가 30% 증가합니다.",Normal,Common,Self,OnBattleEnd
+01,1001,화염 용의 비늘,"전투 시작 시 모든 아군에게 방어도 4를 부여합니다.",Normal,Common,AllAllies,OnBattleStart
+02,1002,화강암 용의 알,"전투 시작 시 모든 아군에게 방어력 증가 1을 부여합니다.",Rare,Common,AllAllies,OnBattleStart
+03,1003,수정 용의 머리,"전투 시작 시 모든 아군에게 공격력 증가 2를 부여합니다.",Legendary,Event,AllAllies,OnBattleStart
+04,1004,이상한 체스판,"전투 시작 시 모든 적에게 취약 1을 부여합니다.",Normal,Event,AllEnemies,OnBattleStart
+05,1005,종이 비행기,"매 턴 시작 시 모든 적에게 2 피해를 줍니다.",Normal,Event,AllEnemies,DuringBattle
+06,1006,전쟁 여신의 조각상,"전투 시작 시 모든 아군에게 공격력 증가 1을 부여합니다.",Rare,Common,AllAllies,OnBattleStart
+07,1007,어둠의 썬구리,"전투 시작 시 모든 적에게 약화 1을 부여합니다.",Rare,Shop,AllEnemies,OnBattleStart
+08,1008,도살자의 녹슨 톱날,"매 턴 시작 시 모든 적에게 출혈 2를 부여합니다.",Legendary,Event,AllEnemies,DuringBattle
+09,1009,에란겔에 붉은 신호,"전투 시작 시 모든 아군에게 공격력 증가 2를 부여합니다.",Rare,Event,AllAllies,OnBattleStart
+10,1010,황금 글라디우스,"전투 시작 시 모든 아군에게 공격력 증가 1을 부여합니다.",Normal,Common,AllAllies,OnBattleStart
 11,1011,갓 구운 프레첼,"획득시 최대체력이 8 증가합니다.",Normal,Common,Self,OnAcquire
 12,1012,썩은 과일,"전투 시작시 모든 적에게 약화 1을 부여합니다.",Normal,Common,AllEnemies,OnBattleStart
-13,1013,부서진 검날,"매 턴 처음사용하는 공격카드에 피해량이 1 증가합니다.",Legendary,Default,Self,DuringBattle
-14,1014,신용카드,"상점에 있는 아이템을 1번만 무료 구매가 가능해집니다.",Rare,Shop,Self,InShop
-15,1015,매직완드,"매 턴 시작시 무작위 속성이 부여됩니다.",Legendary,Default,Self,DuringBattle
-16,1016,랜덤 주사위,"매 턴 시작시 손패중 무작위 카드의 비용이 변화됩니다.",Rare,Event,Self,DuringBattle
+13,1013,부서진 검날,"매 턴 시작 시 모든 아군에게 공격력 증가 1을 부여합니다.",Legendary,Default,AllAllies,DuringBattle
+14,1014,신용카드,"전투 시작 시 모든 아군에게 방어도 8을 부여합니다.",Rare,Shop,AllAllies,OnBattleStart
+15,1015,매직완드,"매 턴 시작 시 모든 아군에게 재생 1을 부여합니다.",Legendary,Default,AllAllies,DuringBattle
+16,1016,랜덤 주사위,"매 턴 시작 시 모든 아군에게 방어도 3을 부여합니다.",Rare,Event,AllAllies,DuringBattle
 17,1017,손도장 찍힌 바위,"매 턴 시작시 무작위 적에게 약화 1 또는 취약 1을 부여합니다.",Normal,Shop,SingleEnemy,DuringBattle

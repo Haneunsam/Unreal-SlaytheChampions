@@ -21,12 +21,14 @@
 #include "Engine/DataTable.h"
 #include "Components/BoxComponent.h"
 #include "Components/ArrowComponent.h"
+#include "Map/RunSystem.h"
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
 #include "Unit/Job/JobComponent.h"   // 스폰된 플레이어에 직업(SetJobClass) 주입용
 #include "Party/PartyInstance.h"
 #include "VFX/VFXComponent.h"
 #include "Unit/Enemy/GimmickComponent.h"
 #include "Unit/Enemy/Gimmick/Gimmick_Summoner.h" //소환 처리
+#include "Relic/RelicSubsystem.h"
 #include "EngineUtils.h"
 
 // 생성자: 스폰 위치 박스 컴포넌트들을 미리 배치
@@ -167,6 +169,14 @@ void ACombatManager::EndCombat(bool bWon)
 	if (bCombatEnded) return;   // 1회만
 	bCombatEnded = true;
 
+	if (URelicSubsystem* RelicSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URelicSubsystem>() : nullptr)
+	{
+		RelicSubsystem->TriggerOwnedRelicEffectsForCombat(
+			EEffectApplyTiming::OnBattleEnd,
+			SpawnedPlayers,
+			SpawnedEnemies);
+	}
+
 	// 적 행동 딜레이 타이머 정지
 	GetWorldTimerManager().ClearTimer(EnemyTimerHandle);
 
@@ -186,9 +196,37 @@ void ACombatManager::EndCombat(bool bWon)
 	SpawnedEnemies.Empty();
 	EnemyActionWidgetComps.Empty();
 
+	// 데이터 스폰 슬롯 초기화 — 다음 BeginCombat의 플레이어 스폰 가드(!PlayerActor_0)가
+	// 파괴된 액터의 스테일 포인터에 걸려 재스폰을 건너뛰는 문제를 막는다.
+	// (수동 세팅 모드는 레벨 배치 액터를 참조하므로 건드리지 않음)
+	if (!bPlayerManualSet)
+	{
+		PlayerActor_0 = nullptr;
+		PlayerActor_1 = nullptr;
+		PlayerActor_2 = nullptr;
+	}
+	if (!bEnemyManualSet)
+	{
+		EnemyActor_0 = nullptr;
+		EnemyActor_1 = nullptr;
+		EnemyActor_2 = nullptr;
+	}
+
 	bCombatInitialized = false;   // 다음 BeginCombat 허용
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatManager] 전투 종료 (승리=%s)"), bWon ? TEXT("true") : TEXT("false"));
+
+	if (bWon)
+	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (URunSystem* RunSystem = GameInstance->GetSubsystem<URunSystem>())
+			{
+				RunSystem->AreaCleared();
+			}
+		}
+	}
+
 	OnCombatEnded.Broadcast(bWon);
 }
 
@@ -506,13 +544,26 @@ void ACombatManager::InitCombat()
 
 		BattleWidget = CreateWidget<UBattleMainWidget>(PC, BattleWidgetClass);
 		if (BattleWidget)
+		{
+			// AddToViewport(=NativeConstruct) 전에 매니저 주입 — 위젯이 GetActorOfClass로
+			// 탐색하지 않고 이 매니저를 직접 써서 클릭/선택 바인딩을 보장한다.
+			BattleWidget->SetCombatManager(this);
 			BattleWidget->AddToViewport();
+		}
 		else
 			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleWidget creation failed"));
 	}
 
 	// 모든 액터의 BeginPlay가 완료된 후 드로우가 실행되도록 한 프레임 지연
 	// (CardUserComponent.DeckComponent는 BeginPlay에서 생성되므로 동일 틱 호출 시 null일 수 있음)
+	if (URelicSubsystem* RelicSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URelicSubsystem>() : nullptr)
+	{
+		RelicSubsystem->TriggerOwnedRelicEffectsForCombat(
+			EEffectApplyTiming::OnBattleStart,
+			SpawnedPlayers,
+			SpawnedEnemies);
+	}
+
 	GetWorldTimerManager().SetTimerForNextTick(this, &ACombatManager::StartTurn);
 }
 
@@ -733,6 +784,16 @@ void ACombatManager::StartTurn()
 
 	TurnCount++;
 	UE_LOG(LogTemp, Log, TEXT("[CombatManager] Turn %d 시작"), TurnCount);
+
+	if (URelicSubsystem* RelicSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URelicSubsystem>() : nullptr)
+	{
+		RelicSubsystem->TriggerOwnedRelicEffectsForCombat(
+			EEffectApplyTiming::DuringBattle,
+			SpawnedPlayers,
+			SpawnedEnemies,
+			EEffectTriggerCondition::TurnCountReached,
+			TurnCount);
+	}
 
 	SetPhase(ETurnPhase::DrawPhase);
 

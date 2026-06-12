@@ -36,6 +36,11 @@ void ULevelManager::GoToLevel(FName LevelName)
 
 void ULevelManager::MoveToConfiguredLevel(FName LevelName)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[LevelManager] MoveToConfiguredLevel RequestedLevel=%s bUseStreamedLevelTransition=%s CurrentStreamedLevel=%s"),
+		*LevelName.ToString(),
+		bUseStreamedLevelTransition ? TEXT("true") : TEXT("false"),
+		*CurrentStreamedLevelName.ToString());
+
 	if (bUseStreamedLevelTransition)
 	{
 		GoToStreamedLevel(LevelName);
@@ -47,13 +52,25 @@ void ULevelManager::MoveToConfiguredLevel(FName LevelName)
 
 void ULevelManager::GoToStreamedLevel(FName LevelName)
 {
-	if (LevelName.IsNone() || bIsStreamingTransitionInProgress)
+	if (LevelName.IsNone())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] GoToStreamedLevel ignored. LevelName is None."));
+		return;
+	}
+
+	if (bIsStreamingTransitionInProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] GoToStreamedLevel ignored. Transition in progress. RequestedLevel=%s PendingLevel=%s CurrentLevel=%s"),
+			*LevelName.ToString(),
+			*PendingStreamedLevelName.ToString(),
+			*CurrentStreamedLevelName.ToString());
 		return;
 	}
 
 	if (CurrentStreamedLevelName == LevelName)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] StreamedLevelReEntered Level=%s"), *LevelName.ToString());
+		OnStreamedLevelEntered.Broadcast(LevelName);
 		return;
 	}
 
@@ -85,6 +102,19 @@ void ULevelManager::GoToStreamedLevel(FName LevelName)
 	}
 
 	UnloadCurrentStreamedLevel();
+}
+
+void ULevelManager::BroadcastCurrentStreamedLevelEntered()
+{
+	if (CurrentStreamedLevelName.IsNone())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] BroadcastCurrentStreamedLevelEntered ignored. CurrentStreamedLevelName is None."));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[LevelManager] BroadcastCurrentStreamedLevelEntered Level=%s"),
+		*CurrentStreamedLevelName.ToString());
+	OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
 }
 
 void ULevelManager::AsynchronousLoadLevel()
@@ -150,23 +180,23 @@ void ULevelManager::OnLevelLoadCompleted()
 void ULevelManager::OnStreamedLevelLoaded()
 {
 	SetStreamedLevelVisibility(PendingStreamedLevelName, true);
+	const FName PreviousStreamedLevelName = CurrentStreamedLevelName;
 	CurrentStreamedLevelName = PendingStreamedLevelName;
 	PendingStreamedLevelName = NAME_None;
 	bIsStreamingTransitionInProgress = false;
+	UE_LOG(LogTemp, Warning, TEXT("[LevelManager] StreamedLevelLoaded PreviousLevel=%s NewLevel=%s"),
+		*PreviousStreamedLevelName.ToString(),
+		*CurrentStreamedLevelName.ToString());
+	OnStreamedLevelChanged.Broadcast(PreviousStreamedLevelName, CurrentStreamedLevelName);
+	OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
 
 	// 전투 레벨 활성화 트리거: 레벨이 완전히 보이게 된 뒤(BeginPlay 완료) BeginCombat 호출
 	if (ULevelStreaming* StreamingLevel = FindStreamingLevel(CurrentStreamedLevelName))
 	{
 		if (StreamingLevel->IsLevelVisible())
-		{
-			// 이미 보이는 상태(재방문 등)면 즉시 트리거
 			TriggerCombatBegin(CurrentStreamedLevelName);
-		}
 		else
-		{
-			// 보이게 되는 순간 1회 트리거 (AddToWorld/BeginPlay 완료 보장)
 			StreamingLevel->OnLevelShown.AddUniqueDynamic(this, &ULevelManager::HandleStreamedLevelShown);
-		}
 	}
 }
 
@@ -174,11 +204,8 @@ void ULevelManager::HandleStreamedLevelShown()
 {
 	TriggerCombatBegin(CurrentStreamedLevelName);
 
-	// 1회용 — 바인딩 해제
 	if (ULevelStreaming* StreamingLevel = FindStreamingLevel(CurrentStreamedLevelName))
-	{
 		StreamingLevel->OnLevelShown.RemoveDynamic(this, &ULevelManager::HandleStreamedLevelShown);
-	}
 }
 
 void ULevelManager::TriggerCombatBegin(FName LevelName) const
@@ -187,7 +214,6 @@ void ULevelManager::TriggerCombatBegin(FName LevelName) const
 	ULevel* LoadedLevel = StreamingLevel ? StreamingLevel->GetLoadedLevel() : nullptr;
 	if (!LoadedLevel) return;
 
-	// 이 레벨 안의 CombatManager를 찾아 BeginCombat (전투 레벨이 아니면 없음 → 무시)
 	for (AActor* Actor : LoadedLevel->Actors)
 	{
 		if (ACombatManager* CombatManager = Cast<ACombatManager>(Actor))
@@ -278,8 +304,7 @@ FName ULevelManager::GetConfiguredInitialStreamedLevelName() const
 
 bool ULevelManager::ShouldBootstrapMapSystem(const FString& MapName) const
 {
-	const FName ConfiguredInitialLevelName = GetConfiguredInitialStreamedLevelName();
-	return MapName == TEXT("NormalMap") || MapName == ConfiguredInitialLevelName.ToString();
+	return MapName == TEXT("MainMap");
 }
 
 void ULevelManager::EnsureInitialStreamedLevelLoaded()
@@ -297,8 +322,11 @@ void ULevelManager::EnsureInitialStreamedLevelLoaded()
 
 	if (IsStreamedLevelLoaded(ConfiguredInitialLevelName))
 	{
+		const FName PreviousStreamedLevelName = CurrentStreamedLevelName;
 		CurrentStreamedLevelName = ConfiguredInitialLevelName;
 		SetStreamedLevelVisibility(CurrentStreamedLevelName, true);
+		OnStreamedLevelChanged.Broadcast(PreviousStreamedLevelName, CurrentStreamedLevelName);
+		OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
 		return;
 	}
 
