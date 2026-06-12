@@ -5,6 +5,7 @@
 #include "CombatKernel/MonsterActionWidget.h"
 #include "Components/WidgetComponent.h"
 #include "Camera/CameraActor.h"
+#include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"  // 중복 BattleMainWidget 탐지(GetAllWidgetsOfClass)
@@ -14,16 +15,22 @@
 #include "Unit/StatusEffect.h"
 #include "Unit/Enemy/NPCBrainComponent.h"
 #include "Unit/Enemy/IntentComponent.h"
+#include "Unit/Enemy/EnemyDataTable.h"               // EnemyTable 스폰 경로 (FEnemyDefinition·FindByID)
+#include "Unit/Enemy/EnemyInitializerComponent.h"    // 스폰된 적에 Table+EnemyID 주입
+#include "CombatKernel/StageEncounterTypes.h"        // 스테이지 인카운터 테이블 행 (FStageEncounterRow)
+#include "Engine/DataTable.h"
 #include "Components/BoxComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
+#include "Unit/Job/JobComponent.h"   // 스폰된 플레이어에 직업(SetJobClass) 주입용
 #include "Party/PartyInstance.h"
 #include "EngineUtils.h"
 
 // 생성자: 스폰 위치 박스 컴포넌트들을 미리 배치
 ACombatManager::ACombatManager()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// 적 행동 위젯 빌보드 갱신을 위해 Tick 사용
+	PrimaryActorTick.bCanEverTick = true;
 
 	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
@@ -101,11 +108,121 @@ void ACombatManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 콤보 평가기 생성 (전투마다 새로 생성되어 상태 초기화됨). ComboTable 미지정 시에도 안전
+	// 직접 플레이/테스트 레벨은 BeginPlay에서 자동 시작.
+	// 스트리밍으로 프리로드되는 전투 레벨은 bAutoBeginCombat=false로 두고
+	// LevelManager가 활성화(OnLevelShown) 시 BeginCombat을 호출한다.
+	// (한 틱 미룸 — GameMode 등 다른 액터의 BeginPlay가 PartyInstance를 채운 뒤 읽도록)
+	if (bAutoBeginCombat)
+		GetWorldTimerManager().SetTimerForNextTick(this, &ACombatManager::BeginCombat);
+}
+
+// 레벨 활성화 시 진입점 — 상태를 리셋하고 전투를 새로 초기화한다.
+void ACombatManager::BeginCombat()
+{
+	// 이미 전투가 진행 중이면 중복 호출 무시 (BeginPlay 자동 시작 + LevelManager 트리거 겹침 방지).
+	// 종료된 전투(bCombatEnded)는 재시작 허용.
+	if (bCombatInitialized && !bCombatEnded) return;
+
+	// 이전 전투 종료 상태 해제 → 재초기화 허용
+	bCombatInitialized = false;
+	bCombatEnded = false;
+	TurnCount = 0;
+	ActionQueue.Empty();
+
+	// 콤보 평가기 새로 생성 (전투마다 상태 초기화). ComboTable 미지정 시에도 안전
 	ComboEvaluator = NewObject<UCardComboEvaluator>(this);
 	ComboEvaluator->Initialize(this, ComboTable);
 
 	InitCombat();
+}
+
+// 전투 종료 — 위젯 제거 + 스폰 유닛 정리 + 종료 알림. CheckCombatEnd가 전멸 시 호출.
+void ACombatManager::EndCombat(bool bWon)
+{
+	if (bCombatEnded) return;   // 1회만
+	bCombatEnded = true;
+
+	// 적 행동 딜레이 타이머 정지
+	GetWorldTimerManager().ClearTimer(EnemyTimerHandle);
+
+	// BattleMainWidget 제거
+	if (BattleWidget)
+	{
+		BattleWidget->RemoveFromParent();
+		BattleWidget = nullptr;
+	}
+
+	// 이 매니저가 스폰한 유닛만 정리 (레벨 직접 배치 유닛은 건드리지 않음)
+	for (AUnit* U : ManagerSpawnedUnits)
+		if (IsValid(U)) U->Destroy();
+	ManagerSpawnedUnits.Empty();
+
+	SpawnedPlayers.Empty();
+	SpawnedEnemies.Empty();
+	EnemyActionWidgetComps.Empty();
+
+	bCombatInitialized = false;   // 다음 BeginCombat 허용
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatManager] 전투 종료 (승리=%s)"), bWon ? TEXT("true") : TEXT("false"));
+	OnCombatEnded.Broadcast(bWon);
+}
+
+// StageEncounterTable에서 CombatAreaType/CombatFloor에 맞는 행을 가중치 랜덤으로 골라 반환
+const FStageEncounterRow* ACombatManager::PickEncounterFromTable() const
+{
+	if (!StageEncounterTable) return nullptr;
+
+	TArray<FStageEncounterRow*> Rows;
+	StageEncounterTable->GetAllRows<FStageEncounterRow>(TEXT("CombatManager::PickEncounterFromTable"), Rows);
+
+	// 방 타입 + 층 범위로 후보 필터링 (적이 1마리도 없는 행은 제외)
+	TArray<FStageEncounterRow*> Candidates;
+	float TotalWeight = 0.f;
+	for (FStageEncounterRow* Row : Rows)
+	{
+		if (!Row || Row->EnemyIDs.Num() == 0) continue;
+		if (Row->AreaType != CombatAreaType) continue;
+		if (CombatFloor < Row->MinFloor || CombatFloor > Row->MaxFloor) continue;
+
+		Candidates.Add(Row);
+		TotalWeight += FMath::Max(0.f, Row->Weight);
+	}
+
+	if (Candidates.Num() == 0) return nullptr;
+
+	// 가중치가 모두 0이면 균등 랜덤
+	if (TotalWeight <= 0.f)
+		return Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
+
+	// 가중치 기반 랜덤
+	float Roll = FMath::FRandRange(0.f, TotalWeight);
+	for (FStageEncounterRow* Row : Candidates)
+	{
+		Roll -= FMath::Max(0.f, Row->Weight);
+		if (Roll <= 0.f) return Row;
+	}
+	return Candidates.Last();
+}
+
+// 매 프레임 적 행동 위젯을 카메라를 향해 회전 — 머리 위 3D 배치를 유지한 채 빌보드 처리
+void ACombatManager::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (EnemyActionWidgetComps.Num() == 0) return;
+
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (!PC || !PC->PlayerCameraManager) return;
+
+	const FVector CamLoc = PC->PlayerCameraManager->GetCameraLocation();
+
+	for (UWidgetComponent* WC : EnemyActionWidgetComps)
+	{
+		if (!WC) continue;
+		// 위젯 평면의 정면(+X)이 카메라를 향하도록 회전
+		const FRotator Look = (CamLoc - WC->GetComponentLocation()).Rotation();
+		WC->SetWorldRotation(Look);
+	}
 }
 
 // Index번 플레이어 슬롯에 액터 설정 — PartyInstance 자동 로드를 무시하고 이 값을 사용
@@ -121,7 +238,7 @@ void ACombatManager::SetPlayerActor(int32 Index, AUnit* Actor)
 	}
 }
 
-// Index번 적 슬롯에 액터 설정 — MonsterGroupData 자동 로드를 무시하고 이 값을 사용
+// Index번 적 슬롯에 액터 설정 — EnemyTable 자동 스폰을 무시하고 이 값을 사용
 void ACombatManager::SetEnemyActor(int32 Index, AUnit* Actor)
 {
 	bEnemyManualSet = true;
@@ -137,37 +254,57 @@ void ACombatManager::SetEnemyActor(int32 Index, AUnit* Actor)
 // 등록된 유닛들로 전투를 초기화하고 1턴을 시작
 void ACombatManager::InitCombat()
 {
-	// 이미 초기화됨 — BP BeginPlay 중복 호출 방지
-	if (BattleWidget) return;
+	// 이미 초기화됐거나 초기화 진행 중이면 즉시 반환 — 재진입/중복 호출 방지
+	// (BattleWidget 가드만으로는 부족: 적 스폰(4번)이 위젯 생성(5번)보다 앞이라,
+	//  스폰된 BP_Enemy의 BeginPlay가 InitCombat을 재호출하면 무한 재귀가 됨)
+	if (bCombatInitialized) return;
+	bCombatInitialized = true;
 
 	SpawnedPlayers.Empty();
 	SpawnedEnemies.Empty();
 
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 
-	// ── 1. 배틀 카메라 스폰 ──────────────────────────────────
-	// CameraSlot_Default 화살표 위치·회전으로 스폰 — 에디터에서 화살표를 이동·회전해 초기 위치 조정
-	if (BattleCameraClass)
-	{
-		const FTransform SpawnTransform = CameraSlot_Default
-			? CameraSlot_Default->GetComponentTransform()
-			: GetActorTransform();
-
-		BattleCamera = GetWorld()->SpawnActor<ACameraActor>(BattleCameraClass, SpawnTransform);
-		if (BattleCamera && PC)
-			PC->SetViewTargetWithBlend(BattleCamera);
-		else
-			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleCamera spawn failed"));
-	}
-
 	// ── 3. 플레이어 슬롯 로드 ────────────────────────────────────
 	// bPlayerManualSet이면 Set 함수로 지정된 값 그대로 사용 (PartyInstance 무시)
 	if (!bPlayerManualSet && !PlayerActor_0)
 	{
-		// 1순위: PartyInstance.Champions
 		UGameInstance* GI = GetWorld()->GetGameInstance();
 		UPartyInstance* Party = GI ? GI->GetSubsystem<UPartyInstance>() : nullptr;
-		if (Party && Party->GetPartyInfo().Champions.Num() > 0)
+
+		// 1순위: PartyInstance.ChampionJobs로 단일 BP_Player를 PlayerBox 위치에 직업별로 스폰
+		// (레벨 배치 불필요 — 몬스터처럼 데이터 스폰. 직업만 챔피언별로 주입)
+		if (Party && PlayerActorClass && Party->GetChampionJobs().Num() > 0)
+		{
+			UBoxComponent* PlayerBoxes[] = { PlayerBox_0, PlayerBox_1, PlayerBox_2 };
+			AUnit** PlayerSlots[] = { &PlayerActor_0, &PlayerActor_1, &PlayerActor_2 };
+			const TArray<EJobClass>& Jobs = Party->GetChampionJobs();
+			const int32 Count = FMath::Min(Jobs.Num(), 3);
+
+			FActorSpawnParameters PlayerParams;
+			PlayerParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			for (int32 i = 0; i < Count; i++)
+			{
+				if (!PlayerBoxes[i]) continue;
+				AUnit* Spawned = GetWorld()->SpawnActor<AUnit>(
+					PlayerActorClass, PlayerBoxes[i]->GetComponentTransform(), PlayerParams);
+				*PlayerSlots[i] = Spawned;
+				if (!Spawned) continue;
+				ManagerSpawnedUnits.Add(Spawned);   // EndCombat에서 정리
+
+				const EJobClass Job = Jobs[i];
+				// 덱 로드용 직업 — InitializeDeck(등록 루프)보다 먼저 세팅돼야 올바른 덱 로드
+				if (UCardUserComponent* CC = Spawned->FindComponentByClass<UCardUserComponent>())
+					CC->JobClass = Job;
+				// 직업 로직(Detail) 재생성 — JobComponent.BeginPlay 이후이므로 SetJobClass로 다시 만든다
+				if (UJobComponent* JC = Spawned->FindComponentByClass<UJobComponent>())
+					JC->SetJobClass(Job);
+			}
+			UE_LOG(LogTemp, Log, TEXT("[CombatManager] PartyInstance ChampionJobs에서 플레이어 %d명 스폰"), Count);
+		}
+		// 2순위: PartyInstance.Champions (레벨에 배치된 기존 액터 참조)
+		else if (Party && Party->GetPartyInfo().Champions.Num() > 0)
 		{
 			const TArray<AUnit*>& Champions = Party->GetPartyInfo().Champions;
 			PlayerCount = FMath::Clamp(Champions.Num(), 1, 3);
@@ -178,7 +315,7 @@ void ACombatManager::InitCombat()
 		}
 		else
 		{
-			// 2순위: 레벨에 배치된 Team==Ally AUnit 자동 탐색
+			// 3순위: 레벨에 배치된 Team==Ally AUnit 자동 탐색
 			AUnit** PlayerSlots[] = { &PlayerActor_0, &PlayerActor_1, &PlayerActor_2 };
 			int32 Idx = 0;
 			for (TActorIterator<AUnit> It(GetWorld()); It && Idx < 3; ++It)
@@ -214,36 +351,49 @@ void ACombatManager::InitCombat()
 	PlayerCount = SpawnedPlayers.Num();
 
 	// ── 4. 적 유닛 등록 ──────────────────────────────────────────
-	// bEnemyManualSet이면 MonsterGroupData 무시하고 EnemyActor 슬롯 그대로 사용
-	if (!bEnemyManualSet && MonsterGroup && MonsterGroup->Monsters.Num() > 0)
-	{
-		// 데이터 에셋 기준으로 스폰
-		UBoxComponent* EnemyBoxes[] = { EnemyBox_0, EnemyBox_1, EnemyBox_2 };
-		const int32 Count = FMath::Min(MonsterGroup->Monsters.Num(), 3);
+	// 우선순위: EnemyTable(도감)+인카운터 ID목록 > EnemyActor 슬롯 > 레벨 스캔
+	// 인카운터 ID 출처 우선순위: StageEncounterTable(방 타입 랜덤) > 인라인 EncounterEnemyIDs(테스트)
+	const FStageEncounterRow* PickedRow = PickEncounterFromTable();
+	const TArray<FName>& EncounterIDs = PickedRow ? PickedRow->EnemyIDs : EncounterEnemyIDs;
 
-		FActorSpawnParameters Params;
-		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	// (bEnemyManualSet이면 SetEnemyActor로 지정한 값을 그대로 사용)
+	if (!bEnemyManualSet && EnemyTable && EnemyActorClass && EncounterIDs.Num() > 0)
+	{
+		// EnemyTable 도감에서 인카운터 ID 목록으로 골라 스폰
+		UBoxComponent* EnemyBoxes[] = { EnemyBox_0, EnemyBox_1, EnemyBox_2 };
+		const int32 Count = FMath::Min(EncounterIDs.Num(), 3);
 
 		for (int32 i = 0; i < Count; i++)
 		{
-			const FMonsterSlotData& Slot = MonsterGroup->Monsters[i];
-			if (!Slot.MonsterClass || !EnemyBoxes[i]) continue;
-
-			AUnit* Actor = GetWorld()->SpawnActor<AUnit>(Slot.MonsterClass, EnemyBoxes[i]->GetComponentTransform(), Params);
-			if (!Actor) continue;
-
-			Actor->UnitID = Slot.UnitName;
-
-			if (UStatComponent* Stat = Actor->GetStat())
+			const FName ID = EncounterIDs[i];
+			const FEnemyDefinition* Def = EnemyTable->FindByID(ID);
+			if (!Def || !EnemyBoxes[i])
 			{
-				Stat->MaxHP     = Slot.MaxHP;
-				Stat->CurrentHP = Slot.MaxHP;
+				if (!Def) UE_LOG(LogTemp, Warning, TEXT("[CombatManager] EnemyTable에 EnemyID '%s' 없음 — 건너뜀"), *ID.ToString());
+				continue;
 			}
 
+			// 일반 스폰 — BP_Enemy의 EnemyInitializerComponent.BeginPlay는 Table 미지정 시
+			// (InitializeFromTable의 null 가드로) 그냥 넘어가고, 여기서 도감 데이터를 직접 주입한다.
+			// (SpawnActorDeferred는 BP 컴포넌트(SCS)를 FinishSpawning에야 만들어 주입이 불가능했음)
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			AUnit* Actor = GetWorld()->SpawnActor<AUnit>(
+				EnemyActorClass, EnemyBoxes[i]->GetComponentTransform(), SpawnParams);
+			if (!Actor) continue;
+			ManagerSpawnedUnits.Add(Actor);   // EndCombat에서 정리
+
+			Actor->UnitID = ID;
+			if (UEnemyInitializerComponent* Init = Actor->FindComponentByClass<UEnemyInitializerComponent>())
+				Init->InitializeFromDefinition(*Def);   // 도감 데이터(HP·패턴·기믹·메시·애님) 직접 주입
+
 			SpawnedEnemies.Add(Actor);
-			UE_LOG(LogTemp, Log, TEXT("[CombatManager] Enemy[%d] 스폰: %s (HP:%d)"), i, *Slot.UnitName.ToString(), Slot.MaxHP);
+			UE_LOG(LogTemp, Log, TEXT("[CombatManager] Enemy[%d] 스폰(Table): %s"), i, *ID.ToString());
 		}
+		EnemyCount = SpawnedEnemies.Num();
 	}
+	// bEnemyManualSet이면 EnemyActor 슬롯 그대로 사용
 	else if (bEnemyManualSet || EnemyActor_0)
 	{
 		// EnemyActor 슬롯 직접 사용 — 비어있지 않은 슬롯만 자동 인식
@@ -270,6 +420,42 @@ void ACombatManager::InitCombat()
 			UE_LOG(LogTemp, Log, TEXT("[CombatManager] 레벨에서 적 %d명 자동 탐색"), EnemyCount);
 	}
 
+	// ── 4-1. 적 행동 위젯 컴포넌트 캐시 ──────────────────────────
+	// 각 적의 MonsterActionWidget을 호스팅하는 WidgetComponent를 모아 Tick에서 카메라를 향해 회전시킨다.
+	// WidgetClass 기준으로 식별 — 내부 UMG 인스턴스가 아직 생성되기 전이어도 동작
+	EnemyActionWidgetComps.Reset();
+	for (AUnit* Enemy : SpawnedEnemies)
+	{
+		if (!Enemy) continue;
+		TArray<UWidgetComponent*> WComps;
+		Enemy->GetComponents<UWidgetComponent>(WComps);
+		for (UWidgetComponent* WC : WComps)
+		{
+			if (WC && WC->GetWidgetClass() &&
+				WC->GetWidgetClass()->IsChildOf(UMonsterActionWidget::StaticClass()))
+			{
+				EnemyActionWidgetComps.Add(WC);
+			}
+		}
+	}
+
+	// ── 4-2. 배틀 카메라 스폰 ──────────────────────────────────
+	// 플레이어·적 등록이 모두 끝난 뒤 스폰 — 카메라 BP가 BeginPlay에서 유닛/슬롯을 참조하더라도
+	// 이미 SpawnedPlayers/Enemies가 채워져 있어 타겟이 유효함
+	// CameraSlot_Default 화살표 위치·회전으로 스폰 — 에디터에서 화살표를 이동·회전해 초기 위치 조정
+	if (BattleCameraClass)
+	{
+		const FTransform SpawnTransform = CameraSlot_Default
+			? CameraSlot_Default->GetComponentTransform()
+			: GetActorTransform();
+
+		BattleCamera = GetWorld()->SpawnActor<ACameraActor>(BattleCameraClass, SpawnTransform);
+		if (BattleCamera && PC)
+			PC->SetViewTargetWithBlend(BattleCamera);
+		else
+			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleCamera spawn failed"));
+	}
+
 	// ── 5. 배틀 메인 위젯 생성 ──────────────────────────────────
 	// 유닛 등록 완료 후 생성 — Event Construct에서 GetSpawnedPlayers/Enemies가 유효한 값을 반환하도록
 	if (BattleWidgetClass && PC)
@@ -294,15 +480,6 @@ void ACombatManager::InitCombat()
 			BattleWidget->AddToViewport();
 		else
 			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleWidget creation failed"));
-	}
-
-	// 수동 세팅 사용 중이면 화면 좌상단에 표시
-	if ((bPlayerManualSet || bEnemyManualSet) && GEngine)
-	{
-		const FString Msg = FString::Printf(TEXT("[테스트 세팅 사용중] Player:%s  Enemy:%s"),
-			bPlayerManualSet ? TEXT("수동") : TEXT("자동"),
-			bEnemyManualSet  ? TEXT("수동") : TEXT("자동"));
-		GEngine->AddOnScreenDebugMessage(999, 99999.f, FColor::Yellow, Msg);
 	}
 
 	// 모든 액터의 BeginPlay가 완료된 후 드로우가 실행되도록 한 프레임 지연
@@ -431,10 +608,11 @@ void ACombatManager::ExecuteCard(const FCardDataRow& Card, int32 CasterIndex, AU
 	CheckCombatEnd();
 }
 
-// 모든 적 또는 플레이어의 생존 여부를 확인하고 결과를 로그로 출력
-// TODO: 승리/패배 화면 구현 시 여기서 페이즈 진행 중단 처리 추가
+// 모든 적/플레이어의 생존 여부를 확인하고, 전멸 시 EndCombat으로 전투를 종료한다.
 void ACombatManager::CheckCombatEnd()
 {
+	if (bCombatEnded) return;   // 이미 종료됨
+
 	// 살아있는 적이 한 명도 없으면 전투 승리
 	const bool bAllEnemiesDead = SpawnedEnemies.Num() > 0 &&
 		!SpawnedEnemies.ContainsByPredicate([](AUnit* U){ return U && U->IsAlive(); });
@@ -442,7 +620,7 @@ void ACombatManager::CheckCombatEnd()
 	if (bAllEnemiesDead)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatManager] 모든 적 사망 — 전투 승리"));
-		// TODO: 전투 종료 처리 (승리 화면, 보상 등) 구현 시 여기서 페이즈 진행 중단
+		EndCombat(true);
 		return;
 	}
 
@@ -453,7 +631,7 @@ void ACombatManager::CheckCombatEnd()
 	if (bAllPlayersDead)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatManager] 모든 플레이어 사망 — 게임 오버"));
-		// TODO: 게임 오버 처리 (패배 화면 등) 구현 시 여기서 페이즈 진행 중단
+		EndCombat(false);
 	}
 }
 
@@ -461,6 +639,7 @@ void ACombatManager::CheckCombatEnd()
 void ACombatManager::SetPhase(ETurnPhase NewPhase)
 {
 	CheckCombatEnd();
+	if (bCombatEnded) return;   // 전멸로 종료됐으면 페이즈 진행 중단
 
 	CurrentPhase = NewPhase;
 	OnPhaseChanged.Broadcast(NewPhase);
@@ -508,6 +687,8 @@ void ACombatManager::TickBuffsAndDebuffs(const TArray<AUnit*>& Units)
 // 턴 카운트를 올리고 DrawPhase → PlayerActionPhase 순서로 진행
 void ACombatManager::StartTurn()
 {
+	if (bCombatEnded) return;   // 종료된 전투는 새 턴 시작 안 함
+
 	TurnCount++;
 	UE_LOG(LogTemp, Log, TEXT("[CombatManager] Turn %d 시작"), TurnCount);
 
@@ -567,6 +748,7 @@ void ACombatManager::EvaluatePlayedCardCombos(int32 CasterIndex)
 // 플레이어 행동 입력을 종료하고 적 턴으로 직접 전환 (카드 효과는 이미 즉시 실행됨)
 void ACombatManager::EndPlayerActionPhase()
 {
+	if (bCombatEnded) return;
 	if (CurrentPhase != ETurnPhase::PlayerActionPhase) return;
 	StartEnemyPhase();
 }
@@ -574,6 +756,7 @@ void ACombatManager::EndPlayerActionPhase()
 // 적 턴 페이즈를 시작하고 첫 번째 적부터 행동을 진행
 void ACombatManager::StartEnemyPhase()
 {
+	if (bCombatEnded) return;
 	CurrentEnemyIndex = 0;
 	SetPhase(ETurnPhase::EnemyPhase);
 
@@ -590,6 +773,8 @@ void ACombatManager::StartEnemyPhase()
 // 모든 적이 행동 완료되면 다음 턴을 시작
 void ACombatManager::ExecuteNextEnemyAction()
 {
+	if (bCombatEnded) return;   // 전투 종료 시 적 행동 진행 중단
+
 	// 죽은 적 건너뜀
 	while (SpawnedEnemies.IsValidIndex(CurrentEnemyIndex) &&
 		   (!SpawnedEnemies[CurrentEnemyIndex] || !SpawnedEnemies[CurrentEnemyIndex]->IsAlive()))
