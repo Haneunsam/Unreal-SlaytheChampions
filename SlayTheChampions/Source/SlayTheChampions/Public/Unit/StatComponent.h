@@ -8,7 +8,7 @@
 
 class AUnit;
 
-// UI�� ����Ǵ� �̺�Ʈ ����
+// UI와 연동되어 사용
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, int32, OldValue, int32, NewValue);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBlockChanged, int32, OldValue, int32, NewValue);
 
@@ -32,7 +32,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Stat")
 	void Heal(int32 Amount);
-
+	
 	UPROPERTY(BlueprintAssignable, Category = "Stat")
 	FOnHPChanged OnHPChanged;
 		

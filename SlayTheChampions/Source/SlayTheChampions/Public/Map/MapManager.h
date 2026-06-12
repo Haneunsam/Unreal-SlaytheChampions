@@ -48,4 +48,13 @@ public:
 	int32 GetMapWidth() const;
 
 	int32 GetMapHeight() const;
+
+	UFUNCTION(BlueprintCallable)
+	URunSystem* GetRunSystem() const { return RunSystem; }
+
+	UFUNCTION(BlueprintPure)
+	int32 GetCurrentFloorIndex() const;
+
+	UFUNCTION(BlueprintPure)
+	int32 GetCurrentDisplayFloor() const;
 };
