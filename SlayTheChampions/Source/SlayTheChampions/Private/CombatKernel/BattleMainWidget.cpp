@@ -115,9 +115,11 @@ void UBattleMainWidget::NativeConstruct()
 
 	Super::NativeConstruct();
 
-	// CombatManager 자동 탐색
-	CombatManager = Cast<ACombatManager>(
-		UGameplayStatics::GetActorOfClass(GetWorld(), ACombatManager::StaticClass()));
+	// CombatManager — InitCombat이 SetCombatManager로 미리 주입했으면 그대로 사용,
+	// 아니면 레벨에서 폴백 탐색 (직접 PIE 테스트 등 주입 경로를 안 탄 경우)
+	if (!CombatManager)
+		CombatManager = Cast<ACombatManager>(
+			UGameplayStatics::GetActorOfClass(GetWorld(), ACombatManager::StaticClass()));
 
 	if (CombatManager)
 	{
