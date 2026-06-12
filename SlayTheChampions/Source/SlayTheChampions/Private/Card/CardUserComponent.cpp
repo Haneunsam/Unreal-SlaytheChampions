@@ -4,6 +4,7 @@
 #include "Card/CardSaveGame.h"
 #include "Card/CardDataTypes.h"
 #include "GameManagers/CardManager.h"
+#include "Party/PartyInstance.h"
 #include "Engine/GameInstance.h"
 #include "CombatKernel/CombatManager.h"
 #include "Kismet/GameplayStatics.h"
@@ -43,18 +44,37 @@ void UCardUserComponent::InitializeDeck()
     if (!DeckComponent) return;
 
     TArray<FName> DeckNames;
+    UGameInstance* GI = GetWorld()->GetGameInstance();
 
-    // 1순위: SaveGame 슬롯에서 이전 전투 덱 불러오기
-    TArray<FName> SavedDeck = UCardSaveGame::GetDeckCards(PawnIndex);
-    if (SavedDeck.Num() > 0)
+    // 1순위: PartyInstance — 보상 카드가 반영된 런타임 소스 of truth
+    if (GI)
     {
-        DeckNames = SavedDeck;
-        UE_LOG(LogTemp, Warning,
-            TEXT("[CardUserComponent] Pawn%d - Loaded from SaveGame (%d cards)."),
-            PawnIndex, DeckNames.Num());
+        if (UPartyInstance* Party = GI->GetSubsystem<UPartyInstance>())
+        {
+            if (Party->HasDeck(PawnIndex))
+            {
+                DeckNames = Party->GetDeck(PawnIndex);
+                UE_LOG(LogTemp, Warning,
+                    TEXT("[CardUserComponent] Pawn%d - Loaded from PartyInstance (%d cards)."),
+                    PawnIndex, DeckNames.Num());
+            }
+        }
     }
 
-    // 2순위: 에디터에서 직접 지정한 OverrideDeckNames (테스트용)
+    // 2순위: SaveGame 슬롯 (이전 세션 덱)
+    if (DeckNames.IsEmpty())
+    {
+        TArray<FName> SavedDeck = UCardSaveGame::GetDeckCards(PawnIndex);
+        if (SavedDeck.Num() > 0)
+        {
+            DeckNames = SavedDeck;
+            UE_LOG(LogTemp, Warning,
+                TEXT("[CardUserComponent] Pawn%d - Loaded from SaveGame (%d cards)."),
+                PawnIndex, DeckNames.Num());
+        }
+    }
+
+    // 3순위: 에디터에서 직접 지정한 OverrideDeckNames (테스트용)
     if (DeckNames.IsEmpty() && OverrideDeckNames.Num() > 0)
     {
         DeckNames = OverrideDeckNames;
@@ -63,10 +83,10 @@ void UCardUserComponent::InitializeDeck()
             PawnIndex, DeckNames.Num());
     }
 
-    // 3순위: CardSubsystem 에서 직업(JobClass) 기반으로 자동 조회
+    // 4순위: CardSubsystem 직업 기반 기본 덱 (인스턴스가 비어있는 폴백 — 정상 경로는 PartyInstance 시드)
     if (DeckNames.IsEmpty())
     {
-        if (UGameInstance* GI = GetWorld()->GetGameInstance())
+        if (GI)
         {
             if (UCardSubsystem* CS = GI->GetSubsystem<UCardSubsystem>())
             {
@@ -78,7 +98,6 @@ void UCardUserComponent::InitializeDeck()
         }
     }
 
-    // 세 경로 모두 실패 시 덱 초기화 불가
     if (DeckNames.IsEmpty())
     {
         UE_LOG(LogTemp, Warning,
@@ -87,18 +106,35 @@ void UCardUserComponent::InitializeDeck()
         return;
     }
 
-    // DeckComponent 초기화 (Fisher-Yates 셔플 포함), Hand 는 빈 상태로 시작
     DeckComponent->InitializeDeck(DeckNames, Hand);
     UE_LOG(LogTemp, Warning,
         TEXT("[CardUserComponent] Pawn%d - Deck initialized (%d cards)."),
         PawnIndex, DeckNames.Num());
 }
 
+void UCardUserComponent::ReinitializeForCombat(int32 NewPawnIndex, EJobClass NewJob)
+{
+    PawnIndex = NewPawnIndex;
+    JobClass  = NewJob;
+
+    // CardManager에 올바른 PawnIndex로 재등록 (BeginPlay는 항상 0으로 등록함)
+    if (UGameInstance* GI = GetWorld()->GetGameInstance())
+        if (UCardManager* CM = GI->GetSubsystem<UCardManager>())
+            CM->RegisterDeckComponent(PawnIndex, DeckComponent);
+
+    InitializeDeck();
+}
+
 void UCardUserComponent::SaveDeckToSaveGame()
 {
     if (!DeckComponent) return;
 
-    // DrawPile + Hand + DiscardPile 합산 저장 (ExhaustPile 은 전투 내 임시 소멸이므로 제외)
+    // DrawPile + Hand + DiscardPile 합산 (ExhaustPile 은 전투 내 임시 소멸이므로 제외)
+    TArray<FName> AllCards;
+    AllCards.Append(DeckComponent->GetDrawPile());
+    AllCards.Append(Hand);
+    AllCards.Append(DeckComponent->GetDiscardPile());
+
     UCardSaveGame::SaveDeckAfterBattle(
         PawnIndex,
         DeckComponent->GetDrawPile(),
@@ -106,8 +142,13 @@ void UCardUserComponent::SaveDeckToSaveGame()
         DeckComponent->GetDiscardPile()
     );
 
+    // PartyInstance에도 동기화 — 다음 InitializeDeck의 1순위 소스
+    if (UGameInstance* GI = GetWorld()->GetGameInstance())
+        if (UPartyInstance* Party = GI->GetSubsystem<UPartyInstance>())
+            Party->SetDeck(PawnIndex, AllCards);
+
     UE_LOG(LogTemp, Log,
-        TEXT("[CardUserComponent] Pawn%d - Deck saved to SaveGame."), PawnIndex);
+        TEXT("[CardUserComponent] Pawn%d - Deck saved (%d cards)."), PawnIndex, AllCards.Num());
 }
 
 // ── 턴 조작 ──────────────────────────────────────────────────────────────────

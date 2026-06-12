@@ -3,6 +3,7 @@
 #include "Relic/RelicSubsystem.h"
 #include "Unit/Unit.h"
 #include "Unit/StatComponent.h"
+#include "Card/CardSubsystem.h"
 
 void UPartyInstance::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -18,6 +19,21 @@ void UPartyInstance::InitParty()
 {
 	PartyInfo.InitSavePartyInfo();
 	PartyInfo.Deck.SetNum(2);
+}
+
+void UPartyInstance::AddChampion(EJobClass Job)
+{
+	const int32 PawnIndex = ChampionJobs.Num();
+	ChampionJobs.Add(Job);
+
+	// 직업 기본 덱을 인스턴스에 함께 저장 — 이후 전투/보상은 이 덱을 소스로 사용
+	if (UCardSubsystem* CS = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCardSubsystem>() : nullptr)
+	{
+		TArray<FName> BaseDeck = CS->GetCardNamesByClass(Job);
+		SetDeck(PawnIndex, BaseDeck);
+		UE_LOG(LogTemp, Log, TEXT("[PartyInstance] AddChampion Pawn%d Job=%d 기본덱 %d장 시드"),
+			PawnIndex, (int32)Job, BaseDeck.Num());
+	}
 }
 
 void UPartyInstance::SetPartyInfo(FSavePartyInfo _info)
@@ -142,6 +158,48 @@ int32 UPartyInstance::GetSavedCurrentHP(int32 Index) const
 int32 UPartyInstance::GetSavedMaxHP(int32 Index) const
 {
 	return PartyInfo.ChampionMaxHPs.IsValidIndex(Index) ? PartyInfo.ChampionMaxHPs[Index] : 0;
+}
+
+void UPartyInstance::SetDeck(int32 PawnIndex, const TArray<FName>& Cards)
+{
+	if (PawnIndex < 0) return;
+	if (!PartyInfo.ChampionDecks.IsValidIndex(PawnIndex))
+		PartyInfo.ChampionDecks.SetNum(PawnIndex + 1);
+	PartyInfo.ChampionDecks[PawnIndex].Cards = Cards;
+	UE_LOG(LogTemp, Log, TEXT("[PartyInstance] SetDeck: Pawn%d = %d장"), PawnIndex, Cards.Num());
+}
+
+void UPartyInstance::AddDeckCard(int32 PawnIndex, FName CardName)
+{
+	if (PawnIndex < 0 || CardName.IsNone()) return;
+
+	// 덱은 RowName 체계로 통일 — CardName이 CardID면 RowName으로 변환해 저장
+	// (기본 덱은 GetCardNamesByClass로 RowName을 쓰므로, 보상 카드도 맞춰야 손패/드로우에서 GetCard 성공)
+	if (UCardSubsystem* CS = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCardSubsystem>() : nullptr)
+	{
+		if (!CS->GetCard(CardName))
+		{
+			const FName RowName = CS->GetRowNameByCardID(CardName);
+			if (!RowName.IsNone()) CardName = RowName;
+		}
+	}
+
+	if (!PartyInfo.ChampionDecks.IsValidIndex(PawnIndex))
+		PartyInfo.ChampionDecks.SetNum(PawnIndex + 1);
+	PartyInfo.ChampionDecks[PawnIndex].Cards.Add(CardName);
+	UE_LOG(LogTemp, Log, TEXT("[PartyInstance] AddDeckCard: Pawn%d += %s"), PawnIndex, *CardName.ToString());
+}
+
+TArray<FName> UPartyInstance::GetDeck(int32 PawnIndex) const
+{
+	if (!PartyInfo.ChampionDecks.IsValidIndex(PawnIndex)) return {};
+	return PartyInfo.ChampionDecks[PawnIndex].Cards;
+}
+
+bool UPartyInstance::HasDeck(int32 PawnIndex) const
+{
+	return PartyInfo.ChampionDecks.IsValidIndex(PawnIndex) &&
+		   PartyInfo.ChampionDecks[PawnIndex].Cards.Num() > 0;
 }
 
 

@@ -369,9 +369,9 @@ void ACombatManager::InitCombat()
 				ManagerSpawnedUnits.Add(Spawned);   // EndCombat에서 정리
 
 				const EJobClass Job = Jobs[i];
-				// 덱 로드용 직업 — InitializeDeck(등록 루프)보다 먼저 세팅돼야 올바른 덱 로드
+				// PawnIndex·직업 주입 + 덱 재초기화 — BeginPlay는 PawnIndex=0으로 고정되어 있어 재호출 필요
 				if (UCardUserComponent* CC = Spawned->FindComponentByClass<UCardUserComponent>())
-					CC->JobClass = Job;
+					CC->ReinitializeForCombat(i, Job);
 				// 직업 로직(Detail) 재생성 — JobComponent.BeginPlay 이후이므로 SetJobClass로 다시 만든다
 				if (UJobComponent* JC = Spawned->FindComponentByClass<UJobComponent>())
 					JC->SetJobClass(Job);

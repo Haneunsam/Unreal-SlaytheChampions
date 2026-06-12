@@ -76,10 +76,17 @@ public:
     /**
      * 덱을 초기화한다.
      * BeginPlay 에서 자동 호출.
-     * SaveGame → OverrideDeckNames → CardSubsystem 순 우선순위.
+     * PartyInstance → SaveGame → OverrideDeckNames → CardSubsystem 순 우선순위.
      */
     UFUNCTION(BlueprintCallable, Category = "Card")
     void InitializeDeck();
+
+    /**
+     * CombatManager 스폰 루프에서 PawnIndex·직업을 주입할 때 호출.
+     * BeginPlay 자동 초기화(PawnIndex=0 고정)를 올바른 값으로 덮어쓴다.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Card")
+    void ReinitializeForCombat(int32 NewPawnIndex, EJobClass NewJob);
 
     /**
      * 전투 종료 후 현재 덱 상태를 SaveGame 에 저장한다.
