@@ -19,6 +19,20 @@ UNPCBrainComponent::UNPCBrainComponent()
 
 void UNPCBrainComponent::PlanNextAction(const TArray<AUnit*>& Allies, const TArray<AUnit*>& Enemies)
 {
+	//[기믹 상태] 조회만 -구동은 CombatManger책임
+	UGimmickComponent* Gimmick = GetOwner()->FindComponentByClass<UGimmickComponent>();
+	//기믹이 이번턴 행동을 막으면
+	if (Gimmick && Gimmick->WantsToSkipPatternAction())
+	{
+		PendingAction = FEnemyAction{};
+		PendingAction.IntentKind = EIntentKind::NoAttack;
+		if (UIntentComponent* Intent = GetOwner()->FindComponentByClass<UIntentComponent>())
+		{
+			FIntent New; New.Kind = EIntentKind::NoAttack;
+			Intent->SetIntent(New);
+		}
+		return;
+	}
 	// 행동 계획
 	// 패턴이 없거나 비어있는 액션이 없으면 바로 종료
 	if (!Pattern || Pattern->Actions.IsEmpty())
@@ -26,7 +40,7 @@ void UNPCBrainComponent::PlanNextAction(const TArray<AUnit*>& Allies, const TArr
 		UE_LOG(LogTemp, Warning, TEXT("[NPCBrain] %s — Pattern이 없거나 비어있음. PendingAction이 기본값으로 유지됩니다."), *GetOwner()->GetName());
 		return;
 	}
-
+		
 	// PickNext, PickTarget private 함수를 호출하여 다음 액션에 반영
 	//
 	PendingAction = PickNext();
@@ -133,11 +147,3 @@ AUnit* UNPCBrainComponent::PickTarget(
 
 
 }
-
-/*
-void UNPCBrainComponent::SwapPattern(UEnemyPatternData* NewPattern)
-{
-	Pattern = NewPattern;
-	SequenceIndex = 0;
-}
-*/

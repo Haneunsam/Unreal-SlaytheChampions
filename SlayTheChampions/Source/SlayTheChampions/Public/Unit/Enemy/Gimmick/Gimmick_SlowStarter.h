@@ -40,6 +40,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Gimmick|Sleep")
 	bool IsSleeping() const { return bSleeping; }
 
+	//자고 있는 동안은 이번턴 패턴 행동을 건너뛰어야 하면 true
+	virtual bool WantsToSkipPatternAction() const override { return bSleeping; }
+
 	// 피격 시 조기 각성 옵션 (데이터로 ON/OFF)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gimmick|Sleep")
 	bool bWakeOnDamage = false;

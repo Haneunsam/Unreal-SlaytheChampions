@@ -4,7 +4,7 @@
 #include "Unit/Enemy/Gimmick/Gimmick_OverDamage.h"
 
 
-void UGimmick_OverDamage::OnGimmickTurnStart()
+void UGimmick_OverDamage::OnGimmickTurnEnd()
 {
 	// CheckInterval 턴마다 체크 (첫 발동은 TurnCounter == CheckInterval)
 	if(CheckInterval <= 0) return;

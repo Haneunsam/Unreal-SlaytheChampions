@@ -3,6 +3,7 @@
 
 #include "VFX/VFXProjectileActor.h"
 #include "Unit/Unit.h"
+#include "TimerManager.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -31,7 +32,8 @@ void AVFXProjectileActor::BeginPlay()
 }
 
 
-void AVFXProjectileActor::Launch(UParticleSystem* InParticle, AUnit* InTarget, float InSpeed, UParticleSystem* InImpactParticle)
+void AVFXProjectileActor::Launch(UParticleSystem* InParticle, AUnit* InTarget, float InSpeed,
+								UParticleSystem* InImpactParticle, float InImpactDuration, bool bInImpactImmediateStop)
 {
 	if (!InParticle || !InTarget)
 	{
@@ -103,20 +105,31 @@ void AVFXProjectileActor::BeforeImpact()
 
 void AVFXProjectileActor::OnArrived()
 {
-	// BlueprintNativeEvent는 원래 함수명(BeforeImpact)으로 호출.
-	// _Implementation을 직접 호출하면 BP 오버라이드가 무시된다.
-	BeforeImpact();
+	UParticleSystemComponent* ImpactPsc = UGameplayStatics::SpawnEmitterAtLocation(
+		GetWorld(), ImpactParticle,
+		TargetUnit->GetActorLocation(),
+		FRotator::ZeroRotator, true);
 
-	if (ImpactParticle && TargetUnit.IsValid())
+	// Duration이 있으면 루프형 충돌 이펙트도 강제 종료
+	// (이 액터는 곧 Destroy되지만 임팩트 PSC와 월드 타이머는 독립적이라 안전)
+	if (ImpactPsc && ImpactDuration > 0.f)
 	{
-		UGameplayStatics::SpawnEmitterAtLocation(
-			GetWorld(), ImpactParticle,
-			TargetUnit->GetActorLocation(),
-			FRotator::ZeroRotator, true);
+		if (UWorld* World = GetWorld())
+		{
+			TWeakObjectPtr<UParticleSystemComponent> WeakPsc(ImpactPsc);
+			const bool bImmediate = bImpactImmediateStop;
+			FTimerHandle Handle;
+			World->GetTimerManager().SetTimer(Handle,
+				[WeakPsc, bImmediate]()
+				{
+					UParticleSystemComponent* Comp = WeakPsc.Get();
+					if (!Comp) return;
+					Comp->bAutoDestroy = true;
+					if (bImmediate) Comp->DeactivateImmediate();
+					else            Comp->Deactivate();
+				},
+				ImpactDuration, false);
+		}
 	}
-
-	UE_LOG(LogTemp, Log, TEXT("[VfxProjectile] '%s' 도착 -> Destroy"), *GetName());
-
-	Destroy();
 }
 

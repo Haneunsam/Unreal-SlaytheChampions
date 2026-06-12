@@ -51,7 +51,10 @@ public:
 	void Launch(UParticleSystem* InParticle,
 		AUnit* InTarget,
 		float  InSpeed,
-		UParticleSystem* InImpactParticle);
+		UParticleSystem* InImpactParticle,
+		float InImpactDuration = 0.f,
+		bool bInImpactImmediateStop = false);
+
 
 	//에디터 설정
 	/** 대상 도달 판정 반경 (cm). 이 거리 이내면 도착으로 처리. */
@@ -84,6 +87,9 @@ private:
 
 	float MoveSpeed = 800.f;
 	bool  bLaunched = false;
+
+	float ImpactDuration = 0.f;
+	bool bImpactImmediateStop = false;
 
 	void OnArrived();
 

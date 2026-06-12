@@ -55,7 +55,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-	virtual void OnGimmickTurnStart() override;
+	virtual void OnGimmickTurnEnd() override;
 
 private:
 	UPROPERTY()

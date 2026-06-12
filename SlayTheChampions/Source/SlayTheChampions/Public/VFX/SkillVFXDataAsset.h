@@ -77,6 +77,27 @@ struct SLAYTHECHAMPIONS_API FSkillVfxEntry
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX|Socket")
 	FRotator SpawnRotationOffset = FRotator::ZeroRotator;
 
+
+	//재생 제어
+	
+	/*
+	* 스폰된 파티클을 강제로 끄기까지의 시간
+	* 0 이하:강제 종료 안함
+	* 0 초과:Duration초 뒤에 Deactivate하여 루프형 이펙트도 멈춘다
+	*		무한반복파티클을 한번만 보여주고 끄고 싶을 때 사용
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,Category = "VFX|Lifetime", meta = (ClampMin = "0.0"))
+	float Duration = 0.f;
+
+	/*
+	* true : Duration도달시 즉시 모든 파티클 제거 (하드컷)
+	* false	: 신규 방출만 멈추고 남은 파티클은 수명대로 페이드 아웃
+	* Duration <= 0 이면 무시
+	*/
+	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category = "VFX|Lifetime",meta = (EditCondition = "Duration > 0.0"))
+	bool bImmediateStop = false;
+
+	 
 	//발사체 전용 (VfxType == Proejctile)
 
 	//발사체 이동속도 Projectile 타입에서만 유효

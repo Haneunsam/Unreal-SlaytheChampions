@@ -472,8 +472,8 @@ void UBattleMainWidget::BindEnemyClickEvents()
 	{
 		if (Unit)
 		{
-			Unit->OnUnitClicked.AddDynamic(this, &UBattleMainWidget::HandleEnemyClicked);
-			Unit->OnUnitHovered.AddDynamic(this, &UBattleMainWidget::HandleEnemyHovered);
+			Unit->OnUnitClicked.AddUniqueDynamic(this, &UBattleMainWidget::HandleEnemyClicked);
+			Unit->OnUnitHovered.AddUniqueDynamic(this, &UBattleMainWidget::HandleEnemyHovered);
 			BoundCount++;
 		}
 	}
@@ -721,30 +721,23 @@ FReply UBattleMainWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 	if (PendingCardName.IsNone() || InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 
-	// 클릭 위치에 살아있는 유닛이 있으면 NotifyActorOnClicked 흐름(HandleEnemyClicked 등)에 위임
-	// ECC_Visibility 우선, 없으면 ECC_Pawn 채널로 재시도 (유닛 콜리전 설정에 따라 다를 수 있음)
+	// PlayerController의 ClickTraceChannel 사용 — BP에서 커스텀 채널로 바꿨을 때도 일치하도록
 	APlayerController* PC = GetOwningPlayer();
 	if (PC)
 	{
-		auto TryFindUnit = [&](ECollisionChannel Channel) -> AUnit*
-		{
-			FHitResult Hit;
-			if (PC->GetHitResultUnderCursor(Channel, false, Hit))
-				return Cast<AUnit>(Hit.GetActor());
-			return nullptr;
-		};
+		FHitResult MainHit, PawnHit;
+		const bool bHitMain = PC->GetHitResultUnderCursor(ECC_Visibility, false, MainHit);
+		const bool bHitPawn = !bHitMain && PC->GetHitResultUnderCursor(ECC_Pawn, false, PawnHit);
 
-		AUnit* HitUnit = TryFindUnit(ECC_Visibility);
-		if (!HitUnit)
-			HitUnit = TryFindUnit(ECC_Pawn);
+		AUnit* HitUnit = nullptr;
+		if (bHitMain)              HitUnit = Cast<AUnit>(MainHit.GetActor());
+		if (!HitUnit && bHitPawn)  HitUnit = Cast<AUnit>(PawnHit.GetActor());
 
 		UE_LOG(LogTemp, Log, TEXT("[BattleMainWidget] MouseDown | PendingCard: %s | HitUnit: %s | Alive: %s"),
 			*PendingCardName.ToString(),
 			HitUnit ? *HitUnit->GetName() : TEXT("none"),
 			(HitUnit && HitUnit->IsAlive()) ? TEXT("true") : TEXT("false"));
 
-		// FReply::Unhandled() 만으로는 3D 액터의 OnUnitClicked까지 전파되지 않으므로 직접 호출
-		// 진영을 검증해 잘못된 대상(아군에 SingleEnemy, 적에 SingleAlly)으로 등록되는 것을 막는다
 		if (HitUnit && HitUnit->IsAlive())
 		{
 			const bool bIsEnemy  = CombatManager && CombatManager->GetSpawnedEnemies().Contains(HitUnit);
@@ -754,14 +747,23 @@ FReply UBattleMainWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 				HandleEnemyClicked(HitUnit);
 			else if (PendingCardData.TargetType == ETargetType::SingleAlly && bIsPlayer)
 				HandlePlayerClicked(HitUnit);
-			// 진영이 맞지 않으면 무시하고 대기 유지 (클릭만 소비)
 			return FReply::Handled();
 		}
 	}
 
-	// 유효한 유닛 없는 곳 클릭 → 대기 취소
-	CancelPendingCard();
+	// 유닛을 즉시 찾지 못한 경우 — 다음 틱으로 취소를 미뤄 OnUnitClicked 발동 기회를 준다.
+	// MouseDown(DOWN) 이후 OnUnitClicked(UP)가 처리되면 PendingCardName이 클리어되므로
+	// DeferredCancelIfStillPending에서 취소가 일어나지 않는다.
+	if (UWorld* World = GetWorld())
+		World->GetTimerManager().SetTimerForNextTick(this, &UBattleMainWidget::DeferredCancelIfStillPending);
+
 	return FReply::Unhandled();
+}
+
+void UBattleMainWidget::DeferredCancelIfStillPending()
+{
+	if (!PendingCardName.IsNone())
+		CancelPendingCard();
 }
 
 // 현재 대기 중인 카드 선택을 취소하고 BP에 알림

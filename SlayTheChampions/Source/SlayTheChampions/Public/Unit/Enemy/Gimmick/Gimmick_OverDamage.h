@@ -38,6 +38,6 @@ public:
 	FText RageAnnounce;
 
 protected:
-	virtual void OnGimmickTurnStart() override;
+	virtual void OnGimmickTurnEnd() override;
 	virtual void HandleHPChanged(int32 OldHP, int32 NewHP) override;
 };

@@ -98,5 +98,16 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	const TArray<FPotionData>& GetPotions() const { return PartyInfo.Potions; }
+
+	// 전투 종료 시 유닛 배열의 HP/MaxHP를 PartyInfo에 기록 (EndCombat에서 호출)
+	UFUNCTION(BlueprintCallable)
+	void SaveChampionHPs(const TArray<AUnit*>& Units);
+
+	// 저장된 HP 조회 — 없으면 0 반환 (InitCombat 스폰 후 복원용)
+	UFUNCTION(BlueprintPure)
+	int32 GetSavedCurrentHP(int32 Index) const;
+
+	UFUNCTION(BlueprintPure)
+	int32 GetSavedMaxHP(int32 Index) const;
 };
 

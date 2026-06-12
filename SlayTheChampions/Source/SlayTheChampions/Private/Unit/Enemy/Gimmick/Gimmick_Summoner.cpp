@@ -36,7 +36,7 @@ void UGimmick_Summoner::BeginPlay()
 	Super::BeginPlay();
 }
 
-void UGimmick_Summoner::OnGimmickTurnStart()
+void UGimmick_Summoner::OnGimmickTurnEnd()
 {
 	++TurnsSinceLastSummon;
 
