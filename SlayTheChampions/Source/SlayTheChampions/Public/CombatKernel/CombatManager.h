@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Card/CardDataTypes.h"
 #include "Unit/CombatTypes.h"
-#include "CombatKernel/MonsterGroupData.h"
+#include "Map/MapEnum.h"   // EAreaType (스테이지 인카운터 선택)
 #include "CombatManager.generated.h"
 
 class UStatComponent;
@@ -15,6 +15,9 @@ class ACameraActor;
 class UBattleMainWidget;
 class UCardComboEvaluator;
 class UDataTable;
+class UWidgetComponent;
+class UEnemyDataTable;
+struct FStageEncounterRow;
 
 /**
  * ETurnPhase
@@ -77,6 +80,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEnemyPhaseStarted);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyActionFinished, int32, EnemyIndex);
 // 카드 히스토리 콤보 발동 시 브로드캐스트 (UI 배너·VFX·사운드 트리거용)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnComboTriggered, FName, ComboID, int32, CasterIndex);
+// 전투 종료 시 브로드캐스트 (bWon: 승리 여부) — MainLevel/RunSystem이 레벨 숨김·복귀에 사용
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatEnded, bool, bWon);
 
 /**
  * ACombatManager
@@ -119,18 +124,57 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
 	TSubclassOf<ACameraActor> BattleCameraClass;
 
-	// 이 전투에서 등장할 몬스터 그룹 데이터 에셋
-	// 설정 시 EnemyActor 슬롯을 무시하고 데이터 에셋 기준으로 스폰
+	// 적 도감(EnemyID별 풀스펙을 담은 데이터 에셋) — 등장 적 선택은 StageEncounterTable/EncounterEnemyIDs가 결정.
+	// 뽑힌 EnemyID로 여기서 정의를 찾아 EnemyActorClass를 스폰 후 데이터를 주입한다.
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
-	UMonsterGroupData* MonsterGroup;
+	UEnemyDataTable* EnemyTable = nullptr;
 
-	// ── 스폰 수 ──────────────────────────────────────────────────
-	// 전투에 참여할 플레이어 수 (1~3)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Setup", meta = (ClampMin = "1", ClampMax = "3"))
+	// 스테이지 테이블 없이 빠르게 테스트할 때 쓰는 인라인 EnemyID 목록 (최대 3)
+	// StageEncounterTable이 지정돼 행이 뽑히면 무시됨
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Setup")
+	TArray<FName> EncounterEnemyIDs;
+
+	// 스테이지 인카운터 테이블 (행: FStageEncounterRow) — 방 타입/층에 맞는 인카운터를 가중치 랜덤 선택.
+	// 레벨별로 지정하거나 SetStageEncounterTable로 런타임 주입. 지정 시 EncounterEnemyIDs(인라인)보다 우선.
+	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
+	UDataTable* StageEncounterTable = nullptr;
+
+	// 이 전투의 방 타입 — StageEncounterTable 행 필터에 사용 (레벨별 설정 또는 런타임 주입)
+	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
+	EAreaType CombatAreaType = EAreaType::Normal;
+
+	// 이 전투의 층 — StageEncounterTable의 Min/MaxFloor 필터 (레벨별 설정 또는 런타임 주입)
+	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
+	int32 CombatFloor = 0;
+
+	// 런타임에 스테이지 테이블 주입 (RunSystem/레벨이 BeginCombat 전에 호출 가능)
+	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
+	void SetStageEncounterTable(UDataTable* InTable) { StageEncounterTable = InTable; }
+
+	// 런타임에 방 타입/층 주입
+	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
+	void SetCombatArea(EAreaType InAreaType, int32 InFloor) { CombatAreaType = InAreaType; CombatFloor = InFloor; }
+
+	// EnemyTable 경로로 스폰할 제네릭 적 액터 클래스 (EnemyInitializerComponent를 가진 BP_Enemy)
+	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
+	TSubclassOf<AUnit> EnemyActorClass;
+
+	// PartyInstance.ChampionJobs 경로로 스폰할 단일 플레이어 액터 클래스 (BP_Player)
+	// 스폰 후 직업(JobComponent·CardUserComponent의 JobClass)만 챔피언별로 주입
+	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
+	TSubclassOf<AUnit> PlayerActorClass;
+
+	// true면 BeginPlay에서 자동으로 BeginCombat 호출 (직접 플레이/테스트 레벨용).
+	// 스트리밍으로 프리로드되는 전투 레벨은 false로 두고, LevelManager가 활성화(OnLevelShown) 시 BeginCombat 호출.
+	UPROPERTY(EditAnywhere, Category = "Combat|Setup")
+	bool bAutoBeginCombat = true;
+
+	// ── 스폰 수 (런타임 출력) ─────────────────────────────────────
+	// InitCombat에서 실제 스폰된 유닛 수로 갱신됨 — 에디터 입력값이 아니라 결과값(읽기 전용)
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
 	int32 PlayerCount = 1;
 
-	// 전투에 참여할 적 수 (1~3)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Setup", meta = (ClampMin = "1", ClampMax = "3"))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Combat|Setup")
 	int32 EnemyCount = 1;
 
 	// ── 스폰 위치 박스 ────────────────────────────────────────────
@@ -236,20 +280,30 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combo")
 	FOnComboTriggered OnComboTriggered;
 
+	// 전투 종료 시 (bWon) — MainLevel/RunSystem이 구독해 레벨 숨김·복귀 처리
+	UPROPERTY(BlueprintAssignable, Category = "Turn")
+	FOnCombatEnded OnCombatEnded;
+
 	// ── 유닛 슬롯 설정 함수 ──────────────────────────────────────
-	// 테스트용: 수동으로 슬롯 지정 시 PartyInstance/MonsterGroupData 자동 로드를 무시
+	// 테스트용: 수동으로 슬롯 지정 시 PartyInstance/EnemyTable 자동 로드를 무시
 	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
 	void SetPlayerActor(int32 Index, AUnit* Actor);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
 	void SetEnemyActor(int32 Index, AUnit* Actor);
 
-	// 이번 전투의 몬스터 그룹 데이터 에셋 설정 후 InitCombat 호출
-	UFUNCTION(BlueprintCallable, Category = "Combat|Setup")
-	void SetMonsterGroup(UMonsterGroupData* Group) { MonsterGroup = Group; }
+	// ── 전투 생명주기 ─────────────────────────────────────────────
+	// 레벨 활성화 시 호출 — 상태 리셋 후 전투 초기화(스폰·위젯·턴 시작).
+	// LevelManager가 OnLevelShown에서, 또는 bAutoBeginCombat=true면 BeginPlay에서 호출.
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void BeginCombat();
 
-	// ── 전투 초기화 ───────────────────────────────────────────────
-	// SetPlayerActor/SetEnemyActor로 슬롯 설정 후 수동 호출
+	// 전투 종료 — BattleMainWidget 제거 + 이 매니저가 스폰한 유닛 정리 + OnCombatEnded 브로드캐스트.
+	// CheckCombatEnd가 전멸을 감지하면 자동 호출. 외부에서 강제 종료에도 사용 가능.
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void EndCombat(bool bWon);
+
+	// 내부 전투 초기화 (BeginCombat이 리셋 후 호출). 직접 호출 비권장.
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void InitCombat();
 
@@ -313,6 +367,9 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	// 매 프레임 적 행동 위젯(머리 위 WidgetComponent)을 카메라를 향해 회전(빌보드)
+	virtual void Tick(float DeltaSeconds) override;
+
 private:
 	// 스폰된 플레이어 유닛 목록
 	UPROPERTY()
@@ -337,9 +394,20 @@ private:
 	// EnemyPhase에서 현재 행동 중인 적 인덱스
 	int32 CurrentEnemyIndex = 0;
 
-	// SetPlayerActor/SetEnemyActor 호출 시 true — PartyInstance·MonsterGroupData 자동 로드를 무시
+	// SetPlayerActor/SetEnemyActor 호출 시 true — PartyInstance·EnemyTable 자동 로드를 무시
 	bool bPlayerManualSet = false;
 	bool bEnemyManualSet = false;
+
+	// InitCombat 재진입 차단 — 스폰된 적(BP_Enemy)의 BeginPlay가 InitCombat을 재호출해
+	// 무한 재귀로 적을 계속 스폰하는 문제를 막는다 (가드는 스폰 전에 세움)
+	bool bCombatInitialized = false;
+
+	// 전투 종료 1회 가드 — CheckCombatEnd가 여러 번 불려도 EndCombat은 한 번만, 종료 후 턴 진행 차단
+	bool bCombatEnded = false;
+
+	// 이 CombatManager가 스폰한 유닛 (EndCombat에서 Destroy) — 레벨에 직접 배치한 유닛은 포함하지 않음
+	UPROPERTY()
+	TArray<AUnit*> ManagerSpawnedUnits;
 
 	// 적 행동 딜레이 타이머
 	FTimerHandle EnemyTimerHandle;
@@ -352,9 +420,13 @@ private:
 	UPROPERTY()
 	ACameraActor* BattleCamera = nullptr;
 
+	// 카메라를 향해 빌보드할 적 행동 위젯 컴포넌트 캐시 (InitCombat에서 수집, Tick에서 회전)
+	UPROPERTY()
+	TArray<UWidgetComponent*> EnemyActionWidgetComps;
+
 	// 페이즈를 전환하고 CheckCombatEnd -> OnPhaseChanged 브로드캐스트
 	void SetPhase(ETurnPhase NewPhase);
-	// 전투 종료 조건(전멸) 확인 후 로그 출력 (TODO: 화면 전환 연결)
+	// 전투 종료 조건(전멸) 확인 — 전멸 감지 시 EndCombat 호출
 	void CheckCombatEnd();
 	// 지정 유닛의 Shield만 0으로 리셋
 	void ApplyShieldReset(const TArray<AUnit*>& Units);
@@ -372,4 +444,9 @@ private:
 
 	// 스폰 위치 BoxComponent를 생성하고 루트에 부착하는 헬퍼
 	UBoxComponent* SetupBox(const FName& BoxName, const FVector& RelativeLocation, const FColor& Color);
+
+	// StageEncounterTable에서 CombatAreaType/CombatFloor에 맞는 행을 가중치 랜덤으로 선택 (없으면 nullptr)
+	// 반환된 행의 EnemyIDs로 적을 스폰한다.
+	// TODO: Boss 타입은 런 시작 시 1개 확정 옵션을 추후 추가 (지금은 보스도 랜덤)
+	const FStageEncounterRow* PickEncounterFromTable() const;
 };

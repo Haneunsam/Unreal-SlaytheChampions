@@ -7,37 +7,30 @@
 #include "Unit/Enemy/EnemyDataTable.h"
 #include "EnemyInitializerComponent.generated.h"
 
-class StatComponent;
-class NPCBrainComponent;
-class StatusEffectComponent;
-class UnitAnimComponent;
-
 UCLASS( ClassGroup=(Unit), meta=(BlueprintSpawnableComponent) )
 class SLAYTHECHAMPIONS_API UEnemyInitializerComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
+public:
 	UEnemyInitializerComponent();
 
-	//¿¡µğÅÍ¿¡¼­ Å×ÀÌºí DA¸¦ ¿¬°áÇØµÎ¸é Beginplay¿¡¼­ EnemyID·Î ÀÚµ¿ÃÊ±âÈ­
+	// ì—ë””í„°ì—ì„œ í…Œì´ë¸” DAë¥¼ ì§€ì •í•´ë‘ë©´ BeginPlayì—ì„œ EnemyIDë¡œ ìë™ ì´ˆê¸°í™”
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
 	TObjectPtr<UEnemyDataTable> Table;
 
-	//BP_Enemy°¡ »ç¿ëÇÒ ¸ó½ºÅÍ ID (Table.FindByID)
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "Enemy")
+	// BP_Enemyì— ì ìš©í•  ì  ID (Table.FindByID)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
 	FName EnemyID;
 
-	//¿ÜºÎ CombatManagerµî¿¡¼­ Struct¸¦ Á÷Á¢ ³Ñ±æ ¶§ »ç¿ë
+	// ì™¸ë¶€(CombatManager ë“±)ì—ì„œ Structë¥¼ ì§ì ‘ ë„˜ê²¨ ì´ˆê¸°í™”í•  ë•Œ ì‚¬ìš©
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
 	void InitializeFromDefinition(const FEnemyDefinition& Def);
 
-	//Table+ EnemyID·Î Ã£¾Æ¼­ ÃÊ±âÈ­
+	// Table+EnemyIDë¡œ ì°¾ì•„ì„œ ì´ˆê¸°í™”
 	UFUNCTION(BlueprintCallable, Category = "Enemy")
 	void InitializeFromTable();
 
 protected:
 	virtual void BeginPlay() override;
-	
-		
 };
