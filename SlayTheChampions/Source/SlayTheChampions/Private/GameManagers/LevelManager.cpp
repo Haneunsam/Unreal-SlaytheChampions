@@ -189,6 +189,39 @@ void ULevelManager::OnStreamedLevelLoaded()
 		*CurrentStreamedLevelName.ToString());
 	OnStreamedLevelChanged.Broadcast(PreviousStreamedLevelName, CurrentStreamedLevelName);
 	OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
+
+	// 전투 레벨 활성화 트리거: 레벨이 완전히 보이게 된 뒤(BeginPlay 완료) BeginCombat 호출
+	if (ULevelStreaming* StreamingLevel = FindStreamingLevel(CurrentStreamedLevelName))
+	{
+		if (StreamingLevel->IsLevelVisible())
+			TriggerCombatBegin(CurrentStreamedLevelName);
+		else
+			StreamingLevel->OnLevelShown.AddUniqueDynamic(this, &ULevelManager::HandleStreamedLevelShown);
+	}
+}
+
+void ULevelManager::HandleStreamedLevelShown()
+{
+	TriggerCombatBegin(CurrentStreamedLevelName);
+
+	if (ULevelStreaming* StreamingLevel = FindStreamingLevel(CurrentStreamedLevelName))
+		StreamingLevel->OnLevelShown.RemoveDynamic(this, &ULevelManager::HandleStreamedLevelShown);
+}
+
+void ULevelManager::TriggerCombatBegin(FName LevelName) const
+{
+	ULevelStreaming* StreamingLevel = FindStreamingLevel(LevelName);
+	ULevel* LoadedLevel = StreamingLevel ? StreamingLevel->GetLoadedLevel() : nullptr;
+	if (!LoadedLevel) return;
+
+	for (AActor* Actor : LoadedLevel->Actors)
+	{
+		if (ACombatManager* CombatManager = Cast<ACombatManager>(Actor))
+		{
+			CombatManager->BeginCombat();
+			break;
+		}
+	}
 }
 
 void ULevelManager::OnCurrentStreamedLevelUnloaded()

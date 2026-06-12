@@ -32,7 +32,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Stat")
 	void Heal(int32 Amount);
-
+	
 	UPROPERTY(BlueprintAssignable, Category = "Stat")
 	FOnHPChanged OnHPChanged;
 		
