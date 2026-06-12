@@ -25,14 +25,17 @@ public:
 	void UpdatePartyInfo(FSavePartyInfo _info) { PartyInfo = _info; }
 	
 	const FSavePartyInfo& GetPartyInfo() const { return PartyInfo; }
-	void SetPartyInfo(FSavePartyInfo _info) { PartyInfo = _info; }
+	void SetPartyInfo(FSavePartyInfo _info);
 
 	UFUNCTION(BlueprintPure)
-	int32 GetPartyMemberCount() const { return PartyInfo.Champions.Num(); }
+	int32 GetPartyMemberCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "PartyInstance|Gold")
+	int32 GetGold() const { return PartyInfo.Gold; }
 
 	// 배틀 레벨 진입 시 플레이어 액터가 자신을 등록. BP_TestPlayer 등 BeginPlay에서 호출
 	UFUNCTION(BlueprintCallable)
-	void RegisterChampion(AUnit* Unit) { if (Unit) PartyInfo.Champions.AddUnique(Unit); }
+	void RegisterChampion(AUnit* Unit);
 
 	// 레벨 전환 전 Champions 초기화 (이전 레벨 액터 참조 제거)
 	UFUNCTION(BlueprintCallable)
@@ -86,5 +89,16 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	const TArray<FPotionData>& GetPotions() const { return PartyInfo.Potions; }
+
+	// 전투 종료 시 유닛 배열의 HP/MaxHP를 PartyInfo에 기록 (EndCombat에서 호출)
+	UFUNCTION(BlueprintCallable)
+	void SaveChampionHPs(const TArray<AUnit*>& Units);
+
+	// 저장된 HP 조회 — 없으면 0 반환 (InitCombat 스폰 후 복원용)
+	UFUNCTION(BlueprintPure)
+	int32 GetSavedCurrentHP(int32 Index) const;
+
+	UFUNCTION(BlueprintPure)
+	int32 GetSavedMaxHP(int32 Index) const;
 };
 

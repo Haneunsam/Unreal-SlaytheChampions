@@ -31,9 +31,16 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	UCanvasPanel* MainCanvas;
 
-	// 카드 효과 실행을 위한 CombatManager 참조 (NativeConstruct에서 레벨 자동 탐색)
+	// 카드 효과 실행을 위한 CombatManager 참조.
+	// CombatManager::InitCombat이 위젯 생성 직후 SetCombatManager로 주입한다.
+	// (주입 실패 시에만 NativeConstruct에서 GetActorOfClass로 폴백 탐색)
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	ACombatManager* CombatManager;
+
+	// CombatManager를 외부에서 주입 — AddToViewport(=NativeConstruct) 전에 호출해야 함.
+	// 스트리밍 서브레벨·재진입에서 GetActorOfClass 탐색이 None을 반환하는 문제를 회피.
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void SetCombatManager(ACombatManager* InManager) { CombatManager = InManager; }
 
 	// 현재 선택된 플레이어 유닛
 	UPROPERTY(BlueprintReadOnly, Category = "Selection")
@@ -135,6 +142,11 @@ private:
 	// OnPhaseChanged 델리게이트 수신 → 턴 텍스트 갱신
 	UFUNCTION()
 	void OnPhaseChanged(ETurnPhase NewPhase);
+
+	// MouseDown 타이밍에 유닛을 찾지 못했을 때 다음 틱에 호출 — OnUnitClicked가 먼저 카드를
+	// 처리했으면 PendingCardName이 이미 None이라 취소하지 않는다.
+	UFUNCTION()
+	void DeferredCancelIfStillPending();
 
 	// SpawnedPlayers의 OnUnitClicked에 일괄 바인딩
 	void BindPlayerClickEvents();

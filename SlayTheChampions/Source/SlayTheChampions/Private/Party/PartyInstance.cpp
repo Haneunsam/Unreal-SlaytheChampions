@@ -1,6 +1,8 @@
 ﻿#include "Party/PartyInstance.h"
 
 #include "Relic/RelicSubsystem.h"
+#include "Unit/Unit.h"
+#include "Unit/StatComponent.h"
 
 void UPartyInstance::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -15,8 +17,39 @@ void UPartyInstance::Initialize(FSubsystemCollectionBase& Collection)
 void UPartyInstance::InitParty()
 {
 	PartyInfo.InitSavePartyInfo();
-	PartyInfo.Champions.SetNum(2);
 	PartyInfo.Deck.SetNum(2);
+}
+
+void UPartyInstance::SetPartyInfo(FSavePartyInfo _info)
+{
+	PartyInfo = _info;
+	PartyInfo.Champions.Empty();
+}
+
+int32 UPartyInstance::GetPartyMemberCount() const
+{
+	return PartyInfo.Champions.Num() > 0 ? PartyInfo.Champions.Num() : PartyInfo.PartyMemberIDs.Num();
+}
+
+void UPartyInstance::RegisterChampion(AUnit* Unit)
+{
+	const int32 BeforeCount = PartyInfo.Champions.Num();
+
+	if (Unit)
+	{
+		PartyInfo.Champions.AddUnique(Unit);
+		if (!Unit->UnitID.IsNone())
+		{
+			PartyInfo.PartyMemberIDs.AddUnique(Unit->UnitID);
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[PartyInstance] RegisterChampion Unit=%s UnitID=%s Before=%d After=%d SavedIDs=%d"),
+		Unit ? *Unit->GetName() : TEXT("None"),
+		Unit ? *Unit->UnitID.ToString() : TEXT("None"),
+		BeforeCount,
+		PartyInfo.Champions.Num(),
+		PartyInfo.PartyMemberIDs.Num());
 }
 
 
@@ -84,6 +117,31 @@ void UPartyInstance::LostPotion(FName _PotionName)
 	{
 		return Item.PotionID == _PotionName;
 	});
+}
+
+void UPartyInstance::SaveChampionHPs(const TArray<AUnit*>& Units)
+{
+	PartyInfo.ChampionCurrentHPs.SetNum(Units.Num());
+	PartyInfo.ChampionMaxHPs.SetNum(Units.Num());
+	for (int32 i = 0; i < Units.Num(); i++)
+	{
+		if (UStatComponent* Stat = Units[i] ? Units[i]->FindComponentByClass<UStatComponent>() : nullptr)
+		{
+			PartyInfo.ChampionCurrentHPs[i] = Stat->CurrentHP;
+			PartyInfo.ChampionMaxHPs[i]     = Stat->MaxHP;
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("[PartyInstance] SaveChampionHPs: %d명 HP 저장"), Units.Num());
+}
+
+int32 UPartyInstance::GetSavedCurrentHP(int32 Index) const
+{
+	return PartyInfo.ChampionCurrentHPs.IsValidIndex(Index) ? PartyInfo.ChampionCurrentHPs[Index] : 0;
+}
+
+int32 UPartyInstance::GetSavedMaxHP(int32 Index) const
+{
+	return PartyInfo.ChampionMaxHPs.IsValidIndex(Index) ? PartyInfo.ChampionMaxHPs[Index] : 0;
 }
 
 
