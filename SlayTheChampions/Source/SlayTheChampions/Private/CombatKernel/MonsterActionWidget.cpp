@@ -12,6 +12,9 @@ void UMonsterActionWidget::SetMonsterName(const FText& Name)
 
 void UMonsterActionWidget::UpdateActions(const TArray<FIntent>& Intents)
 {
+	// 호버 툴팁 등에서 다중 행동을 조회할 수 있도록 보관
+	DisplayedIntents = Intents;
+
 	if (!ActionContainer || !IconWidgetClass) return;
 
 	ActionContainer->ClearChildren();

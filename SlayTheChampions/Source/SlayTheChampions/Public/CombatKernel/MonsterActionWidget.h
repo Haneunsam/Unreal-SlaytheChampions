@@ -54,6 +54,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Intent")
 	void UpdateActions(const TArray<FIntent>& Intents);
 
+	// 현재 표시 중인 의도들 — 호버 툴팁 등에서 다중 행동을 그대로 조회 (UpdateActions가 갱신)
+	UPROPERTY(BlueprintReadOnly, Category = "Intent")
+	TArray<FIntent> DisplayedIntents;
+
 protected:
 	// 몬스터 이름 텍스트 (WBP에서 'Text_MonsterName' 이름으로 배치)
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))

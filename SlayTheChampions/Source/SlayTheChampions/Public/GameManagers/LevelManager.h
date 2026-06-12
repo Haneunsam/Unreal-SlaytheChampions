@@ -76,6 +76,10 @@ public:
     UFUNCTION()
     void OnCurrentStreamedLevelUnloaded();
 
+    /*스트리밍 레벨이 완전히 보이게 된 순간 호출 — 전투 레벨이면 CombatManager.BeginCombat 트리거*/
+    UFUNCTION()
+    void HandleStreamedLevelShown();
+
     /*Level열릴시 호출되는 이벤트*/
     UFUNCTION()
     void OnLevelStarted(UWorld* World);
@@ -112,6 +116,9 @@ private:
     bool IsStreamedLevelLoaded(FName LevelName) const;
 
     void SetStreamedLevelVisibility(FName LevelName, bool bVisible) const;
+
+    /*지정 스트리밍 레벨 안의 CombatManager를 찾아 BeginCombat 호출 (전투 레벨이 아니면 무시)*/
+    void TriggerCombatBegin(FName LevelName) const;
 
     /*디버그용*/
     void SpawnDebugInputActor(UWorld* World);

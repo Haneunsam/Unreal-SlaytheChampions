@@ -1,12 +1,14 @@
 ﻿#include "GameManagers/LevelManager.h"
 
 #include "Engine/LevelStreaming.h"
+#include "Engine/Level.h"
 #include "Kismet/GameplayStatics.h"
 #include "Map/AreaLevelData.h"
 #include "Map/DebugRunInputActor.h"
 #include "Map/MapConfigData.h"
 #include "Map/MapManager.h"
 #include "Map/RunSystem.h"
+#include "CombatKernel/CombatManager.h"   // 전투 레벨 활성화 시 BeginCombat 트리거
 
 void ULevelManager::Initialize(FSubsystemCollectionBase& Collection)
 {

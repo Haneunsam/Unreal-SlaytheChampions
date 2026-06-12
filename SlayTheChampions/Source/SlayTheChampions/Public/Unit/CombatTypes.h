@@ -17,6 +17,16 @@ enum class ETeam : uint8
     Neutral UMETA(DisplayName = "Neutral")
 };
 
+// 적 등급
+UENUM(BlueprintType)
+enum class EEnemyTier : uint8
+{
+    Normal  UMETA(DisplayName = "Normal"),
+    Elite   UMETA(DisplayName = "Elite"),
+    Boss    UMETA(DisplayName = "Boss"),
+    Unkown  UMETA(DisplayName = "Unknown")
+};
+
 /**
  * EIntentKind
  * 적 행동 의도 종류. IntentComponent UI 표시 및 ExecuteEnemyAction 분기에 사용.
@@ -120,4 +130,19 @@ struct SLAYTHECHAMPIONS_API FGimmickPhase
     UPROPERTY(EditAnywhere, BlueprintReadOnly) float           TriggerValue = 0.5f; // HP는 0~1 비율, Turn이면 몇 턴
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FText           AnnounceText;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) bool            bOneShot     = true; // true면 한 번만 발동
+};
+
+/**
+ * EElementType
+ *
+ * 마법사가 사용하는 원소 종류
+ * FieldElement에서 현재 필드에 깔린 원소를 추적하는데 사용
+ */
+UENUM(BlueprintType)
+enum class ECardElementType : uint8
+{
+    None    UMETA(DisplayName = "None"),
+    Fire    UMETA(DisplayName = "Fire"),
+    Ice     UMETA(DisplayName = "Ice"),
+    Thunder UMETA(DisplayName = "Thunder")
 };
