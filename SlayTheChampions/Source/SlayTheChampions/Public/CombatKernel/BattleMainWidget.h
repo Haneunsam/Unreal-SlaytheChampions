@@ -31,9 +31,16 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	UCanvasPanel* MainCanvas;
 
-	// 카드 효과 실행을 위한 CombatManager 참조 (NativeConstruct에서 레벨 자동 탐색)
+	// 카드 효과 실행을 위한 CombatManager 참조.
+	// CombatManager::InitCombat이 위젯 생성 직후 SetCombatManager로 주입한다.
+	// (주입 실패 시에만 NativeConstruct에서 GetActorOfClass로 폴백 탐색)
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	ACombatManager* CombatManager;
+
+	// CombatManager를 외부에서 주입 — AddToViewport(=NativeConstruct) 전에 호출해야 함.
+	// 스트리밍 서브레벨·재진입에서 GetActorOfClass 탐색이 None을 반환하는 문제를 회피.
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void SetCombatManager(ACombatManager* InManager) { CombatManager = InManager; }
 
 	// 현재 선택된 플레이어 유닛
 	UPROPERTY(BlueprintReadOnly, Category = "Selection")

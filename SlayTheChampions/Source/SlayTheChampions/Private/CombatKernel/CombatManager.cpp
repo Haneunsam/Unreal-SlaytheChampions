@@ -171,6 +171,22 @@ void ACombatManager::EndCombat(bool bWon)
 	SpawnedEnemies.Empty();
 	EnemyActionWidgetComps.Empty();
 
+	// 데이터 스폰 슬롯 초기화 — 다음 BeginCombat의 플레이어 스폰 가드(!PlayerActor_0)가
+	// 파괴된 액터의 스테일 포인터에 걸려 재스폰을 건너뛰는 문제를 막는다.
+	// (수동 세팅 모드는 레벨 배치 액터를 참조하므로 건드리지 않음)
+	if (!bPlayerManualSet)
+	{
+		PlayerActor_0 = nullptr;
+		PlayerActor_1 = nullptr;
+		PlayerActor_2 = nullptr;
+	}
+	if (!bEnemyManualSet)
+	{
+		EnemyActor_0 = nullptr;
+		EnemyActor_1 = nullptr;
+		EnemyActor_2 = nullptr;
+	}
+
 	bCombatInitialized = false;   // 다음 BeginCombat 허용
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatManager] 전투 종료 (승리=%s)"), bWon ? TEXT("true") : TEXT("false"));
@@ -499,7 +515,12 @@ void ACombatManager::InitCombat()
 
 		BattleWidget = CreateWidget<UBattleMainWidget>(PC, BattleWidgetClass);
 		if (BattleWidget)
+		{
+			// AddToViewport(=NativeConstruct) 전에 매니저 주입 — 위젯이 GetActorOfClass로
+			// 탐색하지 않고 이 매니저를 직접 써서 클릭/선택 바인딩을 보장한다.
+			BattleWidget->SetCombatManager(this);
 			BattleWidget->AddToViewport();
+		}
 		else
 			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleWidget creation failed"));
 	}
