@@ -36,6 +36,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveSystem")
 	void LoadGameData();
 
+	UFUNCTION(BlueprintPure, Category = "SaveSystem")
+	bool HasSaveGameData() const;
+
+	UFUNCTION(BlueprintCallable, Category = "SaveSystem")
+	bool DeleteSaveGameData();
+
 	/**
 	 * 게임 최초 시작 시 스타터 덱으로 SaveGame 을 초기화.
 	 * 이미 저장 파일이 있으면 아무것도 하지 않음.

@@ -89,6 +89,26 @@ void USTCGameInstance::LoadGameData()
 	UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] LoadGameData completed"));
 }
 
+bool USTCGameInstance::HasSaveGameData() const
+{
+	return UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0);
+}
+
+bool USTCGameInstance::DeleteSaveGameData()
+{
+	CachedSave = nullptr;
+
+	if (!UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] DeleteSaveGameData skipped. Save file does not exist."));
+		return true;
+	}
+
+	const bool bDeleted = UGameplayStatics::DeleteGameInSlot(SaveSlotName, 0);
+	UE_LOG(LogTemp, Log, TEXT("[STCGameInstance] DeleteSaveGameData %s"), bDeleted ? TEXT("completed") : TEXT("failed"));
+	return bDeleted;
+}
+
 // ?????????????????????????????????????????????????????????????????????????????
 // 寃뚯엫 理쒖큹 ?쒖옉 ???ㅽ?????珥덇린??
 // ?????濡쒕뱶??UCardSaveGame ("PlayerDeckSave" ?щ’) + UCardManager ?먯꽌 ?꾨떞.
