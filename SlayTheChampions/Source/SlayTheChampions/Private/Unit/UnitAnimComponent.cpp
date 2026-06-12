@@ -31,21 +31,21 @@ void UUnitAnimComponent::BeginPlay()
 	{
 		if (UStatComponent* Stat = OwnerUnit->FindComponentByClass<UStatComponent>())
 		{
-			Stat->OnHPChanged.AddDynamic(this, &UUnitAnimComponent::HandleHPChanged);
+			Stat->OnHPChanged.AddUniqueDynamic(this, &UUnitAnimComponent::HandleHPChanged);
 		}
 	}
 
 	//StatComponent::OnUnitDied ->사망 애니메이션
 	if (bAutoPlayDeath)
 	{
-		OwnerUnit->OnUnitDied.AddDynamic(this, &UUnitAnimComponent::HandleUnitDied);
+		OwnerUnit->OnUnitDied.AddUniqueDynamic(this, &UUnitAnimComponent::HandleUnitDied);
 	}
 
 	// Unit::OnUnitAttackNotified -> 공격/스킬 애니메이션
-	OwnerUnit->OnUnitAttackNotified.AddDynamic(this, &UUnitAnimComponent::HandleAttackNotified);
+	OwnerUnit->OnUnitAttackNotified.AddUniqueDynamic(this, &UUnitAnimComponent::HandleAttackNotified);
 
 	// Unit::OnUnitMoveNotified -> 이동 애니메이션
-	OwnerUnit->OnUnitMoveNotified.AddDynamic(this, &UUnitAnimComponent::HandleMoveNotified);
+	OwnerUnit->OnUnitMoveNotified.AddUniqueDynamic(this, &UUnitAnimComponent::HandleMoveNotified);
 	
 }
 
@@ -173,12 +173,6 @@ float UUnitAnimComponent::PlayMontageInternal(const FUnitAnimEntry& Entry, EUnit
 	UAnimInstance* AnimInst = TargetMesh->GetAnimInstance();
 	if (!AnimInst) return 0.f;
 
-	// 이전 몽타주 종료 델리게이트 해제
-	if (CurrentMontage)
-	{
-		AnimInst->OnMontageEnded.RemoveDynamic(this, &UUnitAnimComponent::HandleMontageEnded);
-	}
-
 	const float Length = AnimInst->Montage_Play(Entry.Montage, Entry.PlayRate,
 		EMontagePlayReturnType::MontageLength,
 		0.f, true);
@@ -193,8 +187,12 @@ float UUnitAnimComponent::PlayMontageInternal(const FUnitAnimEntry& Entry, EUnit
 	CurrentMontage = Entry.Montage;
 	CurrentAnimType = AnimType;
 
-	// 종료 감지 등록
-	AnimInst->OnMontageEnded.AddDynamic(this, &UUnitAnimComponent::HandleMontageEnded);
+	// 종료 감지 등록 — 멀티캐스트(OnMontageEnded) 대신 이 몽타주 인스턴스 전용 단일 델리게이트 사용
+	// 멀티캐스트 목록을 매 재생마다 Add/Remove 하지 않으므로, 몽타주 중단(interrupt) 시
+	// OnMontageEnded 브로드캐스트 도중 목록이 수정되어 ensure가 터지던 문제를 회피한다.
+	FOnMontageEnded EndDel;
+	EndDel.BindUObject(this, &UUnitAnimComponent::HandleMontageEnded);
+	AnimInst->Montage_SetEndDelegate(EndDel, Entry.Montage);
 
 	OnAnimStarted.Broadcast(AnimType, Length);
 	UE_LOG(LogTemp, Log, TEXT("[UnitAnimComponent] %s — %s 재생 (%.2fs)"),

@@ -1,4 +1,4 @@
-#include "CombatKernel/BuffPanelWidget.h"
+﻿#include "CombatKernel/BuffPanelWidget.h"
 #include "CombatKernel/BuffIconWidget.h"
 #include "Unit/Unit.h"
 #include "Unit/StatusEffectComponent.h"
@@ -25,7 +25,7 @@ void UBuffPanelWidget::InitFromUnit(AUnit* Unit)
 		BuffIconClass ? *BuffIconClass->GetName() : TEXT("NULL"),
 		BuffContainer ? TEXT("OK") : TEXT("NULL"));
 
-	BoundSEC->OnEffectValueChanged.AddDynamic(this, &UBuffPanelWidget::OnEffectValueChanged);
+	BoundSEC->OnEffectValueChanged.AddUniqueDynamic(this, &UBuffPanelWidget::OnEffectValueChanged);
 }
 
 // 바인딩 해제 및 아이콘 전체 제거
@@ -113,3 +113,4 @@ void UBuffPanelWidget::RemoveIcon(EEffectType Type)
 
 	ActiveIcons.Remove(Type);
 }
+
