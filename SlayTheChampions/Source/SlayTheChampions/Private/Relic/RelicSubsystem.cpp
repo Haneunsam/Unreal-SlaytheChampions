@@ -340,7 +340,6 @@ bool URelicSubsystem::ApplyRelicEffect(const FRelic& RelicData, const FSourceEff
 		}
 	}
 
-	// 전투/상점 전용 패시브는 실제 훅이 붙는 쪽에서 OnRelicEffectTriggered를 받아 처리한다.
 	return bAppliedToUnit || Targets.IsEmpty();
 }
 
