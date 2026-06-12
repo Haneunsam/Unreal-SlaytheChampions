@@ -1,12 +1,14 @@
 ﻿#include "GameManagers/LevelManager.h"
 
 #include "Engine/LevelStreaming.h"
+#include "Engine/Level.h"
 #include "Kismet/GameplayStatics.h"
 #include "Map/AreaLevelData.h"
 #include "Map/DebugRunInputActor.h"
 #include "Map/MapConfigData.h"
 #include "Map/MapManager.h"
 #include "Map/RunSystem.h"
+#include "CombatKernel/CombatManager.h"   // 전투 레벨 활성화 시 BeginCombat 트리거
 
 void ULevelManager::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -151,6 +153,49 @@ void ULevelManager::OnStreamedLevelLoaded()
 	CurrentStreamedLevelName = PendingStreamedLevelName;
 	PendingStreamedLevelName = NAME_None;
 	bIsStreamingTransitionInProgress = false;
+
+	// 전투 레벨 활성화 트리거: 레벨이 완전히 보이게 된 뒤(BeginPlay 완료) BeginCombat 호출
+	if (ULevelStreaming* StreamingLevel = FindStreamingLevel(CurrentStreamedLevelName))
+	{
+		if (StreamingLevel->IsLevelVisible())
+		{
+			// 이미 보이는 상태(재방문 등)면 즉시 트리거
+			TriggerCombatBegin(CurrentStreamedLevelName);
+		}
+		else
+		{
+			// 보이게 되는 순간 1회 트리거 (AddToWorld/BeginPlay 완료 보장)
+			StreamingLevel->OnLevelShown.AddUniqueDynamic(this, &ULevelManager::HandleStreamedLevelShown);
+		}
+	}
+}
+
+void ULevelManager::HandleStreamedLevelShown()
+{
+	TriggerCombatBegin(CurrentStreamedLevelName);
+
+	// 1회용 — 바인딩 해제
+	if (ULevelStreaming* StreamingLevel = FindStreamingLevel(CurrentStreamedLevelName))
+	{
+		StreamingLevel->OnLevelShown.RemoveDynamic(this, &ULevelManager::HandleStreamedLevelShown);
+	}
+}
+
+void ULevelManager::TriggerCombatBegin(FName LevelName) const
+{
+	ULevelStreaming* StreamingLevel = FindStreamingLevel(LevelName);
+	ULevel* LoadedLevel = StreamingLevel ? StreamingLevel->GetLoadedLevel() : nullptr;
+	if (!LoadedLevel) return;
+
+	// 이 레벨 안의 CombatManager를 찾아 BeginCombat (전투 레벨이 아니면 없음 → 무시)
+	for (AActor* Actor : LoadedLevel->Actors)
+	{
+		if (ACombatManager* CombatManager = Cast<ACombatManager>(Actor))
+		{
+			CombatManager->BeginCombat();
+			break;
+		}
+	}
 }
 
 void ULevelManager::OnCurrentStreamedLevelUnloaded()

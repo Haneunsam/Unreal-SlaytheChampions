@@ -53,6 +53,13 @@ public:
 	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category = "Job")
 	EJobClass JobClass = EJobClass::Warrior;
 
+	/*
+	* 런타임에 직업을 바꾼다 — JobClass를 설정하고 Detail을 다시 생성.
+	* CombatManager가 단일 BP_Player를 스폰한 뒤 챔피언별 직업을 주입할 때 사용.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Job")
+	void SetJobClass(EJobClass NewJob);
+
 	//직업 인터페이스 (외부 시스템 진입점)
 
 	/*
