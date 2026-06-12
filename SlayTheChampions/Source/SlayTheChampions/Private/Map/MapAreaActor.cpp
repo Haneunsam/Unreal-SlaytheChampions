@@ -26,7 +26,13 @@ void AMapAreaActor::NotifyActorOnClicked(FKey ButtonPressed)
 {
 	Super::NotifyActorOnClicked(ButtonPressed);
 
-	MoveToTargetLevel();
+	OnAreaClicked.Broadcast(this);
+	OnAreaSelected.Broadcast(this, FloorIndex, RoomIndex);
+
+	if (bAutoMoveToTargetLevelOnClick)
+	{
+		MoveToTargetLevel();
+	}
 }
 
 void AMapAreaActor::SetAreaIndex(int32 InFloorIndex, int32 InRoomIndex)
@@ -77,21 +83,37 @@ void AMapAreaActor::SetTargetLevelName(FName InTargetLevelName)
 
 void AMapAreaActor::MoveToTargetLevel()
 {
+	if (PrepareEnterTargetRoom())
+	{
+		ContinueMoveToTargetLevel();
+	}
+}
+
+bool AMapAreaActor::PrepareEnterTargetRoom()
+{
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
 		if (URunSystem* RunSystem = GameInstance->GetSubsystem<URunSystem>())
 		{
 			if (!RunSystem->CanEnterRoomByGridIndex(FloorIndex, RoomIndex))
 			{
-				return;
+				return false;
 			}
 
 			if (!RunSystem->EnterRoomByGridIndex(FloorIndex, RoomIndex))
 			{
-				return;
+				return false;
 			}
 		}
+	}
 
+	return true;
+}
+
+void AMapAreaActor::ContinueMoveToTargetLevel()
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
 		if (ULevelManager* LevelManager = GameInstance->GetSubsystem<ULevelManager>())
 		{
 			if (!TargetLevelName.IsNone())

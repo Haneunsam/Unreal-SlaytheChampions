@@ -519,7 +519,7 @@ void ACombatManager::InitCombat()
 			// AddToViewport(=NativeConstruct) 전에 매니저 주입 — 위젯이 GetActorOfClass로
 			// 탐색하지 않고 이 매니저를 직접 써서 클릭/선택 바인딩을 보장한다.
 			BattleWidget->SetCombatManager(this);
-			BattleWidget->AddToViewport();
+			BattleWidget->AddToViewport(0);
 		}
 		else
 			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleWidget creation failed"));

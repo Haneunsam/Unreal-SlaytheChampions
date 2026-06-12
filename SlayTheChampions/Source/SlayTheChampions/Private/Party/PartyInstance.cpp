@@ -3,6 +3,20 @@
 #include "Relic/RelicSubsystem.h"
 #include "Unit/Unit.h"
 
+namespace
+{
+FString MakePartyMemberLogString(const TArray<FName>& PartyMemberIDs)
+{
+	TArray<FString> MemberNames;
+	for (const FName& PartyMemberID : PartyMemberIDs)
+	{
+		MemberNames.Add(PartyMemberID.ToString());
+	}
+
+	return FString::Join(MemberNames, TEXT(", "));
+}
+}
+
 void UPartyInstance::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -49,6 +63,90 @@ void UPartyInstance::RegisterChampion(AUnit* Unit)
 		BeforeCount,
 		PartyInfo.Champions.Num(),
 		PartyInfo.PartyMemberIDs.Num());
+}
+
+bool UPartyInstance::AddPartyMember(FName UnitID, EJobClass Job)
+{
+	if (UnitID.IsNone())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartyInstance] AddPartyMember failed. UnitID is None."));
+		return false;
+	}
+
+	const int32 BeforeIDCount = PartyInfo.PartyMemberIDs.Num();
+	PartyInfo.PartyMemberIDs.AddUnique(UnitID);
+	if (PartyInfo.PartyMemberIDs.Num() == BeforeIDCount)
+	{
+		const FString PartyMembers = MakePartyMemberLogString(PartyInfo.PartyMemberIDs);
+		UE_LOG(LogTemp, Warning, TEXT("[PartyInstance] AddPartyMember skipped. Already exists UnitID=%s CurrentPartyCount=%d PartyMembers=[%s]"),
+			*UnitID.ToString(),
+			PartyInfo.PartyMemberIDs.Num(),
+			*PartyMembers);
+		return false;
+	}
+
+	if (Job != EJobClass::Any)
+	{
+		ChampionJobs.Add(Job);
+	}
+
+	const FString PartyMembers = MakePartyMemberLogString(PartyInfo.PartyMemberIDs);
+	UE_LOG(LogTemp, Warning, TEXT("[PartyInstance] AddPartyMember success. UnitID=%s Job=%s IDs %d->%d Jobs=%d PartyMembers=[%s]"),
+		*UnitID.ToString(),
+		*StaticEnum<EJobClass>()->GetNameStringByValue(static_cast<int64>(Job)),
+		BeforeIDCount,
+		PartyInfo.PartyMemberIDs.Num(),
+		ChampionJobs.Num(),
+		*PartyMembers);
+
+	return true;
+}
+
+bool UPartyInstance::RemovePartyMember(FName UnitID, EJobClass Job)
+{
+	if (UnitID.IsNone())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartyInstance] RemovePartyMember failed. UnitID is None."));
+		return false;
+	}
+
+	const int32 BeforeIDCount = PartyInfo.PartyMemberIDs.Num();
+	const int32 RemovedIDCount = PartyInfo.PartyMemberIDs.Remove(UnitID);
+	if (RemovedIDCount <= 0)
+	{
+		const FString PartyMembers = MakePartyMemberLogString(PartyInfo.PartyMemberIDs);
+		UE_LOG(LogTemp, Warning, TEXT("[PartyInstance] RemovePartyMember skipped. Missing UnitID=%s CurrentPartyCount=%d PartyMembers=[%s]"),
+			*UnitID.ToString(),
+			PartyInfo.PartyMemberIDs.Num(),
+			*PartyMembers);
+		return false;
+	}
+
+	if (Job != EJobClass::Any)
+	{
+		ChampionJobs.RemoveSingle(Job);
+	}
+
+	PartyInfo.Champions.RemoveAll([UnitID](const AUnit* Unit)
+	{
+		return Unit && Unit->UnitID == UnitID;
+	});
+
+	const FString PartyMembers = MakePartyMemberLogString(PartyInfo.PartyMemberIDs);
+	UE_LOG(LogTemp, Warning, TEXT("[PartyInstance] RemovePartyMember success. UnitID=%s Job=%s IDs %d->%d Jobs=%d PartyMembers=[%s]"),
+		*UnitID.ToString(),
+		*StaticEnum<EJobClass>()->GetNameStringByValue(static_cast<int64>(Job)),
+		BeforeIDCount,
+		PartyInfo.PartyMemberIDs.Num(),
+		ChampionJobs.Num(),
+		*PartyMembers);
+
+	return true;
+}
+
+bool UPartyInstance::HasPartyMember(FName UnitID) const
+{
+	return !UnitID.IsNone() && PartyInfo.PartyMemberIDs.Contains(UnitID);
 }
 
 

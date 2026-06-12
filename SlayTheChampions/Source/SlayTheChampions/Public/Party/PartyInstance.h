@@ -52,6 +52,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AddChampion(EJobClass Job) { ChampionJobs.Add(Job); }
 
+	UFUNCTION(BlueprintCallable, Category = "PartyInstance")
+	bool AddPartyMember(FName UnitID, EJobClass Job);
+
+	UFUNCTION(BlueprintCallable, Category = "PartyInstance")
+	bool RemovePartyMember(FName UnitID, EJobClass Job);
+
+	UFUNCTION(BlueprintPure, Category = "PartyInstance")
+	bool HasPartyMember(FName UnitID) const;
+
 	// 스폰할 챔피언 직업 목록 초기화
 	UFUNCTION(BlueprintCallable)
 	void ClearChampionJobs() { ChampionJobs.Empty(); }
