@@ -159,6 +159,12 @@ void ACombatManager::EndCombat(bool bWon)
 		if (URelicSubsystem* RS = GI->GetSubsystem<URelicSubsystem>())
 			RS->TriggerOwnedRelicEffectsByTiming(EEffectApplyTiming::OnBattleEnd, SpawnedPlayers);
 
+	// 유닛 파괴 전 HP 저장 — 다음 전투 스폰 시 복원 (데이터 스폰 모드에서만)
+	if (!bPlayerManualSet)
+		if (UGameInstance* GI = GetGameInstance())
+			if (UPartyInstance* Party = GI->GetSubsystem<UPartyInstance>())
+				Party->SaveChampionHPs(SpawnedPlayers);
+
 	// 이 매니저가 스폰한 유닛만 정리 (레벨 직접 배치 유닛은 건드리지 않음)
 	for (AUnit* U : ManagerSpawnedUnits)
 		if (IsValid(U)) U->Destroy();
@@ -335,6 +341,18 @@ void ACombatManager::InitCombat()
 				// 직업 로직(Detail) 재생성 — JobComponent.BeginPlay 이후이므로 SetJobClass로 다시 만든다
 				if (UJobComponent* JC = Spawned->FindComponentByClass<UJobComponent>())
 					JC->SetJobClass(Job);
+
+				// 이전 전투에서 저장한 HP/MaxHP 복원 (저장값이 있을 때만)
+				const int32 SavedCurrentHP = Party->GetSavedCurrentHP(i);
+				const int32 SavedMaxHP     = Party->GetSavedMaxHP(i);
+				if ((SavedMaxHP > 0 || SavedCurrentHP > 0))
+				{
+					if (UStatComponent* Stat = Spawned->FindComponentByClass<UStatComponent>())
+					{
+						if (SavedMaxHP > 0)     Stat->MaxHP     = SavedMaxHP;
+						if (SavedCurrentHP > 0) Stat->CurrentHP = FMath::Min(SavedCurrentHP, Stat->MaxHP);
+					}
+				}
 			}
 			UE_LOG(LogTemp, Log, TEXT("[CombatManager] PartyInstance ChampionJobs에서 플레이어 %d명 스폰"), Count);
 		}

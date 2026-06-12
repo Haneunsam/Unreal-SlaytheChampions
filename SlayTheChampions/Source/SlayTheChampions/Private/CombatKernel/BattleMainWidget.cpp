@@ -721,18 +721,17 @@ FReply UBattleMainWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 	if (PendingCardName.IsNone() || InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 
-	// 클릭 위치의 유닛을 ECC_Visibility → ECC_Pawn 순으로 트레이스
-	// bHitVis/bHitPawn: 실제로 무언가에 맞았는지 여부 (HitUnit과 별도 추적)
+	// PlayerController의 ClickTraceChannel 사용 — BP에서 커스텀 채널로 바꿨을 때도 일치하도록
 	APlayerController* PC = GetOwningPlayer();
 	if (PC)
 	{
-		FHitResult VisHit, PawnHit;
-		const bool bHitVis  = PC->GetHitResultUnderCursor(ECC_Visibility, false, VisHit);
-		const bool bHitPawn = PC->GetHitResultUnderCursor(ECC_Pawn, false, PawnHit);
+		FHitResult MainHit, PawnHit;
+		const bool bHitMain = PC->GetHitResultUnderCursor(ECC_Visibility, false, MainHit);
+		const bool bHitPawn = !bHitMain && PC->GetHitResultUnderCursor(ECC_Pawn, false, PawnHit);
 
 		AUnit* HitUnit = nullptr;
-		if (bHitVis)             HitUnit = Cast<AUnit>(VisHit.GetActor());
-		if (!HitUnit && bHitPawn) HitUnit = Cast<AUnit>(PawnHit.GetActor());
+		if (bHitMain)              HitUnit = Cast<AUnit>(MainHit.GetActor());
+		if (!HitUnit && bHitPawn)  HitUnit = Cast<AUnit>(PawnHit.GetActor());
 
 		UE_LOG(LogTemp, Log, TEXT("[BattleMainWidget] MouseDown | PendingCard: %s | HitUnit: %s | Alive: %s"),
 			*PendingCardName.ToString(),
@@ -750,16 +749,21 @@ FReply UBattleMainWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 				HandlePlayerClicked(HitUnit);
 			return FReply::Handled();
 		}
-
-		// 트레이스가 실제로 무언가에 맞았지만 유효 타겟이 아닌 경우에만 취소.
-		// 아무것도 안 맞은 경우(bHitVis=false, bHitPawn=false)는 적의 콜리전 채널이
-		// ECC_Visibility/Pawn과 다를 때 발생하며, 이때 액터의 OnUnitClicked는 여전히 발동함.
-		// 섣불리 취소하면 MouseDown 타이밍에 카드가 사라져 뒤따르는 적 클릭이 무효가 된다.
-		if (bHitVis || bHitPawn)
-			CancelPendingCard();
 	}
 
+	// 유닛을 즉시 찾지 못한 경우 — 다음 틱으로 취소를 미뤄 OnUnitClicked 발동 기회를 준다.
+	// MouseDown(DOWN) 이후 OnUnitClicked(UP)가 처리되면 PendingCardName이 클리어되므로
+	// DeferredCancelIfStillPending에서 취소가 일어나지 않는다.
+	if (UWorld* World = GetWorld())
+		World->GetTimerManager().SetTimerForNextTick(this, &UBattleMainWidget::DeferredCancelIfStillPending);
+
 	return FReply::Unhandled();
+}
+
+void UBattleMainWidget::DeferredCancelIfStillPending()
+{
+	if (!PendingCardName.IsNone())
+		CancelPendingCard();
 }
 
 // 현재 대기 중인 카드 선택을 취소하고 BP에 알림
