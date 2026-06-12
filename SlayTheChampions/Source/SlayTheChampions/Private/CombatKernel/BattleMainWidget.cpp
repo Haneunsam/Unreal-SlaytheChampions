@@ -121,7 +121,7 @@ void UBattleMainWidget::NativeConstruct()
 
 	if (CombatManager)
 	{
-		CombatManager->OnPhaseChanged.AddDynamic(this, &UBattleMainWidget::OnPhaseChanged);
+		CombatManager->OnPhaseChanged.AddUniqueDynamic(this, &UBattleMainWidget::OnPhaseChanged);
 		// BeginPlay에서 이미 StartTurn이 호출됐으므로 초기값 직접 설정
 		if (Text_TurnCount)
 			Text_TurnCount->SetText(FText::FromString(FString::Printf(TEXT("Turn %d"), CombatManager->TurnCount)));
@@ -135,24 +135,24 @@ void UBattleMainWidget::NativeConstruct()
 
 	// HandPanel 카드 선택 이벤트 바인딩
 	if (HandPanel)
-		HandPanel->OnCardSelected.AddDynamic(this, &UBattleMainWidget::HandleCardClicked);
+		HandPanel->OnCardSelected.AddUniqueDynamic(this, &UBattleMainWidget::HandleCardClicked);
 
 	// 버튼 바인딩 및 초기 가시성 설정
 	if (Btn_EndTurn)
-		Btn_EndTurn->OnClicked.AddDynamic(this, &UBattleMainWidget::HandleEndTurnClicked);
+		Btn_EndTurn->OnClicked.AddUniqueDynamic(this, &UBattleMainWidget::HandleEndTurnClicked);
 	else
 		UE_LOG(LogTemp, Error, TEXT("[BattleMainWidget] Btn_EndTurn is NULL — WBP 버튼 이름이 'Btn_EndTurn'인지 확인"));
 
 	if (Btn_NextPlayer)
 	{
-		Btn_NextPlayer->OnClicked.AddDynamic(this, &UBattleMainWidget::HandleNextPlayerClicked);
+		Btn_NextPlayer->OnClicked.AddUniqueDynamic(this, &UBattleMainWidget::HandleNextPlayerClicked);
 		// 플레이어 수가 1명이면 숨김, 2명 이상이면 핸드 선택 후 표시 (초기엔 숨김)
 		Btn_NextPlayer->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (Btn_Back)
 	{
-		Btn_Back->OnClicked.AddDynamic(this, &UBattleMainWidget::HandleBackClicked);
+		Btn_Back->OnClicked.AddUniqueDynamic(this, &UBattleMainWidget::HandleBackClicked);
 		// 플레이어 선택 전 메인 화면에서는 숨김
 		Btn_Back->SetVisibility(ESlateVisibility::Collapsed);
 	}
@@ -200,7 +200,7 @@ void UBattleMainWidget::BindPlayerClickEvents()
 	for (AUnit* Unit : CombatManager->GetSpawnedPlayers())
 	{
 		if (Unit)
-			Unit->OnUnitClicked.AddDynamic(this, &UBattleMainWidget::HandlePlayerClicked);
+			Unit->OnUnitClicked.AddUniqueDynamic(this, &UBattleMainWidget::HandlePlayerClicked);
 	}
 }
 
@@ -253,13 +253,13 @@ void UBattleMainWidget::HandlePlayerClicked(AUnit* Unit)
 
 	// 선택 플레이어의 버프/디버프 수치 변경 구독 → 카드 데미지/방어 표시 실시간 갱신
 	if (UStatusEffectComponent* SEC = Unit->FindComponentByClass<UStatusEffectComponent>())
-		SEC->OnEffectValueChanged.AddDynamic(this, &UBattleMainWidget::HandleCasterEffectChanged);
+		SEC->OnEffectValueChanged.AddUniqueDynamic(this, &UBattleMainWidget::HandleCasterEffectChanged);
 
 	// 새 유닛의 CardUserComponent 바인딩 및 현재 손패 즉시 표시
 	UCardUserComponent* CardComp = Unit->FindComponentByClass<UCardUserComponent>();
 	if (CardComp)
 	{
-		CardComp->OnHandChanged.AddDynamic(this, &UBattleMainWidget::HandleHandChanged);
+		CardComp->OnHandChanged.AddUniqueDynamic(this, &UBattleMainWidget::HandleHandChanged);
 		HandleHandChanged(CardComp->GetHand());
 		if (HandPanel)
 			HandPanel->PlayShowAnimation();
@@ -829,3 +829,4 @@ void UBattleMainWidget::DeselectCurrentPlayer()
 
 	SelectedUnit = nullptr;
 }
+
