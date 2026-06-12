@@ -6,6 +6,7 @@
 #include "VFX/VFXProjectileActor.h"
 #include "Unit/Unit.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/SkeletalMeshComponent.h"
 
@@ -124,9 +125,15 @@ void UVFXComponent::ExecuteEntry(const FSkillVfxEntry& Entry, TWeakObjectPtr<AUn
 {
 	switch (Entry.VfxType)
 	{
-	case ESkillVfxType::Spawn:       SpawnAtTarget(Entry, Target.Get());   break;
-	case ESkillVfxType::Projectile:  LaunchProjectile(Entry, Target.Get()); break;
-	case ESkillVfxType::CasterSpawn: SpawnAtCaster(Entry);                  break;
+	case ESkillVfxType::Spawn:
+		ScheduleStop(SpawnAtTarget(Entry, Target.Get()), Entry.Duration, Entry.bImmediateStop);
+		break;
+	case ESkillVfxType::Projectile:
+		LaunchProjectile(Entry, Target.Get());
+		break;
+	case ESkillVfxType::CasterSpawn:
+		ScheduleStop(SpawnAtCaster(Entry), Entry.Duration, Entry.bImmediateStop);
+		break;
 	}
 }
 
@@ -180,7 +187,8 @@ void UVFXComponent::LaunchProjectile(const FSkillVfxEntry& Entry, AUnit* Target)
 		return;
 	}
 
-	VfxProj->Launch(Entry.ParticleSystem, Target, Entry.ProjectileSpeed, Entry.ImpactParticle);
+	VfxProj->Launch(Entry.ParticleSystem, Target, Entry.ProjectileSpeed,
+		Entry.ImpactParticle, Entry.Duration, Entry.bImmediateStop);
 
 	UE_LOG(LogTemp, Log, TEXT("[VFXComponent] Projectile '%s' -> '%s' (Speed: %.0f)"), *Entry.ParticleSystem->GetName(), *Target->GetName(), Entry.ProjectileSpeed);
 }
@@ -223,4 +231,30 @@ FTransform UVFXComponent::ResolveSpawnTransform(AActor* Actor, FName SocketName,
 	Rotation = (Rotation.Quaternion() * RotOffset.Quaternion()).Rotator();
 
 	return FTransform(Rotation, Location);
+}
+
+void UVFXComponent::ScheduleStop(UParticleSystemComponent* Psc, float Duration, bool bImmediate)
+{
+	if (!Psc || Duration <= 0.f) return;
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	TWeakObjectPtr<UParticleSystemComponent> WeakPsc(Psc);
+
+	FTimerHandle Handle; // 단발 타이머는 발화 후 자동 무효화되므로 보관 불필요
+	World->GetTimerManager().SetTimer(
+		Handle,
+		[WeakPsc, bImmediate]()
+		{
+			UParticleSystemComponent* Comp = WeakPsc.Get();
+			if (!Comp) return;
+
+			Comp->bAutoDestroy = true; // 남은 파티클이 끝나면 스스로 정리
+			if (bImmediate)
+				Comp->DeactivateImmediate(); // 즉시 전부 제거
+			else
+				Comp->Deactivate();          // 신규 방출 중단 후 페이드아웃
+		},
+		Duration, false);
 }

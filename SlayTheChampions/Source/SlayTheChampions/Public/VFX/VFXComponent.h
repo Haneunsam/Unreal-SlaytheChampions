@@ -101,4 +101,7 @@ private:
 	FTransform ResolveSpawnTransform(AActor* Actor, FName SocketName,
 		FVector Offset, FRotator RotOffset) const;
 	
+	//스폰된 파티클을 Duration초 뒤에 정지/정리 Duration >=0 이면 아무것도 안함
+	void ScheduleStop(UParticleSystemComponent* Psc, float Duration, bool bImmediate);
+
 };
