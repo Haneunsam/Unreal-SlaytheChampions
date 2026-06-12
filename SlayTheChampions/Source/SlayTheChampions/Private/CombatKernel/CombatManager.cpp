@@ -21,6 +21,7 @@
 #include "Engine/DataTable.h"
 #include "Components/BoxComponent.h"
 #include "Components/ArrowComponent.h"
+#include "Map/RunSystem.h"
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
 #include "Unit/Job/JobComponent.h"   // 스폰된 플레이어에 직업(SetJobClass) 주입용
 #include "Party/PartyInstance.h"
@@ -164,6 +165,18 @@ void ACombatManager::EndCombat(bool bWon)
 	bCombatInitialized = false;   // 다음 BeginCombat 허용
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatManager] 전투 종료 (승리=%s)"), bWon ? TEXT("true") : TEXT("false"));
+
+	if (bWon)
+	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (URunSystem* RunSystem = GameInstance->GetSubsystem<URunSystem>())
+			{
+				RunSystem->AreaCleared();
+			}
+		}
+	}
+
 	OnCombatEnded.Broadcast(bWon);
 }
 
