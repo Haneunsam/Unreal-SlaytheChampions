@@ -34,6 +34,11 @@ void ULevelManager::GoToLevel(FName LevelName)
 
 void ULevelManager::MoveToConfiguredLevel(FName LevelName)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[LevelManager] MoveToConfiguredLevel RequestedLevel=%s bUseStreamedLevelTransition=%s CurrentStreamedLevel=%s"),
+		*LevelName.ToString(),
+		bUseStreamedLevelTransition ? TEXT("true") : TEXT("false"),
+		*CurrentStreamedLevelName.ToString());
+
 	if (bUseStreamedLevelTransition)
 	{
 		GoToStreamedLevel(LevelName);
@@ -45,13 +50,25 @@ void ULevelManager::MoveToConfiguredLevel(FName LevelName)
 
 void ULevelManager::GoToStreamedLevel(FName LevelName)
 {
-	if (LevelName.IsNone() || bIsStreamingTransitionInProgress)
+	if (LevelName.IsNone())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] GoToStreamedLevel ignored. LevelName is None."));
+		return;
+	}
+
+	if (bIsStreamingTransitionInProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] GoToStreamedLevel ignored. Transition in progress. RequestedLevel=%s PendingLevel=%s CurrentLevel=%s"),
+			*LevelName.ToString(),
+			*PendingStreamedLevelName.ToString(),
+			*CurrentStreamedLevelName.ToString());
 		return;
 	}
 
 	if (CurrentStreamedLevelName == LevelName)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] StreamedLevelReEntered Level=%s"), *LevelName.ToString());
+		OnStreamedLevelEntered.Broadcast(LevelName);
 		return;
 	}
 
@@ -83,6 +100,19 @@ void ULevelManager::GoToStreamedLevel(FName LevelName)
 	}
 
 	UnloadCurrentStreamedLevel();
+}
+
+void ULevelManager::BroadcastCurrentStreamedLevelEntered()
+{
+	if (CurrentStreamedLevelName.IsNone())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] BroadcastCurrentStreamedLevelEntered ignored. CurrentStreamedLevelName is None."));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[LevelManager] BroadcastCurrentStreamedLevelEntered Level=%s"),
+		*CurrentStreamedLevelName.ToString());
+	OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
 }
 
 void ULevelManager::AsynchronousLoadLevel()
@@ -148,9 +178,15 @@ void ULevelManager::OnLevelLoadCompleted()
 void ULevelManager::OnStreamedLevelLoaded()
 {
 	SetStreamedLevelVisibility(PendingStreamedLevelName, true);
+	const FName PreviousStreamedLevelName = CurrentStreamedLevelName;
 	CurrentStreamedLevelName = PendingStreamedLevelName;
 	PendingStreamedLevelName = NAME_None;
 	bIsStreamingTransitionInProgress = false;
+	UE_LOG(LogTemp, Warning, TEXT("[LevelManager] StreamedLevelLoaded PreviousLevel=%s NewLevel=%s"),
+		*PreviousStreamedLevelName.ToString(),
+		*CurrentStreamedLevelName.ToString());
+	OnStreamedLevelChanged.Broadcast(PreviousStreamedLevelName, CurrentStreamedLevelName);
+	OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
 }
 
 void ULevelManager::OnCurrentStreamedLevelUnloaded()
@@ -233,8 +269,7 @@ FName ULevelManager::GetConfiguredInitialStreamedLevelName() const
 
 bool ULevelManager::ShouldBootstrapMapSystem(const FString& MapName) const
 {
-	const FName ConfiguredInitialLevelName = GetConfiguredInitialStreamedLevelName();
-	return MapName == TEXT("NormalMap") || MapName == ConfiguredInitialLevelName.ToString();
+	return MapName == TEXT("MainMap");
 }
 
 void ULevelManager::EnsureInitialStreamedLevelLoaded()
@@ -252,8 +287,11 @@ void ULevelManager::EnsureInitialStreamedLevelLoaded()
 
 	if (IsStreamedLevelLoaded(ConfiguredInitialLevelName))
 	{
+		const FName PreviousStreamedLevelName = CurrentStreamedLevelName;
 		CurrentStreamedLevelName = ConfiguredInitialLevelName;
 		SetStreamedLevelVisibility(CurrentStreamedLevelName, true);
+		OnStreamedLevelChanged.Broadcast(PreviousStreamedLevelName, CurrentStreamedLevelName);
+		OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
 		return;
 	}
 

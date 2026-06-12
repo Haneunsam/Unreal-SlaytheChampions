@@ -30,6 +30,7 @@ enum class EEffectType : uint8
 	Summon                 = 6   UMETA(DisplayName = "Summon"),
 	ChannelLightning       = 7   UMETA(DisplayName = "Channel Lightning"),
 	UpgradeAttackCard      = 8   UMETA(DisplayName = "Upgrade Attack Card"),
+	Damage				   = 9	 UMETA(DisplayName = "Damage"),
 	// ── 몬스터 의도 아이콘 전용 (50~99) ──────────────────────────────────
 	// MonsterActionWidget의 IntentIconMap에서 EIntentKind와 1:1 매핑하여 사용
 	// 게임플레이 로직에는 영향 없음 — BuffIconWidget의 EffectSystemMap 연결 전용

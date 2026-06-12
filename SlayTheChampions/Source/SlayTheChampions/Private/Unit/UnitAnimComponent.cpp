@@ -31,21 +31,21 @@ void UUnitAnimComponent::BeginPlay()
 	{
 		if (UStatComponent* Stat = OwnerUnit->FindComponentByClass<UStatComponent>())
 		{
-			Stat->OnHPChanged.AddDynamic(this, &UUnitAnimComponent::HandleHPChanged);
+			Stat->OnHPChanged.AddUniqueDynamic(this, &UUnitAnimComponent::HandleHPChanged);
 		}
 	}
 
 	//StatComponent::OnUnitDied ->사망 애니메이션
 	if (bAutoPlayDeath)
 	{
-		OwnerUnit->OnUnitDied.AddDynamic(this, &UUnitAnimComponent::HandleUnitDied);
+		OwnerUnit->OnUnitDied.AddUniqueDynamic(this, &UUnitAnimComponent::HandleUnitDied);
 	}
 
 	// Unit::OnUnitAttackNotified -> 공격/스킬 애니메이션
-	OwnerUnit->OnUnitAttackNotified.AddDynamic(this, &UUnitAnimComponent::HandleAttackNotified);
+	OwnerUnit->OnUnitAttackNotified.AddUniqueDynamic(this, &UUnitAnimComponent::HandleAttackNotified);
 
 	// Unit::OnUnitMoveNotified -> 이동 애니메이션
-	OwnerUnit->OnUnitMoveNotified.AddDynamic(this, &UUnitAnimComponent::HandleMoveNotified);
+	OwnerUnit->OnUnitMoveNotified.AddUniqueDynamic(this, &UUnitAnimComponent::HandleMoveNotified);
 	
 }
 
@@ -194,7 +194,7 @@ float UUnitAnimComponent::PlayMontageInternal(const FUnitAnimEntry& Entry, EUnit
 	CurrentAnimType = AnimType;
 
 	// 종료 감지 등록
-	AnimInst->OnMontageEnded.AddDynamic(this, &UUnitAnimComponent::HandleMontageEnded);
+	AnimInst->OnMontageEnded.AddUniqueDynamic(this, &UUnitAnimComponent::HandleMontageEnded);
 
 	OnAnimStarted.Broadcast(AnimType, Length);
 	UE_LOG(LogTemp, Log, TEXT("[UnitAnimComponent] %s — %s 재생 (%.2fs)"),

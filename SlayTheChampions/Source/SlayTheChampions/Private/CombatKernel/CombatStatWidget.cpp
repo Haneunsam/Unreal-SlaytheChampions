@@ -1,4 +1,4 @@
-#include "CombatKernel/CombatStatWidget.h"
+﻿#include "CombatKernel/CombatStatWidget.h"
 #include "Unit/Unit.h"
 #include "Unit/StatComponent.h"
 #include "Unit/StatusEffectComponent.h"
@@ -16,7 +16,7 @@ void UCombatStatWidget::InitFromUnit(AUnit* InUnit)
 	UnitStatComp = InUnit->GetStat();
 	if (UnitStatComp)
 	{
-		UnitStatComp->OnHPChanged.AddDynamic(this, &UCombatStatWidget::OnUnitHPChanged);
+		UnitStatComp->OnHPChanged.AddUniqueDynamic(this, &UCombatStatWidget::OnUnitHPChanged);
 		// 초기 HP 값을 즉시 반영
 		OnUnitHPChanged(0, UnitStatComp->CurrentHP);
 	}
@@ -25,7 +25,7 @@ void UCombatStatWidget::InitFromUnit(AUnit* InUnit)
 	UStatusEffectComponent* SEC = InUnit->FindComponentByClass<UStatusEffectComponent>();
 	if (SEC)
 	{
-		SEC->OnEffectValueChanged.AddDynamic(this, &UCombatStatWidget::OnShieldValueChanged);
+		SEC->OnEffectValueChanged.AddUniqueDynamic(this, &UCombatStatWidget::OnShieldValueChanged);
 	}
 
 	// 유닛 이름 표시
@@ -70,3 +70,4 @@ void UCombatStatWidget::UpdateShieldVisibility(int32 ShieldValue)
 	if (Image_Block)    Image_Block->SetVisibility(ShieldVisibility);
 	if (NiagaraShield)  NiagaraShield->SetVisibility(ShieldVisibility);
 }
+

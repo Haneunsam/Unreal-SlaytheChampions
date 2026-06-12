@@ -4,6 +4,9 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "LevelManager.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStreamedLevelChanged, FName, PreviousLevelName, FName, NewLevelName);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStreamedLevelEntered, FName, LevelName);
+
 UCLASS()
 class SLAYTHECHAMPIONS_API ULevelManager : public UGameInstanceSubsystem
 {
@@ -27,6 +30,12 @@ public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
+    UPROPERTY(BlueprintAssignable, Category = "Level")
+    FOnStreamedLevelChanged OnStreamedLevelChanged;
+
+    UPROPERTY(BlueprintAssignable, Category = "Level")
+    FOnStreamedLevelEntered OnStreamedLevelEntered;
+
     /*
     다른 레벨로 이동
     @param LevelName 이동할 레벨의 이름
@@ -47,6 +56,12 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Level")
     bool IsUsingStreamedLevelTransition() const { return bUseStreamedLevelTransition; }
+
+    UFUNCTION(BlueprintPure, Category = "Level")
+    FName GetCurrentStreamedLevelName() const { return CurrentStreamedLevelName; }
+
+    UFUNCTION(BlueprintCallable, Category = "Level")
+    void BroadcastCurrentStreamedLevelEntered();
 
     /*비동기 레벨 로드 호출*/
     void AsynchronousLoadLevel();
