@@ -22,6 +22,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Map/RunSystem.h"
+#include "Relic/RelicSubsystem.h"
 #include "Card/CardUserComponent.h"  // 스폰된 플레이어에 PawnIndex 주입 및 드로우 호출용
 #include "Unit/Job/JobComponent.h"   // 스폰된 플레이어에 직업(SetJobClass) 주입용
 #include "Party/PartyInstance.h"
@@ -161,6 +162,17 @@ void ACombatManager::EndCombat(bool bWon)
 		BattleWidget->RemoveFromParent();
 		BattleWidget = nullptr;
 	}
+
+	// 전투 종료 유물 효과 — 유닛 파괴 전에 적용
+	if (UGameInstance* GI = GetGameInstance())
+		if (URelicSubsystem* RS = GI->GetSubsystem<URelicSubsystem>())
+			RS->TriggerOwnedRelicEffectsByTiming(EEffectApplyTiming::OnBattleEnd, SpawnedPlayers);
+
+	// 유닛 파괴 전 HP 저장 — 다음 전투 스폰 시 복원 (데이터 스폰 모드에서만)
+	if (!bPlayerManualSet)
+		if (UGameInstance* GI = GetGameInstance())
+			if (UPartyInstance* Party = GI->GetSubsystem<UPartyInstance>())
+				Party->SaveChampionHPs(SpawnedPlayers);
 
 	// 이 매니저가 스폰한 유닛만 정리 (레벨 직접 배치 유닛은 건드리지 않음)
 	for (AUnit* U : ManagerSpawnedUnits)
@@ -338,6 +350,18 @@ void ACombatManager::InitCombat()
 				// 직업 로직(Detail) 재생성 — JobComponent.BeginPlay 이후이므로 SetJobClass로 다시 만든다
 				if (UJobComponent* JC = Spawned->FindComponentByClass<UJobComponent>())
 					JC->SetJobClass(Job);
+
+				// 이전 전투에서 저장한 HP/MaxHP 복원 (저장값이 있을 때만)
+				const int32 SavedCurrentHP = Party->GetSavedCurrentHP(i);
+				const int32 SavedMaxHP     = Party->GetSavedMaxHP(i);
+				if ((SavedMaxHP > 0 || SavedCurrentHP > 0))
+				{
+					if (UStatComponent* Stat = Spawned->FindComponentByClass<UStatComponent>())
+					{
+						if (SavedMaxHP > 0)     Stat->MaxHP     = SavedMaxHP;
+						if (SavedCurrentHP > 0) Stat->CurrentHP = FMath::Min(SavedCurrentHP, Stat->MaxHP);
+					}
+				}
 			}
 			UE_LOG(LogTemp, Log, TEXT("[CombatManager] PartyInstance ChampionJobs에서 플레이어 %d명 스폰"), Count);
 		}
@@ -524,6 +548,11 @@ void ACombatManager::InitCombat()
 		else
 			UE_LOG(LogTemp, Error, TEXT("[CombatManager] BattleWidget creation failed"));
 	}
+
+	// 전투 시작 유물 효과 — 유닛 등록 완료 후, 첫 턴 시작 전에 적용
+	if (UGameInstance* GI = GetGameInstance())
+		if (URelicSubsystem* RS = GI->GetSubsystem<URelicSubsystem>())
+			RS->TriggerOwnedRelicEffectsByTiming(EEffectApplyTiming::OnBattleStart, SpawnedPlayers);
 
 	// 모든 액터의 BeginPlay가 완료된 후 드로우가 실행되도록 한 프레임 지연
 	// (CardUserComponent.DeckComponent는 BeginPlay에서 생성되므로 동일 틱 호출 시 null일 수 있음)
@@ -761,6 +790,11 @@ void ACombatManager::StartTurn()
 
 	// 몬스터: 버프/디버프 tick만 (Shield는 EnemyPhase 시작 시 따로 리셋)
 	TickBuffsAndDebuffs(SpawnedEnemies);
+
+	// 전투 중 유물 효과 (턴 시작마다 발동) — TriggerCondition으로 특정 턴·조건에만 발동 가능
+	if (UGameInstance* GI = GetGameInstance())
+		if (URelicSubsystem* RS = GI->GetSubsystem<URelicSubsystem>())
+			RS->TriggerOwnedRelicEffectsByTiming(EEffectApplyTiming::DuringBattle, SpawnedPlayers);
 
 	PlanAllEnemyActions(); // DrawPhase: 모든 적의 이번 턴 행동을 미리 결정
 

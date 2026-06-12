@@ -35,6 +35,12 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance", meta = (AllowPrivateAccess = "true"))
 	TArray<FPotionData> Potions;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance")
+	TArray<int32> ChampionCurrentHPs;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance")
+	TArray<int32> ChampionMaxHPs;
 public:
 
 	FSavePartyInfo()
@@ -50,5 +56,7 @@ public:
 		Deck.Empty();
 		Relics.Empty();
 		Potions.Empty();
+		ChampionCurrentHPs.Empty();
+		ChampionMaxHPs.Empty();
 	}
 };
