@@ -48,9 +48,18 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PartyInstance")
 	TArray<EJobClass> ChampionJobs;
 
-	// 스폰할 챔피언(직업) 추가
+	// 스폰할 챔피언(직업) 추가 — 추가 시점에 직업 기본 덱을 인스턴스에 함께 시드한다
 	UFUNCTION(BlueprintCallable)
-	void AddChampion(EJobClass Job) { ChampionJobs.Add(Job); }
+	void AddChampion(EJobClass Job);
+
+	UFUNCTION(BlueprintCallable, Category = "PartyInstance")
+	bool AddPartyMember(FName UnitID, EJobClass Job);
+
+	UFUNCTION(BlueprintCallable, Category = "PartyInstance")
+	bool RemovePartyMember(FName UnitID, EJobClass Job);
+
+	UFUNCTION(BlueprintPure, Category = "PartyInstance")
+	bool HasPartyMember(FName UnitID) const;
 
 	// 스폰할 챔피언 직업 목록 초기화
 	UFUNCTION(BlueprintCallable)
@@ -100,5 +109,32 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	int32 GetSavedMaxHP(int32 Index) const;
+
+	// 휴식 등에서 모든 파티원 HP를 MaxHP 비율만큼 회복 (저장된 HP에 직접 적용)
+	// Percent=0.3 이면 각자 MaxHP의 30% 회복, MaxHP 초과 안 함. 죽은 액터 불필요.
+	UFUNCTION(BlueprintCallable)
+	void HealAllChampionsByPercent(float Percent);
+
+	// 휴식 등에서 모든 파티원 HP를 고정값만큼 회복
+	UFUNCTION(BlueprintCallable)
+	void HealAllChampions(int32 Amount);
+
+	// ── 덱 관리 (카드 시스템의 런타임 소스 of truth) ─────────────────────────
+
+	// PawnIndex 파티원의 전체 덱을 교체 (전투 종료 후 SaveDeckToSaveGame에서 호출)
+	UFUNCTION(BlueprintCallable)
+	void SetDeck(int32 PawnIndex, const TArray<FName>& Cards);
+
+	// 보상 카드 1장 추가 (AddRewardCard에서 호출)
+	UFUNCTION(BlueprintCallable)
+	void AddDeckCard(int32 PawnIndex, FName CardName);
+
+	// 저장된 덱 반환 — 없으면 빈 배열 (InitializeDeck 1순위 소스)
+	UFUNCTION(BlueprintPure)
+	TArray<FName> GetDeck(int32 PawnIndex) const;
+
+	// 저장된 덱이 있는지 여부
+	UFUNCTION(BlueprintPure)
+	bool HasDeck(int32 PawnIndex) const;
 };
 

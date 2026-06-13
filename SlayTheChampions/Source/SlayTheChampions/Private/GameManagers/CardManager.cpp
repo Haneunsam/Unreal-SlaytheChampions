@@ -7,9 +7,10 @@
 void UCardManager::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
+    Collection.InitializeDependency(UCardSubsystem::StaticClass()); // CardSubsystem 먼저 초기화 보장
 
     // ?뚰떚 理쒕? 2紐??щ’ ?덉빟
-    PartyDeckComponents.SetNum(2);
+    PartyDeckComponents.SetNum(3);
 
     // CardSubsystem 罹먯떆
     CardSubsystem = GetGameInstance()->GetSubsystem<UCardSubsystem>();
@@ -114,19 +115,15 @@ void UCardManager::AddRewardCard(int32 PawnIndex, FName CardName)
         return;
     }
 
-    UDeckComponent* DC = PartyDeckComponents[PawnIndex];
-    if (!DC)
-    {
-        UE_LOG(LogTemp, Warning,
-            TEXT("[CardManager] AddRewardCard: Pawn%d DeckComponent not registered."), PawnIndex);
-        return;
-    }
+    // 런타임 덱 업데이트 — 보상 화면(전투 종료 후)에서는 DC가 null이므로 optional
+    if (UDeckComponent* DC = PartyDeckComponents[PawnIndex])
+        DC->DiscardCard(CardName);
 
-    // 硫붾え由?DeckComponent) DiscardPile??異붽? (?ㅼ쓬 RecycleDiscardIntoDraw ??DrawPile濡??⑸쪟)
-    DC->DiscardCard(CardName);
-
-    // SaveGame ??諛섏쁺
     UCardSaveGame::AddCard(PawnIndex, CardName);
+
+    // PartyInstance에 반영 — 다음 전투 InitializeDeck의 1순위 소스
+    if (UPartyInstance* Party = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartyInstance>() : nullptr)
+        Party->AddDeckCard(PawnIndex, CardName);
 
     UE_LOG(LogTemp, Log,
         TEXT("[CardManager] Pawn%d reward card added - %s."), PawnIndex, *CardName.ToString());
@@ -149,6 +146,9 @@ void UCardManager::AddCardToPartyDeck(int32 PawnIndex, FName CardName)
     }
 
     UCardSaveGame::AddCard(PawnIndex, CardName);
+
+    if (UPartyInstance* Party = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartyInstance>() : nullptr)
+        Party->AddDeckCard(PawnIndex, CardName);
 
     UE_LOG(LogTemp, Log,
         TEXT("[CardManager] Pawn%d card added to party deck - %s."), PawnIndex, *CardName.ToString());
@@ -194,8 +194,17 @@ UDeckComponent* UCardManager::GetDeckComponent(int32 PawnIndex) const
 
 const FCardDataRow* UCardManager::GetCardData(FName CardName) const
 {
-    if (!CardSubsystem) return nullptr;
-    return CardSubsystem->GetCard(CardName);
+    UCardSubsystem* CS = CardSubsystem;
+    if (!CS && GetGameInstance())
+        CS = GetGameInstance()->GetSubsystem<UCardSubsystem>();
+    if (!CS) return nullptr;
+
+    // 1순위: RowName으로 조회
+    if (const FCardDataRow* Row = CS->GetCard(CardName))
+        return Row;
+    // 2순위: CardName이 CardID였을 경우 RowName으로 변환 후 재조회
+    const FName RowName = CS->GetRowNameByCardID(CardName);
+    return RowName.IsNone() ? nullptr : CS->GetCard(RowName);
 }
 
 // ?? Private ??????????????????????????????????????????????????????????????????
@@ -213,20 +222,22 @@ int32 UCardManager::FindPartyDeckIndexForCard(FName CardName) const
         return INDEX_NONE;
     }
 
-    UCardSaveGame* Save = UCardSaveGame::LoadSave();
-    if (!Save)
+    UPartyInstance* Party = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartyInstance>() : nullptr;
+    if (!Party)
     {
-        return CardData->RequiredClass == EJobClass::Any && IsValidPawnIndex(0) ? 0 : INDEX_NONE;
+        return INDEX_NONE;
     }
+
+    const TArray<EJobClass>& Jobs = Party->GetChampionJobs();
 
     if (CardData->RequiredClass == EJobClass::Any)
     {
-        return Save->PartyDecks.IsValidIndex(0) ? 0 : INDEX_NONE;
+        return IsValidPawnIndex(0) ? 0 : INDEX_NONE;
     }
 
-    for (int32 Index = 0; Index < Save->PartyDecks.Num(); ++Index)
+    for (int32 Index = 0; Index < Jobs.Num(); ++Index)
     {
-        if (Save->PartyDecks[Index].JobClass == CardData->RequiredClass && IsValidPawnIndex(Index))
+        if (Jobs[Index] == CardData->RequiredClass && IsValidPawnIndex(Index))
         {
             return Index;
         }
