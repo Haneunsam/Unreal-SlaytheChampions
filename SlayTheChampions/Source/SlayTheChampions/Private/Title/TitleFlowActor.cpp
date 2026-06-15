@@ -10,6 +10,7 @@
 #include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Map/MapEnum.h"
 #include "Map/RunSystem.h"
 #include "Party/CharacterSelectActor.h"
 #include "Party/PartyInstance.h"
@@ -39,6 +40,7 @@ void ATitleFlowActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// BP_Title에 배치한 자식 액터들을 자동으로 찾아 타이틀 흐름에 연결한다.
 	if (bAutoRegisterChildCharacterActors)
 	{
 		AutoRegisterChildCharacterActors();
@@ -49,14 +51,14 @@ void ATitleFlowActor::BeginPlay()
 		AutoBindNamedTitleClickActors();
 	}
 
-	BindClickComponent(NewGameClickComponent);
-	BindClickComponent(LoadGameClickComponent);
-	BindClickComponent(ExitGameClickComponent);
-	BindClickComponent(StartRunClickComponent);
 	BindClickChildActor(NewGameClickChildActor, NewGameClickComponent);
 	BindClickChildActor(LoadGameClickChildActor, LoadGameClickComponent);
 	BindClickChildActor(ExitGameClickChildActor, ExitGameClickComponent);
 	BindClickChildActor(StartRunClickChildActor, StartRunClickComponent);
+	BindClickComponent(NewGameClickChildActor ? nullptr : NewGameClickComponent);
+	BindClickComponent(LoadGameClickChildActor ? nullptr : LoadGameClickComponent);
+	BindClickComponent(ExitGameClickChildActor ? nullptr : ExitGameClickComponent);
+	BindClickComponent(StartRunClickChildActor ? nullptr : StartRunClickComponent);
 
 	for (ACharacterSelectActor* CharacterActor : CharacterSelectActors)
 	{
@@ -65,12 +67,18 @@ void ATitleFlowActor::BeginPlay()
 
 	SpawnTitleCamera();
 
+	// 서브레벨에서 RunMap으로 돌아왔을 때 포탈 카메라로 다시 맞추기 위한 이벤트다.
 	if (ULevelManager* LevelManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULevelManager>() : nullptr)
 	{
 		LevelManager->OnStreamedLevelEntered.AddUniqueDynamic(this, &ATitleFlowActor::HandleStreamedLevelEntered);
 	}
 
+	// 처음 MainMap을 열 때는 타이틀을 보여주고, 복귀 상황만 다음 틱에서 보정한다.
 	FocusTitleMenu(0.f);
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(this, &ATitleFlowActor::CheckInitialMapCameraFocus);
+	}
 
 	if (bDisableCharacterSelectionOnTitle)
 	{
@@ -80,6 +88,7 @@ void ATitleFlowActor::BeginPlay()
 	OnLoadButtonAvailabilityChanged.Broadcast(CanLoadSave());
 	RefreshPartySelectionState();
 
+	// 위젯 컴포넌트 내부 텍스트는 BeginPlay 직후 준비가 늦을 수 있어 약간 지연 갱신한다.
 	if (InitialTextRefreshDelay <= 0.f)
 	{
 		RequestTitleTextRefresh();
@@ -98,12 +107,18 @@ void ATitleFlowActor::BeginPlay()
 
 void ATitleFlowActor::HandleNewGameClicked()
 {
+	// 새 게임은 세이브와 카드 저장을 지우고 파티 선택부터 다시 시작한다.
 	if (USTCGameInstance* STCGameInstance = Cast<USTCGameInstance>(GetGameInstance()))
 	{
 		STCGameInstance->DeleteSaveGameData();
 	}
 
 	UGameplayStatics::DeleteGameInSlot(UCardSaveGame::SlotName, 0);
+
+	if (URunSystem* RunSystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URunSystem>() : nullptr)
+	{
+		RunSystem->ResetRunProgressForNewGame();
+	}
 
 	if (UPartyInstance* PartyInstance = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartyInstance>() : nullptr)
 	{
@@ -112,7 +127,6 @@ void ATitleFlowActor::HandleNewGameClicked()
 		PartyInstance->ClearChampions();
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] NewGame clicked. Save deleted and party reset."));
 	OnLoadButtonAvailabilityChanged.Broadcast(CanLoadSave());
 	FocusCharacterSelect();
 }
@@ -121,7 +135,6 @@ void ATitleFlowActor::HandleLoadGameClicked()
 {
 	if (!CanLoadSave())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] LoadGame failed. Save file does not exist."));
 		OnLoadButtonAvailabilityChanged.Broadcast(false);
 		return;
 	}
@@ -136,7 +149,6 @@ void ATitleFlowActor::HandleLoadGameClicked()
 		RunSystem->RefreshRunState();
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] LoadGame clicked. Moving to map."));
 	FocusMapStart();
 }
 
@@ -149,7 +161,6 @@ void ATitleFlowActor::HandleStartRunClicked()
 {
 	if (!CanStartRun())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] StartRun failed. PartyMemberCount is less than %d."), MinPartyMembersToStart);
 		RefreshPartySelectionState();
 		return;
 	}
@@ -164,7 +175,6 @@ void ATitleFlowActor::HandleStartRunClicked()
 		STCGameInstance->SaveGameData();
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] StartRun clicked. Moving to map."));
 	FocusMapStart();
 }
 
@@ -182,6 +192,7 @@ void ATitleFlowActor::FocusCharacterSelect(float OverrideBlendTime)
 
 void ATitleFlowActor::FocusMapStart(float OverrideBlendTime)
 {
+	// 타이틀에서 맵으로 직접 넘어가는 경우에는 RunMap 진입 이벤트에서도 맵 카메라를 허용한다.
 	bAllowMapCameraFocusOnMapLevelEntered = true;
 	FocusMapCameraOnly(OverrideBlendTime);
 
@@ -224,7 +235,6 @@ void ATitleFlowActor::RefreshPartySelectionState()
 	const bool bCanStart = CanStartRun();
 	SetStartRunClickEnabled(bCanStart);
 	OnStartButtonVisibilityChanged.Broadcast(bCanStart);
-	UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] RefreshPartySelectionState CanStart=%s"), bCanStart ? TEXT("true") : TEXT("false"));
 }
 
 bool ATitleFlowActor::CanStartRun() const
@@ -241,20 +251,11 @@ bool ATitleFlowActor::CanLoadSave() const
 
 void ATitleFlowActor::HandleCharacterSelected(ACharacterSelectActor* SelectActor, const FSelectableCharacterInfo& CharacterInfo)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] Character selected. Actor=%s UnitID=%s"),
-		SelectActor ? *SelectActor->GetName() : TEXT("None"),
-		*CharacterInfo.UnitID.ToString());
-
 	RefreshPartySelectionState();
 }
 
 void ATitleFlowActor::HandleCharacterSelectionChanged(ACharacterSelectActor* SelectActor, const FSelectableCharacterInfo& CharacterInfo, bool bInSelected)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] Character selection changed. Actor=%s UnitID=%s Selected=%s"),
-		SelectActor ? *SelectActor->GetName() : TEXT("None"),
-		*CharacterInfo.UnitID.ToString(),
-		bInSelected ? TEXT("true") : TEXT("false"));
-
 	RefreshPartySelectionState();
 }
 
@@ -291,13 +292,30 @@ void ATitleFlowActor::HandleStartRunComponentClicked(UPrimitiveComponent* Touche
 
 void ATitleFlowActor::HandleStreamedLevelEntered(FName LevelName)
 {
-	if (!bFocusMapCameraWhenMapLevelEntered || !bAllowMapCameraFocusOnMapLevelEntered || LevelName != MapLevelName)
+	if (!bFocusMapCameraWhenMapLevelEntered || LevelName != MapLevelName)
 	{
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] Map level entered. Focus map camera. Level=%s"), *LevelName.ToString());
+	const ULevelManager* LevelManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULevelManager>() : nullptr;
+	const FName PreviousLevel = LevelManager ? LevelManager->GetLastPreviousStreamedLevelName() : NAME_None;
+	if (!bAllowMapCameraFocusOnMapLevelEntered && PreviousLevel.IsNone())
+	{
+		return;
+	}
+
+	if (!ShouldFocusMapCameraForRunMap())
+	{
+		return;
+	}
+
+	// 처음 실행은 타이틀을 유지하고, 다른 서브레벨에서 RunMap으로 복귀한 경우에만 포탈 카메라로 맞춘다.
 	FocusMapCameraOnly(DefaultBlendTime);
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(this, &ATitleFlowActor::RetryFocusMapCameraAfterRunMapEntered);
+	}
 }
 
 void ATitleFlowActor::SpawnTitleCamera()
@@ -331,7 +349,6 @@ void ATitleFlowActor::MoveCameraToSlot(USceneComponent* CameraSlot, ETitleFlowSt
 {
 	if (!CameraSlot)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] MoveCameraToSlot failed. CameraSlot is null."));
 		return;
 	}
 
@@ -342,7 +359,6 @@ void ATitleFlowActor::MoveCameraToSlot(USceneComponent* CameraSlot, ETitleFlowSt
 
 	if (!ActiveCamera)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] MoveCameraToSlot failed. ActiveCamera is null."));
 		return;
 	}
 
@@ -372,6 +388,63 @@ void ATitleFlowActor::SetFlowState(ETitleFlowState NewState)
 	OnTitleFlowStateChanged.Broadcast(CurrentState);
 }
 
+bool ATitleFlowActor::ShouldFocusMapCameraForRunMap() const
+{
+	if (bAllowMapCameraFocusOnMapLevelEntered)
+	{
+		return true;
+	}
+
+	const ULevelManager* LevelManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULevelManager>() : nullptr;
+	if (LevelManager && LevelManager->GetCurrentStreamedLevelName() == MapLevelName && !LevelManager->GetLastPreviousStreamedLevelName().IsNone())
+	{
+		return true;
+	}
+
+	const URunSystem* RunSystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URunSystem>() : nullptr;
+	if (!RunSystem)
+	{
+		return false;
+	}
+
+	const ERunState RunState = RunSystem->GetRunState();
+	const bool bShouldFocus =
+		RunState == ERunState::StageSelect ||
+		RunState == ERunState::StageClear ||
+		RunState == ERunState::RoomEntered ||
+		RunState == ERunState::RunClear ||
+		RunState == ERunState::RunFail;
+
+	return bShouldFocus;
+}
+
+void ATitleFlowActor::CheckInitialMapCameraFocus()
+{
+	const ULevelManager* LevelManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULevelManager>() : nullptr;
+	if (!LevelManager)
+	{
+		return;
+	}
+
+	const FName CurrentLevel = LevelManager->GetCurrentStreamedLevelName();
+	const FName PreviousLevel = LevelManager->GetLastPreviousStreamedLevelName();
+
+	if (CurrentLevel == MapLevelName && !PreviousLevel.IsNone())
+	{
+		HandleStreamedLevelEntered(CurrentLevel);
+	}
+}
+
+void ATitleFlowActor::RetryFocusMapCameraAfterRunMapEntered()
+{
+	if (!bFocusMapCameraWhenMapLevelEntered || !ShouldFocusMapCameraForRunMap())
+	{
+		return;
+	}
+
+	FocusMapCameraOnly(0.f);
+}
+
 float ATitleFlowActor::ResolveBlendTime(float OverrideBlendTime) const
 {
 	return OverrideBlendTime >= 0.f ? OverrideBlendTime : DefaultBlendTime;
@@ -394,14 +467,8 @@ void ATitleFlowActor::AutoRegisterChildCharacterActors()
 		if (ACharacterSelectActor* CharacterActor = Cast<ACharacterSelectActor>(ChildActorComponent->GetChildActor()))
 		{
 			RegisterCharacterSelectActor(CharacterActor);
-			UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] Registered child character. Component=%s Actor=%s UnitID=%s"),
-				*ChildActorComponent->GetName(),
-				*CharacterActor->GetName(),
-				*CharacterActor->GetCharacterInfo().UnitID.ToString());
 		}
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] AutoRegisterChildCharacterActors Count=%d"), CharacterSelectActors.Num());
 }
 
 void ATitleFlowActor::SetStartRunClickEnabled(bool bEnabled)
@@ -441,8 +508,6 @@ void ATitleFlowActor::BindClickComponent(UPrimitiveComponent* ClickComponent)
 	{
 		ClickComponent->OnClicked.AddUniqueDynamic(this, &ATitleFlowActor::HandleStartRunComponentClicked);
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] BindClickComponent Component=%s"), *ClickComponent->GetName());
 }
 
 void ATitleFlowActor::BindClickChildActor(UChildActorComponent* ChildActorComponent, TObjectPtr<UPrimitiveComponent>& BoundComponent)
@@ -456,8 +521,6 @@ void ATitleFlowActor::BindClickChildActor(UChildActorComponent* ChildActorCompon
 	UPrimitiveComponent* ClickComponent = FindClickablePrimitiveComponent(ChildActor);
 	if (!ClickComponent)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] BindClickChildActor failed. ChildActor=%s has no clickable primitive."),
-			ChildActor ? *ChildActor->GetName() : TEXT("None"));
 		return;
 	}
 
@@ -493,6 +556,7 @@ UPrimitiveComponent* ATitleFlowActor::FindClickablePrimitiveComponent(AActor* Ac
 
 void ATitleFlowActor::AutoBindNamedTitleClickActors()
 {
+	// 자식 액터 컴포넌트 이름으로 타이틀 버튼용 클릭 액터를 자동 연결한다.
 	if (!NewGameClickChildActor)
 	{
 		NewGameClickChildActor = FindChildActorComponentByName(TEXT("NewGame"));
@@ -516,27 +580,6 @@ void ATitleFlowActor::AutoBindNamedTitleClickActors()
 			StartRunClickChildActor = FindChildActorComponentByName(TEXT("StartGame"));
 		}
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] AutoBindNamedTitleClickActors NewGame=%s LoadGame=%s Exit=%s Start=%s"),
-		NewGameClickChildActor ? *NewGameClickChildActor->GetName() : TEXT("None"),
-		LoadGameClickChildActor ? *LoadGameClickChildActor->GetName() : TEXT("None"),
-		ExitGameClickChildActor ? *ExitGameClickChildActor->GetName() : TEXT("None"),
-		StartRunClickChildActor ? *StartRunClickChildActor->GetName() : TEXT("None"));
-
-	auto LogChildActorClass = [](const TCHAR* Label, UChildActorComponent* ChildActorComponent)
-	{
-		AActor* ChildActor = ChildActorComponent ? ChildActorComponent->GetChildActor() : nullptr;
-		UE_LOG(LogTemp, Warning, TEXT("[TitleFlowActor] %s ChildActor=%s Class=%s ChildActorClass=%s"),
-			Label,
-			ChildActor ? *ChildActor->GetName() : TEXT("None"),
-			ChildActor ? *ChildActor->GetClass()->GetName() : TEXT("None"),
-			ChildActorComponent && ChildActorComponent->GetChildActorClass() ? *ChildActorComponent->GetChildActorClass()->GetName() : TEXT("None"));
-	};
-
-	LogChildActorClass(TEXT("NewGame"), NewGameClickChildActor);
-	LogChildActorClass(TEXT("LoadGame"), LoadGameClickChildActor);
-	LogChildActorClass(TEXT("Exit"), ExitGameClickChildActor);
-	LogChildActorClass(TEXT("Start"), StartRunClickChildActor);
 }
 
 UChildActorComponent* ATitleFlowActor::FindChildActorComponentByName(FName ComponentName) const

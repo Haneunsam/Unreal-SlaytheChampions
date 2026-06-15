@@ -20,6 +20,7 @@ void APortalSpawner::BeginPlay()
 	{
 		if (bUseEnterableRooms)
 		{
+			// RunSystem이 진입 가능 방 목록을 갱신하면 포탈도 같은 수로 다시 만든다.
 			if (URunSystem* RunSystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URunSystem>() : nullptr)
 			{
 				RunSystem->OnEnterableRoomsUpdated.AddUniqueDynamic(this, &APortalSpawner::HandleEnterableRoomsUpdated);
@@ -48,9 +49,6 @@ void APortalSpawner::SpawnPortals()
 {
 	if (!GetWorld() || !PortalActorClass || PortalCount <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PortalSpawner] SpawnPortals failed. PortalActorClass=%s PortalCount=%d"),
-			PortalActorClass ? TEXT("Valid") : TEXT("None"),
-			PortalCount);
 		return;
 	}
 
@@ -70,10 +68,10 @@ void APortalSpawner::SpawnEnterableRoomPortals()
 	URunSystem* RunSystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<URunSystem>() : nullptr;
 	if (!RunSystem)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PortalSpawner] SpawnEnterableRoomPortals failed. RunSystem is null."));
 		return;
 	}
 
+	// 저장된 현재 방이 복구된 뒤의 진입 가능 방 목록을 기준으로 포탈을 생성한다.
 	RunSystem->RefreshRunState();
 	SpawnPortalsForRooms(RunSystem->GetEnterableRooms());
 }
@@ -82,8 +80,6 @@ void APortalSpawner::SpawnPortalsForRooms(const TArray<FAreaInfo>& RoomInfos)
 {
 	if (!GetWorld() || !PortalActorClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PortalSpawner] SpawnPortalsForRooms failed. PortalActorClass=%s"),
-			PortalActorClass ? TEXT("Valid") : TEXT("None"));
 		return;
 	}
 
@@ -104,10 +100,6 @@ void APortalSpawner::SpawnPortalsForRooms(const TArray<FAreaInfo>& RoomInfos)
 				&APortalSpawner::RetrySpawnEnterableRoomPortals,
 				EmptyRoomRetryDelay,
 				false);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[PortalSpawner] Enterable rooms are empty after retry. PortalCount=0"));
 		}
 		return;
 	}
@@ -130,6 +122,7 @@ void APortalSpawner::SpawnPortalsForRooms(const TArray<FAreaInfo>& RoomInfos)
 		AActor* SpawnedPortal = SpawnPortalAtIndex(Index, RoomInfos.Num());
 		if (AMapAreaActor* MapAreaActor = Cast<AMapAreaActor>(SpawnedPortal))
 		{
+			// 포탈 액터에 실제 맵 좌표와 이동할 서브레벨 이름을 넣어둔다.
 			const FAreaInfo& RoomInfo = RoomInfos[Index];
 			MapAreaActor->SetAreaIndex(static_cast<int32>(RoomInfo.AreaPos.X), static_cast<int32>(RoomInfo.AreaPos.Y));
 			MapAreaActor->ApplyDebugAreaInfo(RoomInfo);
@@ -163,6 +156,7 @@ AActor* APortalSpawner::SpawnPortalAtIndex(int32 Index, int32 Count)
 	const FVector ForwardVector = bUseSpawnerForwardDirection ? GetActorForwardVector() : FVector::ForwardVector;
 	const FVector RightVector = bUseSpawnerForwardDirection ? GetActorRightVector() : FVector::RightVector;
 
+	// PortalSpacing이 지정되면 각도 대신 월드 거리 간격을 우선해서 호를 만든다.
 	float TotalArcAngleDegrees = ArcAngleDegrees;
 	float AngleStepDegrees = Count > 1 ? ArcAngleDegrees / static_cast<float>(Count - 1) : 0.f;
 	if (PortalSpacing > 0.f && Radius > 0.f && Count > 1)
@@ -196,10 +190,6 @@ AActor* APortalSpawner::SpawnPortalAtIndex(int32 Index, int32 Count)
 		return SpawnedPortal;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[PortalSpawner] SpawnActor failed. Index=%d Count=%d Location=%s"),
-		Index,
-		Count,
-		*SpawnLocation.ToString());
 	return nullptr;
 }
 

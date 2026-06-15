@@ -33,6 +33,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void MapCreate();
 
+	UFUNCTION(BlueprintCallable)
+	void ResetMapData();
+
 	void RestoreMapWorld();
 
 	bool HasMapData() const;

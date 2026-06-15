@@ -57,12 +57,10 @@ bool ACharacterSelectActor::ApplyVisualDataByUnitID()
 	FCharacterSelectVisualData VisualData;
 	if (!VisualDataAsset->FindVisualData(CharacterInfo.UnitID, VisualData))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] Visual data not found. UnitID=%s Actor=%s"),
-			*CharacterInfo.UnitID.ToString(),
-			*GetName());
 		return false;
 	}
 
+	// UnitID에 연결된 데이터 에셋 값으로 선택창의 스켈레탈 메쉬와 기본 애니메이션을 세팅한다.
 	PreviewMesh->SetRelativeTransform(VisualData.RelativeTransform);
 
 	if (VisualData.SkeletalMesh)
@@ -90,10 +88,6 @@ bool ACharacterSelectActor::ApplyVisualDataByUnitID()
 		PreviewMesh->Play(VisualData.bLoopIdleAnimation);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] Applied visual data. UnitID=%s Actor=%s"),
-		*CharacterInfo.UnitID.ToString(),
-		*GetName());
-
 	return true;
 }
 
@@ -101,27 +95,24 @@ bool ACharacterSelectActor::SelectCharacter()
 {
 	if (bSelected)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] SelectCharacter skipped. Already selected UnitID=%s"), *CharacterInfo.UnitID.ToString());
 		return true;
 	}
 
 	if (CharacterInfo.UnitID.IsNone())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] SelectCharacter failed. UnitID is None. Actor=%s"), *GetName());
 		return false;
 	}
 
 	UPartyInstance* PartyInstance = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartyInstance>() : nullptr;
 	if (!PartyInstance)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] SelectCharacter failed. PartyInstance is null. Actor=%s"), *GetName());
 		return false;
 	}
 
+	// 선택 시 파티 인스턴스에 UnitID와 직업을 저장한다.
 	const bool bAdded = PartyInstance->AddPartyMember(CharacterInfo.UnitID, CharacterInfo.JobClass);
 	if (!bAdded)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] Character already selected or add failed. UnitID=%s"), *CharacterInfo.UnitID.ToString());
 		return false;
 	}
 
@@ -141,23 +132,21 @@ bool ACharacterSelectActor::DeselectCharacter()
 {
 	if (!bSelected)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] DeselectCharacter skipped. Already deselected UnitID=%s"), *CharacterInfo.UnitID.ToString());
 		return true;
 	}
 
 	if (CharacterInfo.UnitID.IsNone())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] DeselectCharacter failed. UnitID is None. Actor=%s"), *GetName());
 		return false;
 	}
 
 	UPartyInstance* PartyInstance = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartyInstance>() : nullptr;
 	if (!PartyInstance)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] DeselectCharacter failed. PartyInstance is null. Actor=%s"), *GetName());
 		return false;
 	}
 
+	// 다시 클릭하면 파티에서 빠지게 해서 선택 토글처럼 동작한다.
 	const bool bRemoved = PartyInstance->RemovePartyMember(CharacterInfo.UnitID, CharacterInfo.JobClass);
 	if (!bRemoved)
 	{
@@ -223,10 +212,6 @@ void ACharacterSelectActor::LoadDefaultVisualDataAsset()
 
 	static const TCHAR* VisualDataAssetPath = TEXT("/Game/04_Data/CharacterSelectVisualData.CharacterSelectVisualData");
 	VisualDataAsset = LoadObject<UCharacterSelectVisualDataAsset>(nullptr, VisualDataAssetPath);
-	if (!VisualDataAsset)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] Default visual data asset not found. Path=%s"), VisualDataAssetPath);
-	}
 }
 
 void ACharacterSelectActor::SetHoverOutline(bool bEnabled)

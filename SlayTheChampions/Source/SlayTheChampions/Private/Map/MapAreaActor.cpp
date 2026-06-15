@@ -26,6 +26,7 @@ void AMapAreaActor::NotifyActorOnClicked(FKey ButtonPressed)
 {
 	Super::NotifyActorOnClicked(ButtonPressed);
 
+	// 연출 BP가 먼저 반응할 수 있도록 클릭/선택 이벤트를 먼저 알린다.
 	OnAreaClicked.Broadcast(this);
 	OnAreaSelected.Broadcast(this, FloorIndex, RoomIndex);
 
@@ -83,6 +84,7 @@ void AMapAreaActor::SetTargetLevelName(FName InTargetLevelName)
 
 void AMapAreaActor::MoveToTargetLevel()
 {
+	// 기본 클릭 이동 흐름: 런 시스템에 방 입장을 먼저 반영한 뒤 서브레벨을 전환한다.
 	if (PrepareEnterTargetRoom())
 	{
 		ContinueMoveToTargetLevel();
@@ -112,6 +114,7 @@ bool AMapAreaActor::PrepareEnterTargetRoom()
 
 void AMapAreaActor::ContinueMoveToTargetLevel()
 {
+	// 포탈 클릭 연출을 쓰는 BP에서는 PrepareEnterTargetRoom 이후 원하는 타이밍에 이 함수를 호출하면 된다.
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
 		if (ULevelManager* LevelManager = GameInstance->GetSubsystem<ULevelManager>())

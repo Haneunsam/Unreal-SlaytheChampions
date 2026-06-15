@@ -34,6 +34,14 @@ void UMapManager::MapCreate()
 	}
 }
 
+void UMapManager::ResetMapData()
+{
+	if (MapCreator)
+	{
+		MapCreator->ResetMapData();
+	}
+}
+
 void UMapManager::RestoreMapWorld()
 {
 	if (MapCreator)

@@ -15,6 +15,7 @@ struct FSelectableCharacterInfo
 {
 	GENERATED_BODY()
 
+	/* 파티/시각 데이터에서 같은 캐릭터를 찾기 위한 고유 ID */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
 	FName UnitID = NAME_None;
 
@@ -42,18 +43,23 @@ class SLAYTHECHAMPIONS_API ACharacterSelectActor : public AActor
 public:
 	ACharacterSelectActor();
 
+	/* UnitID를 바꾸면 기본 정보와 시각 데이터를 다시 읽는다. */
 	UFUNCTION(BlueprintCallable, Category = "CharacterSelect")
 	void SetUnitID(FName InUnitID);
 
+	/* UnitID에 맞는 스켈레탈 메쉬/애니메이션 데이터를 적용한다. */
 	UFUNCTION(BlueprintCallable, Category = "CharacterSelect")
 	bool ApplyVisualDataByUnitID();
 
+	/* 파티에 캐릭터를 추가한다. */
 	UFUNCTION(BlueprintCallable, Category = "CharacterSelect")
 	bool SelectCharacter();
 
+	/* 파티에서 캐릭터를 제거한다. */
 	UFUNCTION(BlueprintCallable, Category = "CharacterSelect")
 	bool DeselectCharacter();
 
+	/* 클릭할 때마다 선택/해제를 번갈아 처리한다. */
 	UFUNCTION(BlueprintCallable, Category = "CharacterSelect")
 	bool ToggleCharacterSelection();
 
@@ -90,9 +96,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CharacterSelect")
 	TObjectPtr<UBoxComponent> ClickBox;
 
+	/* 에디터에서 넣는 캐릭터 기본 정보 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterSelect")
 	FSelectableCharacterInfo CharacterInfo;
 
+	/* UnitID별 선택창 메쉬/애니메이션 데이터 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterSelect|Visual")
 	TObjectPtr<UCharacterSelectVisualDataAsset> VisualDataAsset = nullptr;
 
