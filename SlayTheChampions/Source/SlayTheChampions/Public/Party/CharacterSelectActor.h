@@ -6,7 +6,8 @@
 #include "CharacterSelectActor.generated.h"
 
 class UBoxComponent;
-class UStaticMeshComponent;
+class UCharacterSelectVisualDataAsset;
+class USkeletalMeshComponent;
 class UTexture2D;
 
 USTRUCT(BlueprintType)
@@ -45,6 +46,9 @@ public:
 	void SetUnitID(FName InUnitID);
 
 	UFUNCTION(BlueprintCallable, Category = "CharacterSelect")
+	bool ApplyVisualDataByUnitID();
+
+	UFUNCTION(BlueprintCallable, Category = "CharacterSelect")
 	bool SelectCharacter();
 
 	UFUNCTION(BlueprintCallable, Category = "CharacterSelect")
@@ -81,13 +85,19 @@ protected:
 	TObjectPtr<USceneComponent> SceneRoot;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CharacterSelect")
-	TObjectPtr<UStaticMeshComponent> PreviewMesh;
+	TObjectPtr<USkeletalMeshComponent> PreviewMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "CharacterSelect")
 	TObjectPtr<UBoxComponent> ClickBox;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterSelect")
 	FSelectableCharacterInfo CharacterInfo;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterSelect|Visual")
+	TObjectPtr<UCharacterSelectVisualDataAsset> VisualDataAsset = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterSelect|Visual")
+	bool bLoadDefaultVisualDataAsset = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterSelect")
 	bool bDisableAfterSelected = false;
@@ -97,5 +107,6 @@ protected:
 
 private:
 	void LoadUnitDataByID();
+	void LoadDefaultVisualDataAsset();
 	void SetHoverOutline(bool bEnabled);
 };

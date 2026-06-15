@@ -1,9 +1,11 @@
 #include "Party/CharacterSelectActor.h"
 
+#include "Animation/AnimationAsset.h"
 #include "Components/BoxComponent.h"
 #include "Components/MeshComponent.h"
-#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Party/PartyInstance.h"
+#include "Party/CharacterSelectVisualDataAsset.h"
 
 ACharacterSelectActor::ACharacterSelectActor()
 {
@@ -12,7 +14,7 @@ ACharacterSelectActor::ACharacterSelectActor()
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	SetRootComponent(SceneRoot);
 
-	PreviewMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PreviewMesh"));
+	PreviewMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewMesh"));
 	PreviewMesh->SetupAttachment(SceneRoot);
 	PreviewMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
@@ -28,6 +30,7 @@ void ACharacterSelectActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	LoadDefaultVisualDataAsset();
 	LoadUnitDataByID();
 }
 
@@ -35,6 +38,63 @@ void ACharacterSelectActor::SetUnitID(FName InUnitID)
 {
 	CharacterInfo.UnitID = InUnitID;
 	LoadUnitDataByID();
+}
+
+bool ACharacterSelectActor::ApplyVisualDataByUnitID()
+{
+	if (!PreviewMesh)
+	{
+		return false;
+	}
+
+	LoadDefaultVisualDataAsset();
+
+	if (!VisualDataAsset || CharacterInfo.UnitID.IsNone())
+	{
+		return false;
+	}
+
+	FCharacterSelectVisualData VisualData;
+	if (!VisualDataAsset->FindVisualData(CharacterInfo.UnitID, VisualData))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] Visual data not found. UnitID=%s Actor=%s"),
+			*CharacterInfo.UnitID.ToString(),
+			*GetName());
+		return false;
+	}
+
+	PreviewMesh->SetRelativeTransform(VisualData.RelativeTransform);
+
+	if (VisualData.SkeletalMesh)
+	{
+		PreviewMesh->SetSkeletalMesh(VisualData.SkeletalMesh);
+	}
+
+	for (int32 MaterialIndex = 0; MaterialIndex < VisualData.OverrideMaterials.Num(); ++MaterialIndex)
+	{
+		if (VisualData.OverrideMaterials[MaterialIndex])
+		{
+			PreviewMesh->SetMaterial(MaterialIndex, VisualData.OverrideMaterials[MaterialIndex]);
+		}
+	}
+
+	if (VisualData.AnimClass)
+	{
+		PreviewMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+		PreviewMesh->SetAnimInstanceClass(VisualData.AnimClass);
+	}
+	else if (VisualData.IdleAnimation)
+	{
+		PreviewMesh->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		PreviewMesh->SetAnimation(VisualData.IdleAnimation);
+		PreviewMesh->Play(VisualData.bLoopIdleAnimation);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] Applied visual data. UnitID=%s Actor=%s"),
+		*CharacterInfo.UnitID.ToString(),
+		*GetName());
+
+	return true;
 }
 
 bool ACharacterSelectActor::SelectCharacter()
@@ -150,7 +210,23 @@ void ACharacterSelectActor::LoadUnitDataByID()
 		CharacterInfo.DisplayName = FText::FromName(CharacterInfo.UnitID);
 	}
 
+	ApplyVisualDataByUnitID();
 	OnCharacterInfoLoaded(CharacterInfo);
+}
+
+void ACharacterSelectActor::LoadDefaultVisualDataAsset()
+{
+	if (VisualDataAsset || !bLoadDefaultVisualDataAsset)
+	{
+		return;
+	}
+
+	static const TCHAR* VisualDataAssetPath = TEXT("/Game/04_Data/CharacterSelectVisualData.CharacterSelectVisualData");
+	VisualDataAsset = LoadObject<UCharacterSelectVisualDataAsset>(nullptr, VisualDataAssetPath);
+	if (!VisualDataAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CharacterSelectActor] Default visual data asset not found. Path=%s"), VisualDataAssetPath);
+	}
 }
 
 void ACharacterSelectActor::SetHoverOutline(bool bEnabled)
