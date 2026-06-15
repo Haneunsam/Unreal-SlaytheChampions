@@ -1,9 +1,52 @@
-,CardID,CardName,Description,MainImage,Rarity,CardType,RequiredClass,Cost,Damage,Block,DrawCount,UsingCount,HealAmount,Effects,TargetType,ScoreValue,Notes
-Warrior_Attack,101,타격,적에게 6 피해를 입힙니다.,/Game/01_Card/MainCardImage/Warrior_Attack.Warrior_Attack,Normal,Attack,Warrior,1,6,0,0,1,0,(),SingleEnemy,6,기본 공격
-Warrior_Defend,102,수비,방어도 5 을 얻습니다.,/Game/01_Card/MainCardImage/Warrior_Defence.Warrior_Defence,Normal,Skill,Warrior,1,0,5,0,1,0,(),Self,6,기본 방어
-Warrior_Draw,103,드로우,카드 1 장을 뽑습니다.,,Normal,Skill,Warrior,0,0,0,1,1,0,(),Self,10,카드 뽑기
-Warrior_DoubleAttack,104,이중 타격,적에게 5만큼 2번 입힙니다.,/Game/01_Card/MainCardImage/Warrior_DoubleAttack.Warrior_DoubleAttack,Normal,Skill,Warrior,1,5,0,0,2,0,(),SingleEnemy,10,공격
-Mage_Attack,201,타격,적에게 6 피해를 입힌다.,,Normal,Attack,Mage,1,6,0,0,1,0,(),SingleEnemy,6,기본 공격
-Mage_Defend,202,수비,방어도 5를 얻습니다.,,Normal,Skill,Mage,1,0,5,0,1,0,(),Self,6,방어
-Healer_Attack,301,타격,적에게 6 피해를 입힙니다.,,Normal,Attack,Healer,1,6,0,0,1,0,(),SingleEnemy,6,기본 공격
-Healer_Defend,302,수비,아군 1명에게 방어도 6을 부여합니다.,,Normal,Skill,Healer,1,0,5,0,1,0,(),Single_Team,6,단일 방어
+,CardID,CardName,Description,MainImage,Rarity,CardType,RequiredClass,Cost,Damage,Block,DrawCount,UsingCount,HealAmount,Effects,TargetType,bExhaust,ScoreValue,Notes
+Warrior_Attack,101,타격,적에게 6 피해를 입힙니다.,/Game/01_Card/MainCardImage/Warrior_Attack.Warrior_Attack,Normal,Attack,Warrior,1,6,0,0,1,0,(),SingleEnemy,False,6,기본 공격
+Warrior_Defend,102,수비,방어도 5를 얻습니다.,/Game/01_Card/MainCardImage/Warrior_Defence.Warrior_Defence,Normal,Skill,Warrior,1,0,5,0,1,0,(),Self,False,6,기본 방어
+Warrior_Draw,103,집중,카드 1장을 뽑습니다.,,Normal,Skill,Warrior,0,0,0,1,1,0,(),Self,False,10,카드 뽑기
+Warrior_DoubleAttack,104,이중 타격,적에게 5 피해를 2번 입힙니다.,/Game/01_Card/MainCardImage/Warrior_DoubleAttack.Warrior_DoubleAttack,Normal,Attack,Warrior,1,5,0,0,2,0,(),SingleEnemy,False,10,2타 공격
+Warrior_Smite,105,강타,적에게 8 피해를 입히고 <debuff>취약 2</>를 부여합니다.,,Normal,Attack,Warrior,2,8,0,0,1,0,"((EffectType=EEffectType::Debuff_Vulnerable,Value=2,TargetType=EEffectTargetType::UseCardDefault))",SingleEnemy,False,12,공격+취약
+Warrior_Thunder,106,천둥,모든 적에게 4 피해를 주고 <debuff>취약 1</>을 부여합니다.,,Rare,Attack,Warrior,2,4,0,0,1,0,"((EffectType=EEffectType::Debuff_Vulnerable,Value=1,TargetType=EEffectTargetType::UseCardDefault))",AllEnemies,False,15,광역+취약
+Warrior_Undying,107,불굴,체력을 10만큼 회복합니다. <exhaust>소멸.</>,,Normal,Skill,Warrior,0,0,0,0,1,10,(),Self,True,10,회복+소멸
+Warrior_IronWall,108,철벽,방어도 10을 얻습니다.,,Normal,Skill,Warrior,2,0,10,0,1,0,(),Self,False,10,강방어
+Warrior_BattleCry,109,전투 함성,<buff>공격력 +2</>를 얻습니다. 카드 1장을 뽑습니다.,,Rare,Skill,Warrior,1,0,0,1,1,0,"((EffectType=EEffectType::Buff_AttackUp,Value=2,TargetType=EEffectTargetType::Self))",Self,False,12,공격력 버프+드로우
+Warrior_Whirlwind,110,회오리,모든 적에게 3 피해를 입힙니다.,,Rare,Skill,Warrior,1,3,0,0,1,0,(),AllEnemies,False,12,광역 공격
+Warrior_ShieldBash,111,방패 강타,방어도만큼 적에게 피해를 입힙니다.,,Rare,Attack,Warrior,1,0,0,0,1,0,(),SingleEnemy,False,14,방어도=공격
+Warrior_Berserk,112,광전사,<buff>공격력 +3</>을 얻습니다. 매 턴 1 피해를 받습니다.,,Rare,Skill,Warrior,0,0,0,0,1,0,"((EffectType=EEffectType::Buff_AttackUp,Value=3,TargetType=EEffectTargetType::Self))",Self,False,12,공격력+자해
+Warrior_Cleave,113,일소,모든 적에게 5 피해를 입힙니다.,,Normal,AOE,Warrior,1,5,0,0,1,0,(),AllEnemies,False,10,광역 공격
+Warrior_Taunt,114,도발,모든 적에게 <debuff>약화 2</>를 부여합니다.,,Rare,Skill,Warrior,1,0,0,0,1,0,"((EffectType=EEffectType::Debuff_Weak,Value=2,TargetType=EEffectTargetType::AllEnemies))",AllEnemies,False,12,전체 약화
+Warrior_LastStand,115,최후의 저항,방어도 15를 얻습니다. <exhaust>소멸.</>,,Rare,Skill,Warrior,1,0,15,0,1,0,(),Self,True,14,강방어+소멸
+Warrior_Counter,116,반격,방어도 4를 얻고 적에게 4 피해를 입힙니다.,,Normal,Attack,Warrior,1,4,4,0,1,0,(),SingleEnemy,False,10,공방 동시
+Warrior_Fortify,117,요새화,<buff>재생 2</>를 얻습니다. 방어도 4를 얻습니다.,,Rare,Skill,Warrior,2,0,4,0,1,0,"((EffectType=EEffectType::Buff_Regen,Value=2,TargetType=EEffectTargetType::Self))",Self,False,12,방어+재생
+Warrior_Execute,118,처형,체력이 낮은 적에게 20 피해를 입힙니다.,,Legendary,Attack,Warrior,2,20,0,0,1,0,(),SingleEnemy,False,20,처형기
+Mage_Attack,201,마법 화살,적에게 8 피해를 입힙니다.,,Normal,Attack,Mage,1,8,0,0,1,0,(),SingleEnemy,False,6,기본 공격
+Mage_Defend,202,마법 보호막,방어도 5를 얻습니다.,,Normal,Skill,Mage,1,0,5,0,1,0,(),Self,False,6,기본 방어
+Mage_Fireball,203,파이어볼,모든 적에게 6 피해를 주고 <debuff>화상 3</>을 부여합니다.,,Rare,Attack,Mage,2,6,0,0,1,0,"((EffectType=EEffectType::Debuff_Burn,Value=3,TargetType=EEffectTargetType::AllEnemies))",AllEnemies,False,15,광역+화상
+Mage_IceLance,204,얼음 창,적에게 7 피해를 주고 <debuff>취약 2</>를 부여합니다.,,Normal,Attack,Mage,1,7,0,0,1,0,"((EffectType=EEffectType::Debuff_Vulnerable,Value=2,TargetType=EEffectTargetType::UseCardDefault))",SingleEnemy,False,12,공격+취약
+Mage_Arcane,205,비전 연쇄,적에게 4 피해를 3번 입힙니다.,,Rare,Attack,Mage,2,4,0,0,3,0,(),SingleEnemy,False,14,3타 공격
+Mage_FrostWall,206,서리 장벽,방어도 8을 얻고 적에게 <debuff>약화 1</>을 부여합니다.,,Normal,Skill,Mage,2,0,8,0,1,0,"((EffectType=EEffectType::Debuff_Weak,Value=1,TargetType=EEffectTargetType::SingleEnemy))",SingleEnemy,False,10,방어+약화
+Mage_Thunder,207,번개,적에게 12 피해를 입힙니다.,,Rare,Attack,Mage,2,12,0,0,1,0,(),SingleEnemy,False,14,강단일 공격
+Mage_Blizzard,208,눈보라,모든 적에게 4 피해를 주고 <debuff>취약 2</>를 부여합니다.,,Rare,Attack,Mage,2,4,0,0,1,0,"((EffectType=EEffectType::Debuff_Vulnerable,Value=2,TargetType=EEffectTargetType::AllEnemies))",AllEnemies,False,15,광역+취약
+Mage_ManaFlow,209,마나 흐름,카드 1장을 뽑습니다. 코스트를 1만큼 회복합니다.,,Normal,Skill,Mage,0,0,0,1,1,0,(),Self,False,10,드로우+에너지
+Mage_Meteor,210,운석,모든 적에게 10 피해를 입힙니다. <exhaust>소멸.</>,,Legendary,AOE,Mage,3,10,0,0,1,0,(),AllEnemies,True,20,광역 대피해+소멸
+Mage_Poison,211,독 구름,모든 적에게 <debuff>독 3</>을 부여합니다.,,Rare,Skill,Mage,1,0,0,0,1,0,"((EffectType=EEffectType::Debuff_Burn,Value=3,TargetType=EEffectTargetType::AllEnemies))",AllEnemies,False,12,전체 독(Burn 대체)
+Mage_MirrorImage,212,거울 상,방어도 6을 얻습니다. 카드 1장을 뽑습니다.,,Normal,Skill,Mage,1,0,6,1,1,0,(),Self,False,10,방어+드로우
+Mage_Ignite,213,점화,적에게 <debuff>화상 5</>를 부여합니다.,,Normal,Skill,Mage,1,0,0,0,1,0,"((EffectType=EEffectType::Debuff_Burn,Value=5,TargetType=EEffectTargetType::UseCardDefault))",SingleEnemy,False,10,화상 특화
+Mage_Overload,214,과부하,적에게 15 피해를 입힙니다. 내 체력을 3만큼 잃습니다.,,Rare,Attack,Mage,1,15,0,0,1,0,(),SingleEnemy,False,14,고출력+자해
+Mage_FrostNova,215,얼음 폭발,모든 적에게 3 피해를 주고 <debuff>취약 1</>을 부여합니다.,,Normal,AOE,Mage,1,3,0,0,1,0,"((EffectType=EEffectType::Debuff_Vulnerable,Value=1,TargetType=EEffectTargetType::AllEnemies))",AllEnemies,False,10,광역+취약
+Mage_ArcaneShield,216,비전 보호막,방어도 10을 얻습니다. <exhaust>소멸.</>,,Rare,Skill,Mage,1,0,10,0,1,0,(),Self,True,12,강방어+소멸
+Mage_Teleport,217,순간이동,다음 공격 카드의 피해를 +5만큼 높입니다.,,Rare,Skill,Mage,1,0,0,0,1,0,(),Self,False,12,공격력 증폭
+Mage_Ultima,218,궁극의 마법,모든 적에게 8 피해를 주고 카드 2장을 뽑습니다.,,Legendary,AOE,Mage,3,8,0,2,1,0,(),AllEnemies,False,20,광역+드로우
+Healer_Attack,301,신성 강타,적에게 6 피해를 입힙니다.,,Normal,Attack,Healer,1,6,0,0,1,0,(),SingleEnemy,False,6,기본 공격
+Healer_Defend,302,성스러운 방패,아군 1명에게 방어도 6을 부여합니다.,,Normal,Skill,Healer,1,0,6,0,1,0,(),SingleAlly,False,6,단일 방어
+Healer_Heal,303,치유,아군 1명의 체력을 8만큼 회복합니다.,,Normal,Skill,Healer,1,0,0,0,1,8,(),SingleAlly,False,10,단일 힐
+Healer_GroupHeal,304,집단 치유,모든 아군의 체력을 4만큼 회복합니다.,,Rare,Skill,Healer,2,0,0,0,1,4,(),AllAllies,False,14,전체 힐
+Healer_Regenerate,305,재생의 기도,아군 1명에게 <buff>재생 3</>을 부여합니다.,,Normal,Skill,Healer,1,0,0,0,1,0,"((EffectType=EEffectType::Buff_Regen,Value=3,TargetType=EEffectTargetType::SingleAlly))",SingleAlly,False,10,재생 버프
+Healer_Smite,306,신성 심판,적에게 10 피해를 입힙니다.,,Rare,Attack,Healer,2,10,0,0,1,0,(),SingleEnemy,False,12,강공격
+Healer_Barrier,307,성벽,모든 아군에게 방어도 4를 부여합니다.,,Rare,Skill,Healer,2,0,4,0,1,0,(),AllAllies,False,12,전체 방어
+Healer_Blessing,308,축복,아군 1명에게 <buff>공격력 +2</>와 <buff>재생 2</>를 부여합니다.,,Rare,Skill,Healer,2,0,0,0,1,0,"((EffectType=EEffectType::Buff_AttackUp,Value=2,TargetType=EEffectTargetType::SingleAlly),(EffectType=EEffectType::Buff_Regen,Value=2,TargetType=EEffectTargetType::SingleAlly))",SingleAlly,False,14,복합 버프
+Healer_Purify,309,정화,아군 1명의 <debuff>디버프</>를 모두 제거합니다.,,Normal,Skill,Healer,1,0,0,0,1,0,(),SingleAlly,False,10,디버프 해제
+Healer_HolyLight,310,성광,적에게 5 피해를 입히고 아군 1명의 체력을 5만큼 회복합니다.,,Rare,Attack,Healer,2,5,0,0,1,5,(),SingleEnemy,False,14,공격+힐
+Healer_Resurrection,311,부활,아군 1명을 체력 1로 되살립니다. <exhaust>소멸.</>,,Legendary,Skill,Healer,3,0,0,0,1,0,(),SingleAlly,True,20,부활+소멸
+Healer_AuraMend,312,치유의 오라,매 턴 모든 아군의 체력을 2씩 회복합니다.,,Rare,Skill,Healer,2,0,0,0,1,0,(),AllAllies,False,14,지속 힐 오라
+Healer_Judgment,313,심판,<debuff>디버프</>가 있는 적에게 14 피해를 입힙니다.,,Rare,Attack,Healer,2,14,0,0,1,0,(),SingleEnemy,False,14,상태이상 심화 공격
+Healer_Fortify,314,성역,모든 아군에게 방어도 6과 <buff>재생 1</>을 부여합니다.,,Legendary,Skill,Healer,3,0,6,0,1,0,"((EffectType=EEffectType::Buff_Regen,Value=1,TargetType=EEffectTargetType::AllAllies))",AllAllies,False,18,전체 방어+재생
+Healer_MassHeal,315,대치유,모든 아군의 체력을 6만큼 회복합니다. <exhaust>소멸.</>,,Legendary,Skill,Healer,2,0,0,0,1,6,(),AllAllies,True,18,강전체힐+소멸

@@ -113,9 +113,6 @@ TArray<FName> UCardSubsystem::GetRewardPool(EJobClass JobClass, ECardRarity MinR
 
         if (!Row) continue;
 
-        // 업적 전용 카드는 보상 풀에서 제외
-        if (Row->bAchievementOnly) continue;
-
         const bool bClassOk =
             (Row->RequiredClass == JobClass || Row->RequiredClass == EJobClass::Any);
         const bool bRarityOk =
