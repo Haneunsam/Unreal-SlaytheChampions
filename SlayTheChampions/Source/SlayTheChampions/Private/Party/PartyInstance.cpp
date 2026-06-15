@@ -29,7 +29,7 @@ void UPartyInstance::AddChampion(EJobClass Job)
 	// 직업 기본 덱을 인스턴스에 함께 저장 — 이후 전투/보상은 이 덱을 소스로 사용
 	if (UCardSubsystem* CS = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCardSubsystem>() : nullptr)
 	{
-		TArray<FName> BaseDeck = CS->GetCardNamesByClass(Job);
+		TArray<FName> BaseDeck = CS->GetStarterDeckNames(Job);
 		SetDeck(PawnIndex, BaseDeck);
 		UE_LOG(LogTemp, Log, TEXT("[PartyInstance] AddChampion Pawn%d Job=%d 기본덱 %d장 시드"),
 			PawnIndex, (int32)Job, BaseDeck.Num());
@@ -238,7 +238,7 @@ void UPartyInstance::AddDeckCard(int32 PawnIndex, FName CardName)
 	// 보상 카드만 단독으로 들어가 기본덱을 덮어쓰는 버그가 발생한다.
 	if (!HasDeck(PawnIndex) && CS && ChampionJobs.IsValidIndex(PawnIndex))
 	{
-		SetDeck(PawnIndex, CS->GetCardNamesByClass(ChampionJobs[PawnIndex]));
+		SetDeck(PawnIndex, CS->GetStarterDeckNames(ChampionJobs[PawnIndex]));
 	}
 
 	if (!PartyInfo.ChampionDecks.IsValidIndex(PawnIndex))
