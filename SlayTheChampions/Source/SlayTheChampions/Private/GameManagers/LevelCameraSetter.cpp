@@ -3,6 +3,7 @@
 #include "Camera/CameraActor.h"
 #include "Components/ArrowComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "TimerManager.h"
 
 ALevelCameraSetter::ALevelCameraSetter()
 {
@@ -31,6 +32,14 @@ void ALevelCameraSetter::BeginPlay()
 	{
 		SpawnDefaultCamera();
 		SwitchCameraToDefault(DefaultBlendTime);
+
+		if (bReapplyDefaultCameraNextTickOnBeginPlay)
+		{
+			if (UWorld* World = GetWorld())
+			{
+				World->GetTimerManager().SetTimerForNextTick(this, &ALevelCameraSetter::ReapplyDefaultCameraNextTick);
+			}
+		}
 	}
 }
 
@@ -190,4 +199,14 @@ void ALevelCameraSetter::MoveCameraToSlot(USceneComponent* CameraSlot, int32 Slo
 float ALevelCameraSetter::ResolveBlendTime(float OverrideBlendTime) const
 {
 	return OverrideBlendTime >= 0.f ? OverrideBlendTime : DefaultBlendTime;
+}
+
+void ALevelCameraSetter::ReapplyDefaultCameraNextTick()
+{
+	if (!bSetCameraOnBeginPlay)
+	{
+		return;
+	}
+
+	SwitchCameraToDefault(0.f);
 }

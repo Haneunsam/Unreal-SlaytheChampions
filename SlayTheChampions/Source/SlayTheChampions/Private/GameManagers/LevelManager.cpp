@@ -171,25 +171,32 @@ void ULevelManager::OnStreamedLevelLoaded()
 	CurrentStreamedLevelName = PendingStreamedLevelName;
 	PendingStreamedLevelName = NAME_None;
 	bIsStreamingTransitionInProgress = false;
-	OnStreamedLevelChanged.Broadcast(PreviousStreamedLevelName, CurrentStreamedLevelName);
-	OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
 
-	// 전투 레벨 활성화 트리거: 레벨이 완전히 보이게 된 뒤(BeginPlay 완료) BeginCombat 호출
+	// 레벨이 아직 표시 처리 중이면, 액터/위젯 BP가 준비된 OnLevelShown 시점에 진입 이벤트를 쏜다.
 	if (ULevelStreaming* StreamingLevel = FindStreamingLevel(CurrentStreamedLevelName))
 	{
-		if (StreamingLevel->IsLevelVisible())
-			TriggerCombatBegin(CurrentStreamedLevelName);
-		else
+		if (!StreamingLevel->IsLevelVisible())
+		{
 			StreamingLevel->OnLevelShown.AddUniqueDynamic(this, &ULevelManager::HandleStreamedLevelShown);
+			return;
+		}
 	}
+
+	OnStreamedLevelChanged.Broadcast(PreviousStreamedLevelName, CurrentStreamedLevelName);
+	OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
+	TriggerCombatBegin(CurrentStreamedLevelName);
 }
 
 void ULevelManager::HandleStreamedLevelShown()
 {
+	OnStreamedLevelChanged.Broadcast(LastPreviousStreamedLevelName, CurrentStreamedLevelName);
+	OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
 	TriggerCombatBegin(CurrentStreamedLevelName);
 
 	if (ULevelStreaming* StreamingLevel = FindStreamingLevel(CurrentStreamedLevelName))
+	{
 		StreamingLevel->OnLevelShown.RemoveDynamic(this, &ULevelManager::HandleStreamedLevelShown);
+	}
 }
 
 void ULevelManager::TriggerCombatBegin(FName LevelName) const
