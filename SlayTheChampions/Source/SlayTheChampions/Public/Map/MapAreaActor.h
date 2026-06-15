@@ -21,9 +21,11 @@ protected:
 	virtual void NotifyActorOnClicked(FKey ButtonPressed) override;
 
 public:
+	/* 포탈이 클릭된 직후 호출된다. 레벨 이동 연출을 바인드할 때 사용한다. */
 	UPROPERTY(BlueprintAssignable, Category = "Area|Event")
 	FOnMapAreaClicked OnAreaClicked;
 
+	/* 클릭된 포탈의 맵 좌표까지 함께 알려준다. */
 	UPROPERTY(BlueprintAssignable, Category = "Area|Event")
 	FOnMapAreaSelected OnAreaSelected;
 
@@ -39,9 +41,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void MoveToTargetLevel();
 
+	/* RunSystem에 방 입장만 먼저 반영한다. 연출 후 이동하고 싶을 때 분리해서 사용한다. */
 	UFUNCTION(BlueprintCallable)
 	bool PrepareEnterTargetRoom();
 
+	/* 이미 준비된 목표 레벨로 실제 서브레벨 전환을 실행한다. */
 	UFUNCTION(BlueprintCallable)
 	void ContinueMoveToTargetLevel();
 
@@ -61,6 +65,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Area")
 	FName DebugColorParameterName = TEXT("Color");
 
+	/* false로 두면 클릭 시 자동 이동하지 않고 OnAreaClicked를 받은 BP가 이동 타이밍을 결정한다. */
 	UPROPERTY(EditAnywhere, Category = "Area")
 	bool bAutoMoveToTargetLevelOnClick = true;
 };

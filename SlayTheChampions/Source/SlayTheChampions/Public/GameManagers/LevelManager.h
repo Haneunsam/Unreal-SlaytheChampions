@@ -19,6 +19,9 @@ private:
    /*현재 스트리밍되어 있는 레벨 이름*/
     FName CurrentStreamedLevelName;
 
+   /*마지막 스트리밍 전환에서 이전 레벨 이름*/
+    FName LastPreviousStreamedLevelName;
+
    /*다음에 스트리밍할 레벨 이름*/
     FName PendingStreamedLevelName;
 
@@ -59,6 +62,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Level")
     FName GetCurrentStreamedLevelName() const { return CurrentStreamedLevelName; }
+
+    UFUNCTION(BlueprintPure, Category = "Level")
+    FName GetLastPreviousStreamedLevelName() const { return LastPreviousStreamedLevelName; }
 
     UFUNCTION(BlueprintCallable, Category = "Level")
     void BroadcastCurrentStreamedLevelEntered();

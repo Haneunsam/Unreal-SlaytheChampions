@@ -58,6 +58,7 @@ void AShopSystem::SpawnShopItems()
 {
 	ClearShopItems();
 
+	// BP 테이블들이 등록한 스폰 포인트 종류에 맞춰 각각의 판매 아이템을 생성한다.
 	for (USceneComponent* SpawnPoint : CardSpawnPoints)
 	{
 		SpawnCardSaleItem(SpawnPoint);
@@ -139,6 +140,7 @@ FName AShopSystem::GetRandomShopPotionID() const
 
 int32 AShopSystem::RollPrice(int32 MinPrice, int32 MaxPrice) const
 {
+	// 에디터에서 최소/최대 가격이 뒤집혀도 안전하게 랜덤 가격을 뽑는다.
 	const int32 SafeMinPrice = FMath::Max(0, MinPrice);
 	const int32 SafeMaxPrice = FMath::Max(SafeMinPrice, MaxPrice);
 	return FMath::RandRange(SafeMinPrice, SafeMaxPrice);
@@ -148,6 +150,7 @@ void AShopSystem::SpawnCardSaleItem(USceneComponent* SpawnPoint)
 {
 	if (CardShopFrameActorClass)
 	{
+		// 카드 액자를 쓰는 경우 액자 하나에 여러 카드 ID와 가격을 넘긴다.
 		ACardShopFrameActor* SpawnedFrame = Cast<ACardShopFrameActor>(SpawnActorAtPoint(CardShopFrameActorClass, SpawnPoint));
 		if (!SpawnedFrame)
 		{
@@ -205,6 +208,7 @@ void AShopSystem::SpawnRelicSaleItem(USceneComponent* SpawnPoint)
 		return;
 	}
 
+	// 유물 ID에 맞는 메쉬/가격을 아이템 액터에 주입한다.
 	SpawnedActor->SetItemVisualDataAsset(ItemVisualDataAsset);
 	SpawnedActor->InitItem(EItemActorType::Relic, RelicID);
 	SpawnedActor->SetPrice(RollPrice(RelicMinPrice, RelicMaxPrice));
@@ -225,6 +229,7 @@ void AShopSystem::SpawnPotionSaleItem(USceneComponent* SpawnPoint)
 		return;
 	}
 
+	// 포션 ID에 맞는 메쉬/가격을 아이템 액터에 주입한다.
 	SpawnedActor->SetItemVisualDataAsset(ItemVisualDataAsset);
 	SpawnedActor->InitItem(EItemActorType::Potion, PotionID);
 	SpawnedActor->SetPrice(RollPrice(PotionMinPrice, PotionMaxPrice));

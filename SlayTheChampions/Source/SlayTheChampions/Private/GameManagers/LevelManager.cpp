@@ -36,11 +36,6 @@ void ULevelManager::GoToLevel(FName LevelName)
 
 void ULevelManager::MoveToConfiguredLevel(FName LevelName)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[LevelManager] MoveToConfiguredLevel RequestedLevel=%s bUseStreamedLevelTransition=%s CurrentStreamedLevel=%s"),
-		*LevelName.ToString(),
-		bUseStreamedLevelTransition ? TEXT("true") : TEXT("false"),
-		*CurrentStreamedLevelName.ToString());
-
 	if (bUseStreamedLevelTransition)
 	{
 		GoToStreamedLevel(LevelName);
@@ -54,22 +49,16 @@ void ULevelManager::GoToStreamedLevel(FName LevelName)
 {
 	if (LevelName.IsNone())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] GoToStreamedLevel ignored. LevelName is None."));
 		return;
 	}
 
 	if (bIsStreamingTransitionInProgress)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] GoToStreamedLevel ignored. Transition in progress. RequestedLevel=%s PendingLevel=%s CurrentLevel=%s"),
-			*LevelName.ToString(),
-			*PendingStreamedLevelName.ToString(),
-			*CurrentStreamedLevelName.ToString());
 		return;
 	}
 
 	if (CurrentStreamedLevelName == LevelName)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] StreamedLevelReEntered Level=%s"), *LevelName.ToString());
 		OnStreamedLevelEntered.Broadcast(LevelName);
 		return;
 	}
@@ -108,12 +97,9 @@ void ULevelManager::BroadcastCurrentStreamedLevelEntered()
 {
 	if (CurrentStreamedLevelName.IsNone())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[LevelManager] BroadcastCurrentStreamedLevelEntered ignored. CurrentStreamedLevelName is None."));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[LevelManager] BroadcastCurrentStreamedLevelEntered Level=%s"),
-		*CurrentStreamedLevelName.ToString());
 	OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
 }
 
@@ -149,7 +135,7 @@ void ULevelManager::OnLevelStarted(UWorld* World)
 		return;
 	}
 
-	//?붾쾭洹몄슜
+	// 맵 흐름 테스트용 입력 액터. 실제 배포 빌드에서는 BP/설정에서 사용 여부를 분리하는 것이 좋다.
 	SpawnDebugInputActor(World);
 
 	if (ShouldBootstrapMapSystem(MapName))
@@ -181,12 +167,10 @@ void ULevelManager::OnStreamedLevelLoaded()
 {
 	SetStreamedLevelVisibility(PendingStreamedLevelName, true);
 	const FName PreviousStreamedLevelName = CurrentStreamedLevelName;
+	LastPreviousStreamedLevelName = PreviousStreamedLevelName;
 	CurrentStreamedLevelName = PendingStreamedLevelName;
 	PendingStreamedLevelName = NAME_None;
 	bIsStreamingTransitionInProgress = false;
-	UE_LOG(LogTemp, Warning, TEXT("[LevelManager] StreamedLevelLoaded PreviousLevel=%s NewLevel=%s"),
-		*PreviousStreamedLevelName.ToString(),
-		*CurrentStreamedLevelName.ToString());
 	OnStreamedLevelChanged.Broadcast(PreviousStreamedLevelName, CurrentStreamedLevelName);
 	OnStreamedLevelEntered.Broadcast(CurrentStreamedLevelName);
 
@@ -232,7 +216,6 @@ void ULevelManager::OnCurrentStreamedLevelUnloaded()
 
 void ULevelManager::SpawnDebugInputActor(UWorld* World)
 {
-	//?붾쾭洹몄슜
 	if (!World)
 	{
 		return;
@@ -323,6 +306,7 @@ void ULevelManager::EnsureInitialStreamedLevelLoaded()
 	if (IsStreamedLevelLoaded(ConfiguredInitialLevelName))
 	{
 		const FName PreviousStreamedLevelName = CurrentStreamedLevelName;
+		LastPreviousStreamedLevelName = PreviousStreamedLevelName;
 		CurrentStreamedLevelName = ConfiguredInitialLevelName;
 		SetStreamedLevelVisibility(CurrentStreamedLevelName, true);
 		OnStreamedLevelChanged.Broadcast(PreviousStreamedLevelName, CurrentStreamedLevelName);
