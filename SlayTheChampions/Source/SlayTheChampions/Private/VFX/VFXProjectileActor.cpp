@@ -44,6 +44,8 @@ void AVFXProjectileActor::Launch(UParticleSystem* InParticle, AUnit* InTarget, f
 	TargetUnit = InTarget;
 	MoveSpeed = FMath::Max(100.f, InSpeed);
 	ImpactParticle = InImpactParticle;
+	ImpactDuration = InImpactDuration;
+	bImpactImmediateStop = bInImpactImmediateStop;
 
 	// 파티클 설정 및 활성화
 	ParticleComp->SetTemplate(InParticle);
@@ -105,31 +107,42 @@ void AVFXProjectileActor::BeforeImpact()
 
 void AVFXProjectileActor::OnArrived()
 {
-	UParticleSystemComponent* ImpactPsc = UGameplayStatics::SpawnEmitterAtLocation(
-		GetWorld(), ImpactParticle,
-		TargetUnit->GetActorLocation(),
-		FRotator::ZeroRotator, true);
+	//도착 처리는 한번만 Tick이 들어와도 재진입 차단
+	if (!bLaunched) return;
+	bLaunched = false;
+	PrimaryActorTick.SetTickFunctionEnable(false);
 
-	// Duration이 있으면 루프형 충돌 이펙트도 강제 종료
-	// (이 액터는 곧 Destroy되지만 임팩트 PSC와 월드 타이머는 독립적이라 안전)
-	if (ImpactPsc && ImpactDuration > 0.f)
+	//발사체 트레일 정지
+	BeforeImpact();
+	if (ImpactParticle && TargetUnit.IsValid())
 	{
-		if (UWorld* World = GetWorld())
+		UParticleSystemComponent* ImpactPsc = UGameplayStatics::SpawnEmitterAtLocation(
+			GetWorld(), ImpactParticle,
+			TargetUnit->GetActorLocation(),
+			FRotator::ZeroRotator, true);
+
+		// Duration이 있으면 루프형 충돌 이펙트도 강제 종료
+		// (이 액터는 곧 Destroy되지만 임팩트 PSC와 월드 타이머는 독립적이라 안전)
+		if (ImpactPsc && ImpactDuration > 0.f)
 		{
-			TWeakObjectPtr<UParticleSystemComponent> WeakPsc(ImpactPsc);
-			const bool bImmediate = bImpactImmediateStop;
-			FTimerHandle Handle;
-			World->GetTimerManager().SetTimer(Handle,
-				[WeakPsc, bImmediate]()
-				{
-					UParticleSystemComponent* Comp = WeakPsc.Get();
-					if (!Comp) return;
-					Comp->bAutoDestroy = true;
-					if (bImmediate) Comp->DeactivateImmediate();
-					else            Comp->Deactivate();
-				},
-				ImpactDuration, false);
+			if (UWorld* World = GetWorld())
+			{
+				TWeakObjectPtr<UParticleSystemComponent> WeakPsc(ImpactPsc);
+				const bool bImmediate = bImpactImmediateStop;
+				FTimerHandle Handle;
+				World->GetTimerManager().SetTimer(Handle,
+					[WeakPsc, bImmediate]()
+					{
+						UParticleSystemComponent* Comp = WeakPsc.Get();
+						if (!Comp) return;
+						Comp->bAutoDestroy = true;
+						if (bImmediate) Comp->DeactivateImmediate();
+						else            Comp->Deactivate();
+					},
+					ImpactDuration, false);
+			}
 		}
 	}
+	Destroy();
 }
 
