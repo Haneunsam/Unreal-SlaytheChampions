@@ -43,6 +43,9 @@ public:
 	/*맵 생성*/
 	void CreateMap();
 
+	/*새 게임 시작 시 메모리에 남아있는 맵 데이터를 초기화*/
+	void ResetMapData();
+
 	/*디버그용*/
 	bool HasMapData() const;
 

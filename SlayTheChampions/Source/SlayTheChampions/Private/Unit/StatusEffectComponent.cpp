@@ -49,7 +49,7 @@ void UStatusEffectComponent::RemoveEffect(TSubclassOf<UStatusEffect> EffectClass
             // 배열의 마지막 주소로 덮어써서 StatusEffect.cpp에 있는 OnRemoved 호출
             // 만약 아마 이렇게 작성하여 아무것도 없이 제거됨
             Active[i]->OnRemoved();
-            // Active 배열에 있는 해당 상태이상 제거
+            // Active 배열에 있는 해6당 상태이상 제거
             Active.RemoveAt(i);
             // 브로드캐스트
             OnEffectRemoved.Broadcast(EffectClass);

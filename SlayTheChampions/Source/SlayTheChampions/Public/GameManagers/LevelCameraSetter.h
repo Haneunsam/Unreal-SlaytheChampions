@@ -39,6 +39,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level Camera")
 	bool bSetCameraTransformDirectly = true;
 
+	// BeginPlay 직후 다른 시스템이 ViewTarget을 덮어쓰는 레벨에서만 켠다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level Camera")
+	bool bReapplyDefaultCameraNextTickOnBeginPlay = false;
+
 	// BP에 추가한 ArrowComponent들을 BeginPlay 때 자동으로 슬롯에 등록
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Camera|Slots")
 	bool bAutoRegisterChildArrowSlots = true;
@@ -90,4 +94,5 @@ public:
 private:
 	void MoveCameraToSlot(USceneComponent* CameraSlot, int32 SlotIndex, float OverrideBlendTime);
 	float ResolveBlendTime(float OverrideBlendTime) const;
+	void ReapplyDefaultCameraNextTick();
 };

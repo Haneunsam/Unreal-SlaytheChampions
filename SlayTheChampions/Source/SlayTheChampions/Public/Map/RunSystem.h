@@ -18,49 +18,52 @@ UCLASS()
 class SLAYTHECHAMPIONS_API URunSystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
+
 private:
-	/* 저장된 맵 구조체 */
+	/* 저장되는 런/맵 진행 정보 */
 	UPROPERTY()
 	FSaveMapInfo MapInfo;
 
-	/* 현재 Area */
+	/* 현재 플레이어가 머무는 방 */
 	UPROPERTY()
 	UArea* CurrentArea = nullptr;
 
-	/* Party 스냅샷 저장 */
+	/* 런 저장용 파티 스냅샷 */
 	UPROPERTY()
 	FRunPartySnapshot PartySnapshot;
 
-	/* Deck 스냅샷 저장 */
+	/* 런 저장용 덱 스냅샷 */
 	UPROPERTY()
 	FRunDeckSnapshot DeckSnapshot;
 
-	/* Relic 스냅샷 저장 */
+	/* 런 저장용 유물 스냅샷 */
 	UPROPERTY()
 	FRunRelicSnapshot RelicSnapshot;
 
-	/* MapManager */
+	/* 맵 데이터 생성과 조회를 담당하는 서브시스템 */
 	UPROPERTY()
 	UMapManager* MapManager = nullptr;
 
+	/* 방 클리어 보상 UI를 여는 시스템 */
 	UPROPERTY()
 	URewardSystem* RewardSystem = nullptr;
 
+	/* 방 클리어 후 복귀할 맵 서브레벨 이름 */
 	UPROPERTY()
 	FName MapLevelName = TEXT("RunMap");
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
-	/* 현재 진입가능한 Area 목록 변경 이벤트 */
+	/* 현재 진입 가능한 방 목록이 바뀔 때 호출된다. 포탈 스포너가 이 이벤트를 받아 포탈을 다시 만든다. */
 	UPROPERTY(BlueprintAssignable, Category = "Run")
 	FOnRoomSelectionChanged OnEnterableRoomsUpdated;
 
-	/* Area 진입 이벤트 */
+	/* 방에 입장했을 때 호출되는 공통 이벤트 */
 	UPROPERTY(BlueprintAssignable, Category = "Run")
 	FOnRoomEntered OnRoomEntered;
 
-	/* 각 Area 타입별 진입 이벤트 */
+	/* 방 타입별 입장 이벤트 */
 	UPROPERTY(BlueprintAssignable, Category = "Run")
 	FOnRoomEntered OnBattleRoomEntered;
 
@@ -80,94 +83,101 @@ public:
 	FOnRoomEntered OnArtifactEventRoomEntered;
 
 private:
-	/* 진입가능한 Area 상태 업데이트 */
+	/* 현재 방과 연결 정보를 기준으로 진입 가능한 방 상태를 갱신한다. */
 	void UpdateEnterableState();
-	/* Area 타입별 처리 */
+
+	/* 방 타입에 맞는 입장 이벤트를 호출한다. */
 	void BroadcastRoomTypeEvent(const FAreaInfo& RoomInfo);
-	/* 데이터 저장 */
+
+	/* 런 진행 데이터를 저장한다. */
 	void SaveGameData();
+
 public:
-	/* Run 시작 */
+	/* 런을 처음 상태로 시작한다. */
 	UFUNCTION(BlueprintCallable)
 	void StartRun();
 
-	/* Run 시작 후 맵 설정 */
+	/* 새 게임 시작 시 저장 복구용 런/맵 메모리 상태를 초기화한다. */
+	UFUNCTION(BlueprintCallable)
+	void ResetRunProgressForNewGame();
+
+	/* 맵 데이터를 준비한 뒤 런을 시작한다. 저장된 맵이 있으면 이어서 복구한다. */
 	UFUNCTION(BlueprintCallable)
 	void StartRunWithMap();
 
-	/* Run 상태 갱신 */
+	/* 저장된 현재 방 포인터와 진입 가능 방 상태를 다시 계산한다. */
 	UFUNCTION(BlueprintCallable)
 	void RefreshRunState();
 
-	/* Area 입장 */
+	/* 지정한 방에 입장한다. */
 	UFUNCTION(BlueprintCallable)
 	bool EnterRoom(UArea* Area);
 
-	/* 현재 Area 클리어 처리 */
+	/* 현재 방 클리어 처리 후 보상 UI를 연다. */
 	UFUNCTION(BlueprintCallable)
 	bool AreaCleared();
 
-	/* Area 클리어 후 맵 복귀 */
+	/* 방 클리어 후 RunMap으로 복귀한다. */
 	UFUNCTION(BlueprintCallable)
 	void ReturnToMapAfterAreaClear();
 
-	/* Area 입장 by GridIndex */
+	/* 맵 좌표로 방에 입장한다. */
 	UFUNCTION(BlueprintCallable)
 	bool EnterRoomByGridIndex(int32 FloorIndex, int32 RoomIndex);
 
-	/* Area 입장 가능 여부 확인 */
+	/* 지정한 방에 입장 가능한지 확인한다. */
 	UFUNCTION(BlueprintCallable)
 	bool CanEnterRoom(UArea* Area) const;
 
-	/* Area 입장 가능 여부 확인 by GridIndex */
+	/* 맵 좌표로 입장 가능 여부를 확인한다. */
 	UFUNCTION(BlueprintCallable)
 	bool CanEnterRoomByGridIndex(int32 FloorIndex, int32 RoomIndex) const;
 
-	/* 현재 진입가능한 Area 목록 반환 */
+	/* 현재 진입 가능한 방 목록을 반환한다. */
 	UFUNCTION(BlueprintCallable)
 	TArray<FAreaInfo> GetEnterableRooms() const;
 
-	/* 현재 Run 상태 반환 */
+	/* 현재 런 상태를 반환한다. */
 	UFUNCTION(BlueprintPure)
 	ERunState GetRunState() const { return MapInfo.CurrentRunState; }
 
-	/* 현재 Area 정보 반환 */
+	/* 현재 방 정보를 반환한다. */
 	UFUNCTION(BlueprintPure)
 	FAreaInfo GetCurrentRoomInfo() const { return MapInfo.CurrentRoomInfo; }
 
-	/* 현재 층 인덱스 반환. 맵 내부 인덱스라 0층부터 시작한다. */
+	/* 현재 층 인덱스를 반환한다. 내부 값은 0층부터 시작한다. */
 	UFUNCTION(BlueprintPure)
 	int32 GetCurrentFloorIndex() const { return MapInfo.CurrentFloorIndex; }
 
-	/* UI 표시용 현재 층 반환. 내부 0층을 1층으로 표시한다. */
+	/* UI 표시용 현재 층을 반환한다. 내부 0층을 화면에는 1층으로 보여준다. */
 	UFUNCTION(BlueprintPure)
 	int32 GetCurrentDisplayFloor() const { return MapInfo.CurrentFloorIndex == INDEX_NONE ? 0 : MapInfo.CurrentFloorIndex + 1; }
 
-	/* 보상 시스템 반환 */
+	/* 보상 시스템을 반환한다. */
 	UFUNCTION(BlueprintPure)
 	URewardSystem* GetRewardSystem() const { return RewardSystem; }
 
-	/* MapInfo 반환 */
+	/* 저장용 맵 정보를 반환한다. */
 	UFUNCTION(BlueprintPure)
 	FSaveMapInfo GetMapInfo() const;
 
-	/* MapInfo 설정 */
+	/* 저장된 맵 정보를 주입한다. */
 	UFUNCTION(BlueprintCallable)
 	void SetMapInfo(FSaveMapInfo _info);
 
-	/* 맵 레벨 이름 설정 */
+	/* 복귀할 맵 레벨 이름을 설정한다. */
 	UFUNCTION(BlueprintCallable)
 	void SetMapLevelName(FName InMapLevelName) { MapLevelName = InMapLevelName; }
 
-	/* Party 설정 */
+	/* 파티 스냅샷을 설정한다. */
 	UFUNCTION(BlueprintCallable)
 	void SetPartySnapshot(const FRunPartySnapshot& InSnapshot);
 
-	/* Deck 설정 */
+	/* 덱 스냅샷을 설정한다. */
 	UFUNCTION(BlueprintCallable)
 	void SetDeckSnapshot(const FRunDeckSnapshot& InSnapshot);
 
-	/* Relic 설정 */
+	/* 유물 스냅샷을 설정한다. */
 	UFUNCTION(BlueprintCallable)
 	void SetRelicSnapshot(const FRunRelicSnapshot& InSnapshot);
 

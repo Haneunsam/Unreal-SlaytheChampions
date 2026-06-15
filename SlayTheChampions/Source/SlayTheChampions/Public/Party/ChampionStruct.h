@@ -9,6 +9,16 @@
 
 class AUnit;
 
+// 파티원 1명의 덱 카드 목록 (PawnIndex별로 배열로 관리)
+USTRUCT(BlueprintType)
+struct FDeckSaveData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Deck")
+	TArray<FName> Cards;
+};
+
 /*Champion 정보*/
 USTRUCT(BlueprintType)
 struct FSavePartyInfo
@@ -41,6 +51,10 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance")
 	TArray<int32> ChampionMaxHPs;
+
+	// 파티원별 덱 (인덱스 = PawnIndex). 보상 카드 포함 전체 덱 상태 저장.
+	UPROPERTY(BlueprintReadOnly, Category = "ChampionInstance")
+	TArray<FDeckSaveData> ChampionDecks;
 public:
 
 	FSavePartyInfo()
@@ -58,5 +72,6 @@ public:
 		Potions.Empty();
 		ChampionCurrentHPs.Empty();
 		ChampionMaxHPs.Empty();
+		ChampionDecks.Empty();
 	}
 };

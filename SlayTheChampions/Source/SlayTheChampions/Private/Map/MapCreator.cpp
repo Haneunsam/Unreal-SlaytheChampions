@@ -95,15 +95,24 @@ void UMapCreator::CreateMap()
 	//Area 연결
 	ConnectAreas(CurrentWidth, CurrentHeight);
 
-	//디버그용
-	for (int i = 0; i < Map.Num(); i++)
-	{
-		if (Map[i] == nullptr) continue;
+	// 실제 월드 액터 생성은 PortalSpawner가 현재 진입 가능한 방만 처리한다.
+}
 
-		Map[i]->DebugShowInfo();
+void UMapCreator::ResetMapData()
+{
+	InitWorldMap();
+
+	if (LoadDefaultConfig())
+	{
+		InitGridMap();
+		InitMap();
+		return;
 	}
 
-	// 실제 월드 액터 생성은 PortalSpawner가 현재 진입 가능한 방만 처리한다.
+	GridMap.Empty();
+	Map.Empty();
+	CurrentWidth = 7;
+	CurrentHeight = 15;
 }
 
 bool UMapCreator::HasMapData() const
